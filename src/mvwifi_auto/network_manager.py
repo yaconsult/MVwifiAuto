@@ -46,7 +46,9 @@ class NetworkManager:
             SSID string or None if not connected to WiFi.
         """
         try:
-            active_path = self._nm.Get("org.freedesktop.NetworkManager", "ActiveConnections")
+            # Use Properties interface to get ActiveConnections
+            nm_props = dbus.Interface(self._nm, "org.freedesktop.DBus.Properties")
+            active_path = nm_props.Get("org.freedesktop.NetworkManager", "ActiveConnections")
             if not active_path:
                 return None
 
@@ -55,15 +57,27 @@ class NetworkManager:
                 conn_iface = dbus.Interface(conn_obj, "org.freedesktop.DBus.Properties")
 
                 # Get connection type
-                conn_type = conn_iface.Get(self.NM_ACTIVE_CONNECTION_INTERFACE, "Type")
+                try:
+                    conn_type = conn_iface.Get(self.NM_ACTIVE_CONNECTION_INTERFACE, "Type")
+                except dbus.DBusException:
+                    continue
+
                 if conn_type != "802-11-wireless":
                     continue
 
                 # Get the connection object
-                conn_path_obj = conn_iface.Get(self.NM_ACTIVE_CONNECTION_INTERFACE, "Connection")
+                try:
+                    conn_path_obj = conn_iface.Get(self.NM_ACTIVE_CONNECTION_INTERFACE, "Connection")
+                except dbus.DBusException:
+                    continue
+
                 settings_obj = self._bus.get_object(self.NM_SERVICE, conn_path_obj)
                 settings_iface = dbus.Interface(settings_obj, "org.freedesktop.NetworkManager.Settings.Connection")
-                settings = settings_iface.GetSettings()
+
+                try:
+                    settings = settings_iface.GetSettings()
+                except dbus.DBusException:
+                    continue
 
                 # Extract SSID from settings
                 if "802-11-wireless" in settings:
