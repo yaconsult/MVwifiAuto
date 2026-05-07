@@ -163,13 +163,35 @@ ExecStart=%h/.local/bin/mvwifi-auto --daemon --interval 60
 WantedBy=default.target
 ```
 
+### Resume Service
+
+For handling suspend/resume scenarios where captive portal sessions expire:
+
+```ini
+[Unit]
+Description=MV WiFi Auto Resume Check
+After=suspend.target hibernate.target hybrid-sleep.target NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 5
+ExecStart=%h/.local/bin/mvwifi-auto --once
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target
+```
+
+This service runs once after waking from sleep to handle expired portal sessions.
+
 ### User vs System Service
 
 **User Service (Chosen)**
 - ✓ No root privileges needed
 - ✓ Runs only when user logged in
 - ✓ Per-user configuration
-- ✓ No security concerns with D-Bus access
+- ✗ Requires D-Bus polkit permissions (see below)
 - ✗ Requires user session
 
 **System Service (Not Used)**

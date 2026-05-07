@@ -23,6 +23,10 @@ class NetworkManager:
     NM_PATH = "/org/freedesktop/NetworkManager"
     NM_SETTINGS_PATH = "/org/freedesktop/NetworkManager/Settings"
     NM_DEVICE_INTERFACE = "org.freedesktop.NetworkManager.Device"
+
+    # NM Device types (from NetworkManager.h)
+    NM_DEVICE_TYPE_ETHERNET = 1
+    NM_DEVICE_TYPE_WIFI = 2
     NM_DEVICE_WIFI_INTERFACE = "org.freedesktop.NetworkManager.Device.Wireless"
     NM_AP_INTERFACE = "org.freedesktop.NetworkManager.AccessPoint"
     NM_ACTIVE_CONNECTION_INTERFACE = "org.freedesktop.NetworkManager.Connection.Active"
@@ -106,8 +110,7 @@ class NetworkManager:
                 dev_obj = self._bus.get_object(self.NM_SERVICE, dev_path)
                 dev_iface = dbus.Interface(dev_obj, "org.freedesktop.DBus.Properties")
                 dev_type = dev_iface.Get(self.NM_DEVICE_INTERFACE, "DeviceType")
-                # DeviceType 2 is WiFi
-                if dev_type == 2:
+                if dev_type == self.NM_DEVICE_TYPE_WIFI:
                     wifi_device_path = dev_path
                     break
 

@@ -124,6 +124,16 @@ SCAN_TIMEOUT = 15.0              # Seconds to wait for WiFi scan
 
 Or pass custom settings via environment variables (not yet implemented - PR welcome!).
 
+### Other Networks
+
+**Preferred networks** (like `dd-wrt`) and **other saved networks** (like `Pixel_6a`) are handled automatically by NetworkManager:
+
+- **At home**: NetworkManager connects to `dd-wrt` automatically (if saved)
+- **In the car**: NetworkManager connects to `Pixel_6a` hotspot automatically (if saved)
+- **At Peets/MV Library**: Our service connects to `cmvwifi` and handles captive portal
+
+The service only intervenes for `cmvwifi`. All other networks are left to NetworkManager.
+
 ## Development
 
 ```bash

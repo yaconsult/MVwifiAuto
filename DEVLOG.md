@@ -54,11 +54,43 @@
 - Debug and manual testing procedures
 
 ### Next Steps
-- [ ] Test on actual cmvwifi network
+- [x] Test on actual cmvwifi network - Done, working!
+- [x] Install and configure on user system - Done
 - [ ] Consider adding config file support
 - [ ] Add logging to file option
 - [ ] Add integration tests
 - [ ] Create CI/CD workflow
+
+### 2026-05-07 - Installation and Real-World Testing
+
+#### Completed
+- [x] Installed on user's Fedora laptop
+- [x] Fixed D-Bus permission error with polkit rule
+- [x] Created resume service for suspend/hibernate handling
+- [x] Replaced magic number (2) with NM_DEVICE_TYPE_WIFI constant
+- [x] Cleaned up debug print statements
+- [x] Tested disconnect/reconnect behavior
+
+#### Technical Decisions
+1. **Polkit rule required** - Systemd user service needs explicit D-Bus permissions for NetworkManager
+2. **Resume service as oneshot** - Triggers once after wake, runs connectivity check
+3. **Constants for NM device types** - Magic number 2 → NM_DEVICE_TYPE_WIFI = 2
+
+#### Challenges
+- **D-Bus AccessDenied** - User systemd service couldn't query NetworkManager without polkit rule
+  - Solution: Created `/etc/polkit-1/rules.d/50-mvwifi-auto.rules`
+- **Recursive uv run** - Wrapper script called itself infinitely
+  - Solution: Changed from `uv run mvwifi-auto` to `uv run python -m mvwifi_auto.cli`
+
+#### Testing
+- Connected to cmvwifi: ✓ Detected correctly
+- Manual disconnect: ✓ NetworkManager autoreconnects before service check (expected)
+- Service active: ✓ Running every 60s, doing nothing when already connected (correct)
+- D-Bus permissions: ✓ Fixed with polkit rule
+
+#### Next Steps
+- Monitor for actual captive portal scenarios
+- Document polkit requirement in install.sh
 
 ## Template for Future Entries
 

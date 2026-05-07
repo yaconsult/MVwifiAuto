@@ -50,31 +50,49 @@ journalctl --user -u mvwifi-auto --since "5 minutes ago"
 
 ### D-Bus Permission Errors
 
-**Problem**: `AccessDenied: Sender is not authorized`
+**Problem**: `AccessDenied: Sender is not authorized` when running as systemd user service
 
-**Cause**: User doesn't have permission to access NetworkManager D-Bus interface
+**Cause**: Systemd user service doesn't have D-Bus permissions to access NetworkManager
 
 **Solution**:
-1. Check if user is in correct groups:
-   ```bash
-   groups $USER
-   # Should include network or similar
-   ```
 
-2. Verify NetworkManager is running:
-   ```bash
-   systemctl status NetworkManager
-   ```
+**Quick workaround** (for testing):
+```bash
+# Stop systemd service
+systemctl --user stop mvwifi-auto
 
-3. Test D-Bus access manually:
-   ```bash
-   python3 -c "
-   import dbus
-   bus = dbus.SystemBus()
-   nm = bus.get_object('org.freedesktop.NetworkManager', '/org/freedesktop/NetworkManager')
-   print('D-Bus access OK')
-   "
-   ```
+# Run in user session instead (avoids permission issues)
+mvwifi-auto --daemon &
+```
+
+**Proper fix** (recommended):
+
+Create a polkit rule to allow your user to access NetworkManager:
+
+```bash
+sudo tee /etc/polkit-1/rules.d/50-mvwifi-auto.rules << 'EOF'
+/* Allow mvwifi-auto user service to access NetworkManager */
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0 &&
+        subject.user == "USERNAME") {
+        return polkit.Result.YES;
+    }
+});
+EOF
+# Replace USERNAME with your actual username
+```
+
+Then reload and restart:
+```bash
+sudo systemctl restart polkit
+systemctl --user restart mvwifi-auto
+```
+
+**Verify the fix:**
+```bash
+mvwifi-auto --once --verbose
+# Should show: "Current state: ssid='cmvwifi', internet=True"
+```
 
 ### Not Connecting to cmvwifi
 
