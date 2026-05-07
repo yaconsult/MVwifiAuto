@@ -14,52 +14,48 @@ Automatically connects to Mountain View public WiFi (`cmvwifi`) when in range an
 
 ## Installation
 
+### Quick Install (Recommended)
+
+Run the install script that automates everything:
+
+```bash
+cd ~/PycharmProjects/MVwifiAuto
+./install.sh
+```
+
+Then start the service:
+```bash
+systemctl --user start mvwifi-auto
+systemctl --user enable mvwifi-auto  # Auto-start on login
+journalctl --user -u mvwifi-auto -f  # Watch logs
+```
+
 ### Prerequisites
 
 - Fedora (or any Linux with NetworkManager)
 - Python 3.11+
-- `uv` for Python package management
-- `nmcli` (usually included with NetworkManager)
+- `uv`: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- `python3-dbus`: `sudo dnf install python3-dbus` (or `apt` on Debian/Ubuntu)
+- `nmcli`: included with NetworkManager
 
-### Install
+### Manual Install (Alternative)
+
+If you prefer not to use `install.sh`:
 
 ```bash
-# Clone or copy this project
 cd ~/PycharmProjects/MVwifiAuto
 
-# Install dependencies
+# Setup venv with system site packages
+uv venv --system-site-packages
 uv sync
-
-# Install the package in user mode
 uv pip install -e .
 
-# Or install directly to user bin
-mkdir -p ~/.local/bin
-cp -r src/mvwifi_auto ~/.local/lib/python3.*/site-packages/ 2>/dev/null || true
-# Or use: pip install --user -e .
-```
-
-### Install Systemd Service
-
-```bash
-# Create systemd user directory if needed
+# Install systemd service
 mkdir -p ~/.config/systemd/user
-
-# Copy service file
 cp systemd/mvwifi-auto.service ~/.config/systemd/user/
-
-# Reload systemd daemon
 systemctl --user daemon-reload
-
-# Enable and start service
 systemctl --user enable mvwifi-auto.service
 systemctl --user start mvwifi-auto.service
-
-# Check status
-systemctl --user status mvwifi-auto.service
-
-# View logs
-journalctl --user -u mvwifi-auto -f
 ```
 
 ## Usage
@@ -120,15 +116,18 @@ Or pass custom settings via environment variables (not yet implemented - PR welc
 # Setup dev environment
 uv sync
 
+# Run tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=mvwifi_auto
+
 # Run linting
-ruff check src/
-ruff format src/
+uv run ruff check src/
+uv run ruff format src/
 
 # Type checking
-mypy src/
-
-# Run tests (when added)
-pytest
+uv run mypy src/
 ```
 
 ## How the Captive Portal Works
