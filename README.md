@@ -74,6 +74,20 @@ systemctl --user restart mvwifi-auto
 journalctl --user -u mvwifi-auto -f
 ```
 
+### Suspend/Resume Handling
+
+After sleep/hibernate, the captive portal session may expire. Enable the resume service to automatically reconnect:
+
+```bash
+# Enable resume check (runs once after waking)
+systemctl --user enable mvwifi-auto-resume
+
+# To check resume service logs
+journalctl --user -u mvwifi-auto-resume -f
+```
+
+The resume service waits 5 seconds after waking, then runs a connectivity check.
+
 ### Manual/One-Shot Mode
 
 Run once manually (useful for testing):

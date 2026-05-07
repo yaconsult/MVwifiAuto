@@ -50,10 +50,11 @@ fi
 
 echo "Package installed successfully"
 
-# Install systemd user service
-echo "Installing systemd user service..."
+# Install systemd user services
+echo "Installing systemd user services..."
 mkdir -p ~/.config/systemd/user
 cp systemd/mvwifi-auto.service ~/.config/systemd/user/
+cp systemd/mvwifi-auto-resume.service ~/.config/systemd/user/
 
 # Get the actual path for ExecStart and update service file
 BIN_PATH="$HOME/.local/bin"
@@ -64,13 +65,14 @@ WRAPPER="$BIN_PATH/mvwifi-auto"
 cat > "$WRAPPER" << 'EOF'
 #!/bin/bash
 # Wrapper script to run mvwifi-auto from the project directory
-cd "$(dirname "$(dirname "$(readlink -f "$0")")")"
-exec uv run mvwifi-auto "$@"
+cd "$HOME/PycharmProjects/MVwifiAuto"
+exec uv run python -m mvwifi_auto.cli "$@"
 EOF
 chmod +x "$WRAPPER"
 
-# Update service file to use the correct path
+# Update service files to use the correct path
 sed -i "s|%h/.local/bin/mvwifi-auto|$WRAPPER|g" ~/.config/systemd/user/mvwifi-auto.service
+sed -i "s|%h/.local/bin/mvwifi-auto|$WRAPPER|g" ~/.config/systemd/user/mvwifi-auto-resume.service
 
 # Reload systemd
 systemctl --user daemon-reload
@@ -83,6 +85,9 @@ echo "  systemctl --user start mvwifi-auto"
 echo ""
 echo "To enable auto-start on login:"
 echo "  systemctl --user enable mvwifi-auto"
+echo ""
+echo "To enable resume check (after suspend/hibernate):"
+echo "  systemctl --user enable mvwifi-auto-resume"
 echo ""
 echo "To check status:"
 echo "  systemctl --user status mvwifi-auto"
