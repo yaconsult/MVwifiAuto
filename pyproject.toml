@@ -21,11 +21,6 @@ dev = [
 
 [tool.uv]
 package = true
-managed = true
-python-preference = "system"
-
-[tool.uv.pip]
-system-site-packages = true
 
 [build-system]
 requires = ["hatchling"]
