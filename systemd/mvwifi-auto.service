@@ -1,0 +1,16 @@
+[Unit]
+Description=Mountain View WiFi Auto-Connect
+Documentation=https://github.com/lpinard/mvwifi-auto
+After=network.target NetworkManager.service
+Wants=network.target NetworkManager.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+ExecStart=%h/.local/bin/mvwifi-auto --daemon --interval 60
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
