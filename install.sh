@@ -66,7 +66,8 @@ cat > "$WRAPPER" << 'EOF'
 #!/bin/bash
 # Wrapper script to run mvwifi-auto from the project directory
 cd "$HOME/PycharmProjects/MVwifiAuto"
-exec uv run python -m mvwifi_auto.cli "$@"
+export PYTHONPATH="$HOME/PycharmProjects/MVwifiAuto/src"
+exec python3 -m mvwifi_auto.cli "$@"
 EOF
 chmod +x "$WRAPPER"
 
