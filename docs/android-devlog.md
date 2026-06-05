@@ -157,8 +157,9 @@ Development notes for the Tasker-based Android port of MVwifiAuto.
 ### Issue: Connect to WiFi Action Fails with Error 1
 - **Symptom**: Error 1, notification saying *"Can't connect to WiFi — please contact the developer"*.
 - **Initial theory**: Android 10+ restriction on programmatic WiFi switching.
-- **Actual root cause**: `cmvwifi` had never been connected to manually, so Android didn't have it saved. After a reboot and letting Android connect once, the built-in **Net → Connect to WiFi** action worked fine.
-- **Resolution**: No code change needed. Guide updated to note that `cmvwifi` must be saved in Android's WiFi settings first (connect manually once). A reboot also helps if the saved network state is stale.
+- **Apparent fix at the time**: Connecting manually + reboot seemed to resolve it, so root cause was incorrectly attributed to a missing saved network.
+- **Actual root cause** (confirmed next session): Android 10+ permanently removed `WifiManager.enableNetwork()` — the API Tasker's built-in **Net → Connect to WiFi** relies on. The reboot fix was coincidental or temporary.
+- **Real fix**: Replace **Net → Connect to WiFi** with **Code → Run Shell**: `cmd wifi connect-network cmvwifi open` with **Use Root: On**. This uses Android's `cmd wifi` tool directly via root, bypassing the broken API.
 
 ### Clarifications Learned This Session
 - Tasker's "check notification" error → pull down Android notification shade immediately after the task runs
@@ -208,6 +209,53 @@ Development notes for the Tasker-based Android port of MVwifiAuto.
 ### How to Read Tasker Error Notifications
 - When Tasker shows "check notification": pull down Android notification shade immediately after the task runs.
 - Generic "contact the developer" message = Android OS rejected the request. Check prerequisites and permissions before assuming a code fix is needed.
+
+---
+
+## Session 8 — XML Project Generation
+
+### Goal
+Generate a valid Tasker `.prj.xml` file from the computer so all tasks and the profile can be imported directly into Tasker, eliminating manual UI entry and the risk of typos.
+
+### Research
+- Studied real exported `.prj.xml` files from GitHub to confirm parameter tag formats.
+- Key action codes confirmed:
+  - `37`=If, `38`=End If, `43`=Else, `30`=Wait, `137`=Stop
+  - `130`=Perform Task, `123`=Run Shell, `547`=Variable Set
+  - `548`=Flash, `590`=Variable Split, `598`=Variable Search Replace
+  - `339`=HTTP Request (modern, uses `Bundle sr="arg0"` for metadata)
+  - `170`=WiFi Near (State profile)
+- HTTP Request (code `339`) parameter mapping:
+  - `arg1`: method (0=GET, 1=POST)
+  - `arg2`: URL
+  - `arg3`: headers (plain string `Key:Value`)
+  - `arg4`: body
+  - `arg8`: timeout seconds
+  - `arg9`: follow redirects (0=on, 1=off)
+- Perform Task (code `130`) parameter mapping:
+  - `arg0`: task name
+  - `arg2`: priority
+  - `arg3`: par1 (Parameter 1)
+  - `arg6`: stop calling task when done (1=yes)
+  - `arg10`: wait for task to finish (1=yes)
+- Run Shell (code `123`): `arg0`=command, `arg1`=use root (1=yes)
+- Condition operator `2` = equals (`~` in Tasker UI)
+
+### Output
+Created `android/MVwifiAuto.prj.xml` containing:
+- Profile: `cmvwifi Auto Connect` (WiFi Near SSID=cmvwifi → runs `ConnectToCmvwifi`)
+- Tasks: `DebugFlash`, `DebugOn`, `DebugOff`, `HandlePortal`, `ConnectToCmvwifi`, `TestWiFiScan`
+
+### Transfer Method
+```
+adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/MVwifiAuto.prj.xml
+```
+Then in Tasker: long-press bottom nav bar → Import Project.
+
+### Caveats
+- XML was generated from documentation and real examples, not an actual Tasker export. May need minor corrections after first import attempt.
+- Global variables (`%DebugMode`) are not stored in the XML. Run `DebugOn` after import.
+- `&` in HTTP POST body is encoded as `&amp;` in XML.
 
 ---
 

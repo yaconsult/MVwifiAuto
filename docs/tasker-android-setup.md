@@ -397,12 +397,16 @@ This task connects to cmvwifi and calls HandlePortal.
 
 #### Action 2: Connect to WiFi
 
+> **Android 10+ note**: The built-in **Net → Connect to WiFi** action fails with Error 1 on Android 10+ because Google removed the API it relies on. Use a root shell command instead.
+
 1. Tap **+**
-2. Select **Net** → **Connect to WiFi**
-3. **SSID**: `cmvwifi`
+2. Select **Code** → **Run Shell**
+3. Configure:
+   - **Command**: `cmd wifi connect-network cmvwifi open`
+   - **Use Root**: Check this box
 4. Tap the **back arrow** ← to save
 
-> **Note**: This requires `cmvwifi` to have been connected to at least once manually first, so Android has it saved. If you get "Error 1", connect to `cmvwifi` manually via Android Settings → WiFi and try again (a reboot may also help).
+> **Note**: `cmvwifi` must have been connected to manually at least once first so Android has it in its saved networks list. The `open` parameter tells Android the network has no password/security.
 
 #### Action 3: Debug Connection Status
 
@@ -430,7 +434,7 @@ This task connects to cmvwifi and calls HandlePortal.
 
 ```
 A1: Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] cmvwifi detected, connecting... ]
-A2: Connect to WiFi [ SSID:cmvwifi ]
+A2: Run Shell [ Command:cmd wifi connect-network cmvwifi open Use Root:On ]
 A3: Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] Connected, waiting for portal... ]
 A4: Wait [ Seconds:3 ]
 A5: Perform Task [ Name:HandlePortal ]
@@ -584,6 +588,35 @@ A9: Perform Task [ Name:DebugFlash Par1:[TestWiFiScan] Found networks: %Availabl
 4. If not on `dd-wrt`, it scans and shows nearby networks
 
 This verifies the scanning logic works before you test with `cmvwifi`.
+
+---
+
+## Alternative: Import from XML (Skip Manual Setup)
+
+Instead of building all tasks by hand, you can import the pre-built project file from the repo.
+
+### Transfer the file to your phone
+
+From your computer:
+```
+adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/MVwifiAuto.prj.xml
+```
+
+Or copy `android/MVwifiAuto.prj.xml` to your phone via USB, cloud storage, or any file transfer method — place it anywhere accessible (e.g. Downloads).
+
+### Import into Tasker
+
+1. Open Tasker
+2. Long-press anywhere on the **bottom navigation bar** (where the project tabs are)
+3. Tap **Import Project**
+4. Navigate to the file and select it
+5. All tasks and the profile will be imported automatically
+
+### After import
+
+- Run `DebugOn` once to enable debug messages before testing
+- Verify each task looks correct before running the full flow
+- Global variables (`%DebugMode`) are not stored in the XML — set them by running `DebugOn`/`DebugOff`
 
 ---
 
