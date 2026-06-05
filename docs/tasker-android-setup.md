@@ -593,30 +593,65 @@ This verifies the scanning logic works before you test with `cmvwifi`.
 
 ## Alternative: Import from XML (Skip Manual Setup)
 
-Instead of building all tasks by hand, you can import the pre-built project file from the repo.
+Instead of building all tasks by hand, you can import the pre-built project file from the repo. This creates a new **MVwifiAuto** project tab in Tasker — your existing Base project tasks are not affected.
 
-### Transfer the file to your phone
+### Step 1: Transfer the file to your phone
 
-From your computer:
+**Option A — ADB (recommended if you have ADB set up):**
 ```
 adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/MVwifiAuto.prj.xml
 ```
 
-Or copy `android/MVwifiAuto.prj.xml` to your phone via USB, cloud storage, or any file transfer method — place it anywhere accessible (e.g. Downloads).
+**Option B — USB file transfer:**
+1. Connect your phone via USB
+2. On the phone, swipe down → tap the USB notification → select **File Transfer**
+3. On your computer, copy `android/MVwifiAuto.prj.xml` to the phone's `Downloads` folder (or anywhere you can find it)
 
-### Import into Tasker
+**Option C — Cloud/email:**
+Copy the file to Google Drive, email it to yourself, or use any other method — just note where it lands on the phone.
 
-1. Open Tasker
-2. Long-press anywhere on the **bottom navigation bar** (where the project tabs are)
-3. Tap **Import Project**
-4. Navigate to the file and select it
-5. All tasks and the profile will be imported automatically
+### Step 2: Import into Tasker
 
-### After import
+1. Open **Tasker** on the phone
+2. Look at the **bottom of the screen** — you'll see project tab(s) (e.g. "Base")
+3. **Long-press** on an empty area of that bottom bar (not on an existing tab name)
+4. A menu appears — tap **Import Project**
+5. A file browser opens — navigate to where you placed the `.prj.xml` file
+6. Tap `MVwifiAuto.prj.xml` to select it
+7. Tasker will import and a new **MVwifiAuto** tab will appear at the bottom
 
-- Run `DebugOn` once to enable debug messages before testing
-- Verify each task looks correct before running the full flow
-- Global variables (`%DebugMode`) are not stored in the XML — set them by running `DebugOn`/`DebugOff`
+### Step 3: Verify the import
+
+Tap the **MVwifiAuto** tab. You should see:
+
+**TASKS tab:**
+- `ConnectToCmvwifi`
+- `DebugFlash`
+- `DebugOff`
+- `DebugOn`
+- `HandlePortal`
+- `TestWiFiScan`
+
+**PROFILES tab:**
+- `cmvwifi Auto Connect` (linked to `ConnectToCmvwifi`)
+
+Tap any task to open it and verify the actions look correct before running anything.
+
+### Step 4: Clean up existing tasks (if needed)
+
+If you previously created any of these tasks manually in the **Base** project, you'll have duplicates. To delete them from Base:
+
+1. Tap the **Base** tab
+2. Long-press the task you want to remove
+3. Tap the **trash icon** (delete)
+
+### Step 5: After import setup
+
+1. Tap the **MVwifiAuto** tab
+2. Tap `DebugOn` then tap **▶ Play** at the bottom — you should see a Flash: `Debug logging ON`
+3. This sets `%DebugMode` to `true` so all subsequent tasks will show debug messages
+
+> **Note**: Global variables like `%DebugMode` are not stored in the XML. You must run `DebugOn` after every fresh import or phone restart (if Tasker loses its variable state).
 
 ---
 
