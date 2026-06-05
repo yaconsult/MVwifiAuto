@@ -259,10 +259,40 @@ Then in Tasker: long-press bottom nav bar → Import Project.
 
 ---
 
+## Session 9 — First Import & Bug Fixes
+
+### Tasker Project Namespace — Task Names Are Global
+- **Discovery**: Tasker task names must be unique across **all** projects, not just within a single project. A task called `ConnectToCmvwifi` in Base conflicts with one in MVwifiAuto.
+- **Resolution**: User deleted all manually-created tasks and profiles from the Base project before importing `MVwifiAuto.prj.xml`. Import succeeded.
+
+### Bug: Profile Triggered Wrong Task
+- **Symptom**: After import, the `cmvwifi Auto Connect` profile was set to execute `DebugFlash` instead of `ConnectToCmvwifi`.
+- **Root cause**: The XML had `<mid0>10</mid0>` (DebugFlash's ID) instead of `<mid0>50</mid0>` (ConnectToCmvwifi's ID). Typo during XML authoring.
+- **Fix**: Corrected `<mid0>` in `android/MVwifiAuto.prj.xml` to `50`. User also fixed it directly in Tasker UI (no reimport needed for existing install).
+- **Lesson**: Always verify profile→task linkage after import by checking the PROFILES tab.
+
+### TestWiFiScan Verified Working
+- User ran `TestWiFiScan` at home successfully — flash messages appeared confirming:
+  - `DebugFlash` task works correctly
+  - `%WIFII` variable returns SSID on the Pixel
+  - If block logic executes correctly
+  - XML action parameter format is valid for simple actions
+
+### Pending Real-World Test
+- Full `ConnectToCmvwifi` → `HandlePortal` flow not yet tested (requires being near `cmvwifi`).
+- Recommended test sequence with `DebugOn` active:
+  1. Run `ConnectToCmvwifi` manually
+  2. Watch for flash: `HTTP code: 302` (or 307)
+  3. Watch for flash: `Gateway IP: 192.168.x.x`
+  4. Watch for flash: `Success: Connected with internet!`
+
+---
+
 ## Open Questions / Next Steps
 
-- [ ] Test full portal flow when near `cmvwifi` — verify HTTP redirect detected, gateway IP extracted, POST accepted, internet verified
-- [ ] Confirm `%http_response_code` is set correctly after HTTP Request (run `HandlePortal` manually near `cmvwifi` with `DebugOn`)
-- [ ] Confirm `Location:` header format exactly matches search/replace pattern (`Location: http://`)
-- [ ] Confirm `%WIFII` returns SSID correctly on the Pixel (run `TestWiFiScan` at home)
-- [ ] Test WiFi Near profile triggers `ConnectToCmvwifi` automatically when walking into range
+- [x] Confirm `%WIFII` returns SSID correctly on the Pixel — **verified via TestWiFiScan**
+- [ ] Test full portal flow near `cmvwifi`: HTTP redirect → gateway IP → POST acceptance → internet verified
+- [ ] Confirm `%http_response_code` is 302/307 after portal detection HTTP GET
+- [ ] Confirm `Location:` header format matches search/replace pattern (`Location: http://`)
+- [ ] Test WiFi Near profile auto-triggers `ConnectToCmvwifi` when walking into range
+- [ ] Once working, export the corrected `.prj.xml` from the phone and commit it to replace the hand-authored version

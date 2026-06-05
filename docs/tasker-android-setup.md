@@ -595,6 +595,8 @@ This verifies the scanning logic works before you test with `cmvwifi`.
 
 Instead of building all tasks by hand, you can import the pre-built project file from the repo. This creates a new **MVwifiAuto** project tab in Tasker — your existing Base project tasks are not affected.
 
+> **Important — task names are global in Tasker**: Task names must be unique across *all* projects. If you already have tasks named `ConnectToCmvwifi`, `HandlePortal`, etc. in your Base project, the import will fail with a conflict error. Delete or rename those tasks in Base before importing.
+
 ### Step 1: Transfer the file to your phone
 
 **Option A — ADB (recommended if you have ADB set up):**
@@ -636,6 +638,8 @@ Tap the **MVwifiAuto** tab. You should see:
 - `cmvwifi Auto Connect` (linked to `ConnectToCmvwifi`)
 
 Tap any task to open it and verify the actions look correct before running anything.
+
+> **Verify the profile linkage**: On the PROFILES tab, tap `cmvwifi Auto Connect` and confirm the linked task shown is `ConnectToCmvwifi` — not `DebugFlash` or anything else. If it's wrong, tap the task name and change it.
 
 ### Step 4: Clean up existing tasks (if needed)
 
