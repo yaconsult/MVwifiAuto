@@ -334,16 +334,14 @@
 			<Int sr="arg9" val="0"/>
 			<Int sr="arg10" val="1"/>
 		</Action>
-		<!-- A2: Connect to cmvwifi via root shell (Android 10+ workaround) -->
+		<!-- A2: Connect to cmvwifi via Net → Connect to WiFi (requires Tasker Settings app) -->
 		<Action sr="act1" ve="7">
-			<code>123</code>
-			<Str sr="arg0" ve="3">cmd wifi connect-network cmvwifi open</Str>
-			<Int sr="arg1" val="1"/>
+			<code>398</code>
+			<Str sr="arg0" ve="3">cmvwifi</Str>
+			<Int sr="arg1" val="0"/>
 			<Str sr="arg2" ve="3"/>
 			<Int sr="arg3" val="0"/>
 			<Int sr="arg4" val="0"/>
-			<Int sr="arg5" val="0"/>
-			<Int sr="arg6" val="0"/>
 		</Action>
 		<!-- A3: Debug connection status -->
 		<Action sr="act2" ve="7">

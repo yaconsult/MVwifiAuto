@@ -37,7 +37,20 @@ This setup automatically connects to `cmvwifi` when in range and handles the cap
 Before starting:
 1. Rooted Google Pixel with Magisk
 2. Tasker installed (latest version)
-3. `cmvwifi` network saved in Android WiFi settings — **do not enable auto-connect**
+3. **Tasker Settings** helper app installed (required for WiFi connection on Android 10+)
+4. `cmvwifi` network saved in Android WiFi settings — **do not enable auto-connect**
+
+### Install Tasker Settings
+
+Google restricted WiFi connections for apps targeting newer APIs. Tasker works around this via a companion app targeting an older API:
+
+1. Download: https://github.com/joaomgcd/TaskerSettings/releases/download/v1.3.0/TaskerSettings.apk
+2. Install it (you may need to enable "Install unknown apps" for your browser)
+3. Grant permissions:
+   - Settings → Apps → **Tasker Settings** → Permissions → Location → **Allow all the time**
+   - Settings → Apps → Tasker Settings → Battery → **Don't optimize**
+
+> **Note**: Your phone may warn this app is built for an older Android version. This is **intentional and required** — the older API target is why it can still control WiFi. Dismiss the warning.
 
 > **Why not auto-connect?** Android's built-in auto-connect would join `cmvwifi` but cannot accept the captive portal terms. You'd have a WiFi connection but no internet. Tasker's `ConnectToCmvwifi` task replaces auto-connect — it connects *and* immediately accepts the portal in sequence.
 >
@@ -397,16 +410,13 @@ This task connects to cmvwifi and calls HandlePortal.
 
 #### Action 2: Connect to WiFi
 
-> **Android 10+ note**: The built-in **Net → Connect to WiFi** action fails with Error 1 on Android 10+ because Google removed the API it relies on. Use a root shell command instead.
-
 1. Tap **+**
-2. Select **Code** → **Run Shell**
+2. Select **Net** → **Connect to WiFi**
 3. Configure:
-   - **Command**: `cmd wifi connect-network cmvwifi open`
-   - **Use Root**: Check this box
+   - **SSID**: `cmvwifi`
 4. Tap the **back arrow** ← to save
 
-> **Note**: `cmvwifi` must have been connected to manually at least once first so Android has it in its saved networks list. The `open` parameter tells Android the network has no password/security.
+> **Note**: `cmvwifi` must have been connected to manually at least once first so Android has it in its saved networks list. This action requires the **Tasker Settings** helper app (see Prerequisites) to work on Android 10+.
 
 #### Action 3: Debug Connection Status
 
@@ -434,7 +444,7 @@ This task connects to cmvwifi and calls HandlePortal.
 
 ```
 A1: Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] cmvwifi detected, connecting... ]
-A2: Run Shell [ Command:cmd wifi connect-network cmvwifi open Use Root:On ]
+A2: Net → Connect to WiFi [ SSID:cmvwifi ]
 A3: Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] Connected, waiting for portal... ]
 A4: Wait [ Seconds:3 ]
 A5: Perform Task [ Name:HandlePortal ]

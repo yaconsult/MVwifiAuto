@@ -288,6 +288,32 @@ Then in Tasker: long-press bottom nav bar → Import Project.
 
 ---
 
+## Session 10 — Android 16 WiFi Connection Solution
+
+### Problem: `cmd wifi connect-network` Fails Silently
+- **Observation**: `cmd wifi connect-network cmvwifi open` returns exit code 0 but doesn't actually connect.
+- **Tested**: ADB commands on Android 16 show command runs but WiFi remains disconnected.
+- **Root cause**: Android 16 appears to have further restricted programmatic WiFi control via `cmd wifi`.
+
+### Solution: Tasker Settings Helper App
+- **Research**: Found Tasker's official workaround — a companion app targeting API 21 that restores WiFi functionality.
+- **Source**: https://github.com/joaomgcd/TaskerSettings/releases/tag/v1.3.0
+- **Installation**: Must bypass "deprecated SDK" warning via ADB: `adb install --bypass-low-target-sdk-block TaskerSettings.apk`
+- **Permissions required**:
+  - Location permission (granted via Android Settings, not app dialog — the dialog crashes)
+  - Battery optimization disabled for Tasker Settings
+- **Result**: Tasker's built-in **Net → Connect to WiFi** action now works on Android 16.
+
+### Updates Made
+- **XML**: Changed `ConnectToCmvwifi` Action 2 from `Run Shell` (code 123) to `Net → Connect to WiFi` (code 398)
+- **Docs**: Added Tasker Settings as a prerequisite; updated manual setup instructions
+- **Devlog**: This entry
+
+### Pending
+- Test full portal flow when near `cmvwifi` with new WiFi connection method
+
+---
+
 ## Open Questions / Next Steps
 
 - [x] Confirm `%WIFII` returns SSID correctly on the Pixel — **verified via TestWiFiScan**
