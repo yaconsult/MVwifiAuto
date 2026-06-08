@@ -345,6 +345,35 @@ All components verified. When near `cmvwifi`:
 
 ---
 
+## Session 12 — Handle Already Connected State
+
+### Issue: Error 255 When Already Connected
+- **Problem**: If already connected to `cmvwifi` (but without accepting terms), `Net → Connect to WiFi` returns Error 255
+- **Root cause**: Android reports the network as "connected" even though captive portal blocks internet
+- **Solution**: Check `%WIFII` variable before attempting connection
+
+### Implementation
+- Added If/Else logic to `ConnectToCmvwifi`:
+  - **If** `%WIFII ~ cmvwifi`: Skip connection, go straight to `HandlePortal`
+  - **Else**: Connect first, then handle portal
+- This matches Python version behavior which checks connection state first
+
+### Updated Flow
+```
+If already on cmvwifi:
+  → HandlePortal (accept terms)
+Else:
+  → Connect to WiFi
+  → HandlePortal (accept terms)
+```
+
+### Files Updated
+- **XML**: Added If/Else blocks with proper action IDs
+- **Docs**: Updated manual setup with new logic
+- **Devlog**: This entry
+
+---
+
 ## Open Questions / Next Steps
 
 - [x] Confirm `%WIFII` returns SSID correctly on the Pixel — **verified via TestWiFiScan**

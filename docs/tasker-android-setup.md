@@ -440,15 +440,28 @@ This task connects to cmvwifi and calls HandlePortal.
 3. **Name**: `HandlePortal`
 4. Tap the **back arrow** ← to save
 
+#### Action 6: End If
+
+1. Tap **+**
+2. Select **Control** → **End If**
+3. Tap the **back arrow** ← to save
+
 ### ConnectToCmvwifi Task Summary
 
 ```
-A1: Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] cmvwifi detected, connecting... ]
-A2: Net → Connect to WiFi [ SSID:cmvwifi ]
-A3: Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] Connected, waiting for portal... ]
-A4: Wait [ Seconds:3 ]
-A5: Perform Task [ Name:HandlePortal ]
+A1: Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] cmvwifi detected, checking connection... ]
+A2: If [ %WIFII ~ cmvwifi ]
+A3:   Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] Already connected, handling portal... ]
+A4:   Perform Task [ Name:HandlePortal ]
+A5: Else
+A6:   Net → Connect to WiFi [ SSID:cmvwifi ]
+A7:   Perform Task [ Name:DebugFlash Par1:[ConnectToCmvwifi] Connected, waiting for portal... ]
+A8:   Wait [ Seconds:3 ]
+A9:   Perform Task [ Name:HandlePortal ]
+A10: End If
 ```
+
+> **Logic**: If already connected to cmvwifi, skip the connection step and go straight to portal handling. This prevents Error 255 when the network is already active.
 
 ---
 
