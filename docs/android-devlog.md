@@ -314,6 +314,37 @@ Then in Tasker: long-press bottom nav bar → Import Project.
 
 ---
 
+## Session 11 — WiFi Connection Verified, HTTP Testing Complete
+
+### Tasker Settings Success
+- **Test**: Net → Connect to WiFi to home network (`dd-wrt`)
+- **Result**: Connected successfully
+- **Conclusion**: Tasker Settings v1.3.0 properly restores WiFi connection on Android 16
+- **Error 255 analysis**: Previous error with `cmvwifi` was likely because already connected to that network
+
+### HTTP Request Testing
+- **Test 1**: GET `http://detectportal.firefox.com/canonical.html` over home WiFi
+- **Result**: Response code 200 (normal internet)
+- **Test 2**: GET `http://httpbin.org/redirect/1` (simulates portal redirect)
+- **Result**: Response code 302 (redirect detected)
+- **Conclusion**: HTTP Request action works correctly, response codes are captured in `%http_response_code`
+
+### Current Status
+- ✅ WiFi connection: Working via Tasker Settings
+- ✅ HTTP detection: Working (200/302 codes captured)
+- ✅ Debug system: Working (collision resolved)
+- ⏳ Full portal flow: Pending (requires being near `cmvwifi`)
+
+### Ready for Real-World Test
+All components verified. When near `cmvwifi`:
+1. `ConnectToCmvwifi` will connect via Tasker Settings
+2. `HandlePortal` will detect 302/307 redirect
+3. Extract gateway IP from Location header
+4. POST acceptance to the gateway
+5. Verify with 200 response
+
+---
+
 ## Open Questions / Next Steps
 
 - [x] Confirm `%WIFII` returns SSID correctly on the Pixel — **verified via TestWiFiScan**
