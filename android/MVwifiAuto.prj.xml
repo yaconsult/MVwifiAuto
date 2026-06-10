@@ -88,8 +88,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[HandlePortal] Starting portal handling</Str>
+			<Str sr="arg2" ve="3">[HandlePortal] Starting portal handling</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -125,8 +125,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[HandlePortal] HTTP code: %http_response_code</Str>
+			<Str sr="arg2" ve="3">[HandlePortal] HTTP code: %http_response_code</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -157,8 +157,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[HandlePortal] Captive portal detected</Str>
+			<Str sr="arg2" ve="3">[HandlePortal] Captive portal detected</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -199,8 +199,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[HandlePortal] Gateway IP: %LocationHeader1</Str>
+			<Str sr="arg2" ve="3">[HandlePortal] Gateway IP: %LocationHeader1</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -277,8 +277,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[HandlePortal] Success: Connected with internet!</Str>
+			<Str sr="arg2" ve="3">[HandlePortal] Success: Connected with internet!</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -295,8 +295,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[HandlePortal] Failed: Portal acceptance failed</Str>
+			<Str sr="arg2" ve="3">[HandlePortal] Failed: Portal acceptance failed</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -324,8 +324,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[ConnectToCmvwifi] cmvwifi detected, checking connection...</Str>
+			<Str sr="arg2" ve="3">[ConnectToCmvwifi] cmvwifi detected, checking connection...</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -350,8 +350,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[ConnectToCmvwifi] Already connected, handling portal...</Str>
+			<Str sr="arg2" ve="3">[ConnectToCmvwifi] Already connected, handling portal...</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -393,8 +393,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[ConnectToCmvwifi] Connected, waiting for portal...</Str>
+			<Str sr="arg2" ve="3">[ConnectToCmvwifi] Connected, waiting for portal...</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -442,8 +442,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[TestWiFiScan] Starting WiFi scan test</Str>
+			<Str sr="arg2" ve="3">[TestWiFiScan] Starting WiFi scan test</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -465,8 +465,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[TestWiFiScan] Current network: %CurrentSSID</Str>
+			<Str sr="arg2" ve="3">[TestWiFiScan] Current network: %CurrentSSID</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -490,8 +490,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[TestWiFiScan] Home network dd-wrt detected!</Str>
+			<Str sr="arg2" ve="3">[TestWiFiScan] Home network dd-wrt detected!</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>
@@ -512,8 +512,8 @@
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Int sr="arg2" val="5"/>
-			<Str sr="arg3" ve="3">[TestWiFiScan] Not on dd-wrt. Current: %CurrentSSID</Str>
+			<Str sr="arg2" ve="3">[TestWiFiScan] Not on dd-wrt. Current: %CurrentSSID</Str>
+			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
 			<Int sr="arg6" val="1"/>

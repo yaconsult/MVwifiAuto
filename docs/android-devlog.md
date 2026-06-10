@@ -410,11 +410,39 @@ Else:
 
 ---
 
-## Open Questions / Next Steps
+---
 
-- [x] Confirm `%WIFII` returns SSID correctly on the Pixel — **verified via TestWiFiScan**
-- [ ] Test full portal flow near `cmvwifi`: HTTP redirect → gateway IP → POST acceptance → internet verified
-- [ ] Confirm `%http_response_code` is 302/307 after portal detection HTTP GET
-- [ ] Confirm `Location:` header format matches search/replace pattern (`Location: http://`)
+## Session 14 — Live Testing Bug Fixes
+
+### Bug 1: Phone Running Old Task (Not Imported)
+- **Problem**: Phone was still running original hand-built task with `Run Shell` + 3 min wait
+- **Root cause**: Updated XML was pushed to `/sdcard/Tasker/` but never re-imported into Tasker
+- **Fix**: Re-pushed updated XML and re-imported project in Tasker
+- **Lesson**: Always re-import after pushing XML updates
+
+### Bug 2: Wait Action Using Minutes Instead of Seconds
+- **Problem**: Task waited 3 minutes instead of 3 seconds
+- **Root cause**: Tasker Wait action (code 30) args are `arg0`=ms, `arg1`=seconds, `arg2`=minutes, `arg3`=hours — we had value in `arg2` (minutes)
+- **Fix**: Moved value to `arg1` (seconds); set to 5 seconds per user preference (2 seconds for portal wait)
+
+### Bug 3: DebugFlash Showing "5" Instead of Message
+- **Problem**: All debug toasts showed "5" instead of the message text
+- **Root cause**: In Tasker `Perform Task` (code 130), `arg2` = `%par1` and `arg3` = `%par2`. All calls had `arg2=5` (priority) and message in `arg3` (`%par2`), but `DebugFlash` reads `%par1`
+- **Fix**: Python script to bulk-fix all 13 DebugFlash calls — moved message to `arg2`, cleared `arg3`
+
+### Bug 4: Portal POST Using Wrong IP
+- **Finding**: Portal sign-in URL is `10.64.2.21` but default gateway is `10.65.8.1`
+- **Status**: The `HandlePortal` task correctly uses the redirect Location header URL, not the gateway IP — this should be correct. Needs re-testing now that DebugFlash is fixed to see actual debug output.
+- **Note**: Python version (`captive_portal.py`) uses `get_default_gateway()` which may also be wrong — needs verification
+
+### Files Updated
+- **XML**: Fixed Wait args, fixed all DebugFlash `%par1` parameter mapping
+- **Devlog**: This entry
+
+### Open Questions / Next Steps
+- [ ] Re-test `HandlePortal` with working debug messages to see actual `%LocationHeader1` value
+- [ ] Verify portal POST reaches `10.64.2.21` correctly
+- [ ] Verify Python `captive_portal.py` also uses redirect URL not gateway IP
 - [ ] Test WiFi Near profile auto-triggers `ConnectToCmvwifi` when walking into range
-- [ ] Once working, export the corrected `.prj.xml` from the phone and commit it to replace the hand-authored version
+- [ ] Analyze Costco WiFi portal structure for future extension
+- [ ] Once fully working, export final XML from phone and commit
