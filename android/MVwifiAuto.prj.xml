@@ -287,10 +287,6 @@
 		<Action sr="act16" ve="7">
 			<code>38</code>
 		</Action>
-		<!-- End If (portal detected check) -->
-		<Action sr="act17" ve="7">
-			<code>38</code>
-		</Action>
 	</Task>
 
 	<!-- Task 50: ConnectToCmvwifi — connect to cmvwifi then call HandlePortal -->
