@@ -23,6 +23,7 @@
 	<Task sr="task10">
 		<id>10</id>
 		<nme>DebugFlash</nme>
+		<rty>2</rty>
 		<Action sr="act0" ve="7">
 			<code>37</code>
 			<ConditionList sr="if">
@@ -148,31 +149,32 @@
 			<Int sr="arg2" val="0"/>
 			<Int sr="arg3" val="0"/>
 		</Action>
-		<!-- A6: Variable Search Replace — strip "Location: http://" prefix -->
+		<!-- A6: Regex extract portal IP from Location header -->
 		<Action sr="act5" ve="7">
 			<code>598</code>
 			<Str sr="arg0" ve="3">%LocationHeader</Str>
-			<Str sr="arg1" ve="3">Location: http://</Str>
-			<Int sr="arg2" val="0"/>
+			<Str sr="arg1" ve="3">.*[Ll]ocation: http://(\d+\.\d+\.\d+\.\d+).*</Str>
+			<Int sr="arg2" val="1"/>
 			<Int sr="arg3" val="0"/>
 			<Int sr="arg4" val="0"/>
-			<Str sr="arg5" ve="3"/>
+			<Str sr="arg5" ve="3">$1</Str>
 			<Int sr="arg6" val="1"/>
 			<Str sr="arg7" ve="3"/>
 		</Action>
-		<!-- A7: Variable Split on "/" to isolate portal IP as %LocationHeader1 -->
+		<!-- A7: %LocationHeader now contains just the portal IP -->
 		<Action sr="act6" ve="7">
-			<code>590</code>
-			<Str sr="arg0" ve="3">%LocationHeader</Str>
-			<Str sr="arg1" ve="3">/</Str>
+			<code>547</code>
+			<Str sr="arg0" ve="3">%PortalIP</Str>
+			<Str sr="arg1" ve="3">%LocationHeader</Str>
 			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
 		</Action>
 		<!-- A8: Debug — portal IP -->
 		<Action sr="act7" ve="7">
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
-			<Str sr="arg2" ve="3">[HandlePortal] Portal IP: %LocationHeader1</Str>
+			<Str sr="arg2" ve="3">[HandlePortal] Portal IP: %PortalIP</Str>
 			<Str sr="arg3" ve="3"/>
 			<Str sr="arg4" ve="3"/>
 			<Str sr="arg5" ve="3"/>
@@ -195,7 +197,7 @@
 			<Int sr="arg10" val="0"/>
 			<Int sr="arg11" val="0"/>
 			<Int sr="arg12" val="1"/>
-			<Str sr="arg2" ve="3">http://%LocationHeader1/forms/guest_toued</Str>
+			<Str sr="arg2" ve="3">http://%PortalIP/forms/guest_toued</Str>
 			<Str sr="arg3" ve="3">Content-Type:application/x-www-form-urlencoded</Str>
 			<Str sr="arg4" ve="3">origurl=http://www.google.com&amp;ok=Accept and Continue</Str>
 			<Str sr="arg5" ve="3"/>
