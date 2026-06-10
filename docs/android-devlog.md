@@ -494,3 +494,34 @@ A16: End If
 ### Files Updated
 - **XML**: Redesigned HandlePortal with mobile data toggle + dummy IP detection
 - **Devlog**: This entry
+
+---
+
+## Session 16 — 2026-06-10
+
+### Goal
+Fix portal IP extraction and complete `HandlePortal` end-to-end.
+
+### Work Done
+- **POST 500 error**: Was POSTing to `1.1.1.1/forms/guest_toued` — portal doesn't intercept POST, only GET. Need real portal IP.
+- **Tried `%http_response_url`**: Tasker HTTP GET with redirects ON lands on portal page; `%http_response_url` should hold the final URL after redirect. Extraction logic: strip `http://`, split on `/`, store `%PortalURL1` → `%PortalIP`.
+- **Tried Termux curl** (`/data/data/com.termux/files/usr/bin/curl --interface wlan1`): Error 127 — Tasker sandboxed from Termux files even with root.
+- **Tried `LD_LIBRARY_PATH` prefix**: Still error 127.
+- **Installed Magisk busybox module**: Rebooted. `/system/bin/busybox` exists but needs root to access. Tasker root shell still got error 127 for `wget` — PATH is minimal in root shell.
+- **Tried `/system/bin/busybox wget`**: Error 127 — root shell can't find it either.
+- **Created `/sdcard/portal_curl.sh` wrapper**: Used Termux bash shebang + `LD_LIBRARY_PATH`. Still error 127 from Tasker root shell.
+- **Switched back to pure Tasker HTTP actions**: No shell at all. Mobile data OFF → 5s wait → Tasker HTTP GET (`%http_response_url`) → extract IP → Tasker HTTP POST → wait → mobile data ON → verify.
+- **Variable expansion bug**: `%PortalURL1` not expanding in HTTP Request URL field. Fixed by adding explicit Variable Set: `%PortalIP = %PortalURL1` before the POST.
+
+### Current State
+- Last test: POST URL was showing literal `%PortalIP` — fix just pushed (b0f91b6). **Not yet tested** due to low battery.
+
+### Next Steps
+1. Re-import XML and run `HandlePortal`.
+2. Confirm `[HandlePortal] Portal IP:` shows real IP (e.g. `10.64.2.21`).
+3. Confirm POST code is 200 or 302.
+4. Confirm WiFi exclamation mark disappears.
+
+### Files Updated
+- **XML**: Pure Tasker HTTP approach, explicit `%PortalIP` variable
+- **Devlog**: This entry
