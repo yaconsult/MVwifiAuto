@@ -169,7 +169,7 @@
 		<!-- A6: wget POST — no cellular so goes via WiFi -->
 		<Action sr="act6" ve="7">
 			<code>123</code>
-			<Str sr="arg0" ve="3">/system/bin/wget -q -O /dev/null --post-data='origurl=http://www.google.com&amp;ok=Accept+and+Continue' http://%PortalURL1/forms/guest_toued; echo $?</Str>
+			<Str sr="arg0" ve="3">/system/bin/busybox wget -q -O /dev/null --post-data='origurl=http://www.google.com&amp;ok=Accept+and+Continue' http://%PortalURL1/forms/guest_toued; echo $?</Str>
 			<Int sr="arg1" val="1"/>
 			<Str sr="arg2" ve="3">%PostResult</Str>
 			<Int sr="arg3" val="0"/>
@@ -207,7 +207,7 @@
 		<!-- A10: wget verify internet -->
 		<Action sr="act10" ve="7">
 			<code>123</code>
-			<Str sr="arg0" ve="3">/system/bin/wget -q -O - http://detectportal.firefox.com/success.txt 2>/dev/null</Str>
+			<Str sr="arg0" ve="3">/system/bin/busybox wget -q -O - http://detectportal.firefox.com/success.txt 2>/dev/null</Str>
 			<Int sr="arg1" val="1"/>
 			<Str sr="arg2" ve="3">%VerifyResult</Str>
 			<Int sr="arg3" val="0"/>
