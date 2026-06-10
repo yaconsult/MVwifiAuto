@@ -446,3 +446,51 @@ Else:
 - [ ] Test WiFi Near profile auto-triggers `ConnectToCmvwifi` when walking into range
 - [ ] Analyze Costco WiFi portal structure for future extension
 - [ ] Once fully working, export final XML from phone and commit
+
+---
+
+## Session 15 — Routing Issue and HandlePortal Redesign
+
+### Root Problem: Cellular Intercepts All HTTP Requests
+- **Problem**: Tasker HTTP Request goes over cellular (rmnet1) not WiFi (wlan1)
+- **Confirmed via**: `ip route get 10.64.2.21` → `dev rmnet1 table 1015`
+- **Portal sign-in URL**: `10.64.2.21` (confirmed via "Sign into network" notification)
+- **Default gateway WiFi table 1048**: `10.65.8.3` (different from portal IP)
+- **Android policy routing**: overrides main routing table, always prefers cellular for internet traffic
+
+### Failed Fix Attempts
+- **ip route add**: route added to main table but policy routing ignores it
+- **ip rule add**: Tasker Run Shell with root returned error 255 (failed)
+- **adb root**: not available on production builds
+
+### Key Discovery
+- With mobile data OFF, all HTTP goes through WiFi
+- Captive portal intercepts ALL HTTP requests (any IP) and redirects to portal form
+- So we can use any dummy IP (e.g. `http://1.1.1.1/`) for portal detection — no hostname/DNS needed
+
+### Redesigned HandlePortal Flow
+```
+A1: DebugFlash — starting
+A2: Mobile Data OFF (code 433)
+A3: HTTP GET http://1.1.1.1/ (portal intercepts → 302)
+A4: DebugFlash — HTTP code
+A5: Variable Set %LocationHeader = %http_headers()
+A6: Variable Search Replace — strip "Location: http://"
+A7: Variable Split on "/" → %LocationHeader1 = portal IP
+A8: DebugFlash — portal IP
+A9: HTTP POST http://%LocationHeader1/forms/guest_toued
+A10: Wait 2 seconds
+A11: Mobile Data ON (code 433)
+A12: HTTP GET http://detectportal.firefox.com/success.txt (verify)
+A13: If 200 → Success flash
+     Else → Failure flash
+A16: End If
+```
+
+### Bug Found During Redesign
+- **Code 73 used for Mobile Data** — WRONG (73 = Element Destroy)
+- **Correct code is 433** (Mobile Data) — fixed in XML
+
+### Files Updated
+- **XML**: Redesigned HandlePortal with mobile data toggle + dummy IP detection
+- **Devlog**: This entry
