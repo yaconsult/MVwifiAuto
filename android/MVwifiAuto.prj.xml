@@ -104,6 +104,15 @@
 			<code>433</code>
 			<Int sr="arg0" val="0"/>
 		</Action>
+		<!-- A2b: Wait 3 seconds for WiFi to become default network -->
+		<Action sr="act1b" ve="7">
+			<code>30</code>
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="3"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+		</Action>
 		<!-- A3: Tasker HTTP GET — captive portal intercepts, response URL = portal URL -->
 		<Action sr="act2" ve="7">
 			<code>339</code>
