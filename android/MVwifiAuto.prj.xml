@@ -99,6 +99,35 @@
 			<Int sr="arg9" val="0"/>
 			<Int sr="arg10" val="1"/>
 		</Action>
+		<!-- A1b: Test non-root curl execution -->
+		<Action sr="act0b" ve="7">
+			<con>true</con>
+			<code>123</code>
+			<Str sr="arg0" ve="3">/data/local/tmp/curl --version</Str>
+			<Int sr="arg1" val="10"/>
+			<Int sr="arg2" val="0"/>
+			<Str sr="arg3" ve="3">%CurlTest</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<!-- A1c: Flash curl test result -->
+		<Action sr="act0c" ve="7">
+			<code>130</code>
+			<Str sr="arg0" ve="3">DebugFlash</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">curl: %CurlTest</Str>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Str sr="arg7" ve="3"/>
+			<Int sr="arg8" val="0"/>
+			<Int sr="arg9" val="0"/>
+			<Int sr="arg10" val="1"/>
+		</Action>
 		<!-- A2: Wait 3s for WiFi association to settle -->
 		<Action sr="act2" ve="7">
 			<con>true</con>
