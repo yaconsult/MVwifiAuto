@@ -102,7 +102,7 @@
 		<!-- A1b: Confirm root shell is working + check curl file -->
 		<Action sr="act0b" ve="7">
 			<code>123</code>
-			<Str sr="arg0" ve="3">id</Str>
+			<Str sr="arg0" ve="3">id > /sdcard/tasker_test.txt 2&gt;&amp;1; echo exit:$? &gt;&gt; /sdcard/tasker_test.txt</Str>
 			<Int sr="arg1" val="30"/>
 			<Int sr="arg2" val="1"/>
 			<Str sr="arg3" ve="3">%SetupResult</Str>
