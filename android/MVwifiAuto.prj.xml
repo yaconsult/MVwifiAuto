@@ -106,6 +106,7 @@
 		</Action>
 		<!-- A3: Wait 10s for WiFi to become default route -->
 		<Action sr="act2" ve="7">
+			<con>true</con>
 			<code>30</code>
 			<Int sr="arg0" val="0"/>
 			<Int sr="arg1" val="10"/>
@@ -115,6 +116,7 @@
 		</Action>
 		<!-- A3b: Debug — confirm we are about to GET -->
 		<Action sr="act2b" ve="7">
+			<con>true</con>
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
@@ -130,6 +132,7 @@
 		</Action>
 		<!-- A4: HTTP GET 1.1.1.1 — follow redirect to get portal URL -->
 		<Action sr="act3" ve="7">
+			<con>true</con>
 			<code>339</code>
 			<Bundle sr="arg0">
 				<Vals sr="val">
@@ -153,6 +156,7 @@
 		<!-- A5: Extract portal host:port from redirect URL using regex -->
 		<!-- %http_response_url contains the final URL after redirect e.g. http://10.64.2.21:9997/user/guest_tou.asp -->
 		<Action sr="act3b" ve="7">
+			<con>true</con>
 			<code>598</code>
 			<Str sr="arg0" ve="3">%http_response_url</Str>
 			<Str sr="arg1" ve="3">http://([^/]+)/.*</Str>
@@ -162,6 +166,7 @@
 		</Action>
 		<!-- A5b: Debug portal host -->
 		<Action sr="act3c" ve="7">
+			<con>true</con>
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
@@ -177,6 +182,7 @@
 		</Action>
 		<!-- A6: HTTP POST to portal acceptance endpoint using dynamic host -->
 		<Action sr="act4" ve="7">
+			<con>true</con>
 			<code>339</code>
 			<Bundle sr="arg0">
 				<Vals sr="val">
@@ -201,6 +207,7 @@ Referer:http://%PortalHost/</Str>
 		</Action>
 		<!-- A7: Debug POST response code -->
 		<Action sr="act4b" ve="7">
+			<con>true</con>
 			<code>130</code>
 			<Str sr="arg0" ve="3">DebugFlash</Str>
 			<Int sr="arg1" val="0"/>
