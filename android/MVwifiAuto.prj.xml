@@ -102,7 +102,7 @@
 		<!-- A1b: One-time setup — install curl to /system/bin via root -->
 		<Action sr="act0b" ve="7">
 			<code>123</code>
-			<Str sr="arg0" ve="3">cp /data/local/tmp/curl /system/bin/curl; chmod 755 /system/bin/curl</Str>
+			<Str sr="arg0" ve="3">/system/bin/cp /data/local/tmp/curl /data/adb/curl; /system/bin/chmod 755 /data/adb/curl</Str>
 			<Int sr="arg1" val="1"/>
 			<Str sr="arg2" ve="3">%CurlInstall</Str>
 			<Int sr="arg3" val="0"/>
@@ -111,7 +111,7 @@
 		<!-- A2: curl GET via wlan1 — gets portal redirect URL -->
 		<Action sr="act1" ve="7">
 			<code>123</code>
-			<Str sr="arg0" ve="3">/system/bin/curl --interface wlan1 -s -o /dev/null -w '%{redirect_url}' -m 10 http://1.1.1.1/</Str>
+			<Str sr="arg0" ve="3">/data/adb/curl --interface wlan1 -s -o /dev/null -w '%{redirect_url}' -m 10 http://1.1.1.1/</Str>
 			<Int sr="arg1" val="0"/>
 			<Str sr="arg2" ve="3">%PortalRedirect</Str>
 			<Int sr="arg3" val="0"/>
@@ -182,7 +182,7 @@
 		<!-- A6: curl POST acceptance via wlan1 -->
 		<Action sr="act6" ve="7">
 			<code>123</code>
-			<Str sr="arg0" ve="3">/system/bin/curl --interface wlan1 -s -o /dev/null -w '%{http_code}' -m 10 -X POST -d 'origurl=http://www.google.com&amp;ok=Accept+and+Continue' http://%PortalIP/forms/guest_toued</Str>
+			<Str sr="arg0" ve="3">/data/adb/curl --interface wlan1 -s -o /dev/null -w '%{http_code}' -m 10 -X POST -d 'origurl=http://www.google.com&amp;ok=Accept+and+Continue' http://%PortalIP/forms/guest_toued</Str>
 			<Int sr="arg1" val="0"/>
 			<Str sr="arg2" ve="3">%PostResult</Str>
 			<Int sr="arg3" val="0"/>
@@ -215,7 +215,7 @@
 		<!-- A9: curl verify internet via wlan1 -->
 		<Action sr="act9" ve="7">
 			<code>123</code>
-			<Str sr="arg0" ve="3">/system/bin/curl --interface wlan1 -s -w '%{http_code}' -o /dev/null -m 10 http://detectportal.firefox.com/success.txt</Str>
+			<Str sr="arg0" ve="3">/data/adb/curl --interface wlan1 -s -w '%{http_code}' -o /dev/null -m 10 http://detectportal.firefox.com/success.txt</Str>
 			<Int sr="arg1" val="0"/>
 			<Str sr="arg2" ve="3">%VerifyResult</Str>
 			<Int sr="arg3" val="0"/>
