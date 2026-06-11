@@ -624,8 +624,9 @@ Instead of building all tasks by hand, you can import the pre-built project file
 
 **Option A — ADB (recommended if you have ADB set up):**
 ```
-adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/projects/MVwifiAuto.prj.xml
+adb shell "rm -f /sdcard/Tasker/projects/MVwifiAuto.prj.xml" && adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/projects/MVwifiAuto.prj.xml
 ```
+> Note: This only updates the file on `/sdcard`. You still need to delete + reimport inside Tasker (Step 2) — Tasker's live project data lives in internal app storage which adb cannot modify.
 
 **Option B — USB file transfer:**
 1. Connect your phone via USB
