@@ -99,6 +99,30 @@
 			<Int sr="arg9" val="0"/>
 			<Int sr="arg10" val="1"/>
 		</Action>
+		<!-- A1b: Relabel curl binary so Tasker (untrusted_app) can execute it -->
+		<Action sr="act0b" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">chcon u:object_r:system_file:s0 /data/local/tmp/curl</Str>
+			<Int sr="arg1" val="1"/>
+			<Str sr="arg2" ve="3">%ChconResult</Str>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="1"/>
+		</Action>
+		<!-- A1c: Debug chcon result -->
+		<Action sr="act0c" ve="7">
+			<code>130</code>
+			<Str sr="arg0" ve="3">DebugFlash</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">chcon: %ChconResult</Str>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Str sr="arg7" ve="3"/>
+			<Int sr="arg8" val="0"/>
+			<Int sr="arg9" val="0"/>
+			<Int sr="arg10" val="1"/>
+		</Action>
 		<!-- A2: curl GET 1.1.1.1 via wlan0 — captures portal redirect URL -->
 		<Action sr="act1" ve="7">
 			<code>123</code>
