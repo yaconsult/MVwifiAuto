@@ -624,7 +624,7 @@ Instead of building all tasks by hand, you can import the pre-built project file
 
 **Option A — ADB (recommended if you have ADB set up):**
 ```
-adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/MVwifiAuto.prj.xml
+adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/projects/MVwifiAuto.prj.xml
 ```
 
 **Option B — USB file transfer:**
