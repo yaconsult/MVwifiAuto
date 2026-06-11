@@ -238,7 +238,7 @@ Generate a valid Tasker `.prj.xml` file from the computer so all tasks and the p
   - `arg3`: par1 (Parameter 1)
   - `arg6`: stop calling task when done (1=yes)
   - `arg10`: wait for task to finish (1=yes)
-- Run Shell (code `123`): `arg0`=command, `arg1`=use root (1=yes)
+- Run Shell (code `123`): `arg0`=command, `arg1`=timeout (seconds), `arg2`=use root (1=yes), `arg3`=output variable — **NOTE: arg1/arg2 order changed in Tasker 6.x vs older docs**
 - Condition operator `2` = equals (`~` in Tasker UI)
 
 ### Output
@@ -248,7 +248,7 @@ Created `android/MVwifiAuto.prj.xml` containing:
 
 ### Transfer Method
 ```
-adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/MVwifiAuto.prj.xml
+adb push android/MVwifiAuto.prj.xml /sdcard/Tasker/projects/MVwifiAuto.prj.xml
 ```
 Then in Tasker: long-press bottom nav bar → Import Project.
 
@@ -524,4 +524,80 @@ Fix portal IP extraction and complete `HandlePortal` end-to-end.
 
 ### Files Updated
 - **XML**: Pure Tasker HTTP approach, explicit `%PortalIP` variable
+- **Devlog**: This entry
+
+---
+
+## Session 17 — 2026-06-11
+
+### Critical Bug: Wrong adb push Target Path
+- **Problem**: All XML pushes went to `/sdcard/Tasker/MVwifiAuto.prj.xml` but Tasker reads from `/sdcard/Tasker/projects/MVwifiAuto.prj.xml`. The device was running stale XML the entire time.
+- **Fix**: Always push to `/sdcard/Tasker/projects/MVwifiAuto.prj.xml`.
+- **Docs updated**: `tasker-android-setup.md` transfer command corrected.
+
+### Critical Bug: Run Shell Parameter Mapping Wrong for Tasker 6.x
+- **Problem**: XML used old parameter format for `Run Shell` (code 123):
+  - Old (wrong): `arg0`=cmd, `arg1`=useRoot, `arg2`=outputVar, `arg3`=timeout
+  - New (correct): `arg0`=cmd, `arg1`=timeout, `arg2`=useRoot, `arg3`=outputVar
+- **Symptom**: Error 126 on every shell command — Tasker was reading `arg1=1` as a 1-second timeout, not root flag.
+- **Discovery method**: Created a simple `id` task manually in Tasker UI, exported it, and diffed the XML format.
+- **Fix**: Corrected all Run Shell actions to new format. Added `xmllint --noout` validation before every push.
+
+### Run Shell With Root Still Broken on Android 16
+- **Observation**: Even with correct parameter format, `id > /sdcard/test.txt` produced no file — the shell wasn't running at all.
+- **Error 28**: Tasker reported error 28 (timeout) even on trivial commands like `id`.
+- **Conclusion**: Android 16 blocks Tasker's root shell mechanism entirely. **Do not use Run Shell with root on Android 16.**
+- **Resolution**: Abandoned all shell-based approaches permanently. Pure Tasker HTTP actions only.
+
+### Mobile Data Toggle is Wrong Approach
+- **Problem**: Turning mobile data OFF to force WiFi routing caused the portal session to disappear — the portal WebView only appears when mobile data is ON.
+- **Discovery**: After a failed run left mobile data OFF, reconnecting cmvwifi with data ON immediately showed the portal page.
+- **Root cause**: Android shows captive portal WebView using mobile data as fallback, but portal HTTP traffic routes via WiFi regardless.
+- **Fix**: Removed mobile data toggle entirely. GET to `1.1.1.1` works via WiFi interception with data ON.
+
+### Portal IP is Dynamic — Hardcoding is Wrong
+- **Discovery**: Portal IP changed between sessions (`10.64.2.21` vs `10.64.2.23`). Hardcoding was always fragile.
+- **Fix**: GET `http://1.1.1.1/` via wlan0 — portal intercepts and redirects to `http://<dynamic-ip>:<port>/user/guest_tou.asp`. Extract host+port from `%http_response_url` using regex, POST to that host.
+
+### Portal Acceptance Verified via adb curl
+- **Command**: `/data/local/tmp/curl -v --interface wlan0 http://1.1.1.1/` → 302 to `http://10.64.2.23:9997/user/guest_tou.asp`
+- **POST**: `/data/local/tmp/curl --interface wlan0 http://10.64.2.23:9997/forms/guest_toued -d 'origurl=...&ok=Accept+and+Continue'` → **302 to `https://www.mountainview.gov`** ✅
+- **Conclusion**: Portal acceptance works. Dynamic IP detection is essential.
+
+### XML Validation
+- **Rule added**: Always run `xmllint --noout` before pushing XML. Unescaped `&` in shell commands (`2>&1`) caused import failures.
+
+### con=true Added as Safety Net
+- Added `<con>true</con>` (Continue On Error) on all actions that could fail, ensuring graceful degradation.
+
+### Current HandlePortal Flow
+```
+A1: DebugFlash — starting
+A2: Wait 3s for WiFi to settle (no data toggle)
+A3: HTTP GET http://1.1.1.1/ → portal intercepts, %http_response_url = portal URL
+A4: Regex extract host:port from %http_response_url → %PortalHost
+A5: DebugFlash — Portal: %PortalHost
+A6: HTTP POST http://%PortalHost/forms/guest_toued
+A7: DebugFlash — POST: %http_response_code (expect 302)
+A8: HTTP GET detectportal.firefox.com/success.txt → verify
+A9: If 200 → Success / Else → Failure
+```
+
+### Why Laptop Python Works But Phone Tasker Doesn't (Architecture)
+- **Laptop**: Single network interface (WiFi only). All HTTP goes through WiFi → portal intercepts → Python's `requests` sees the 302 redirect directly.
+- **Phone**: Two interfaces (WiFi + cellular). Android policy routing always sends internet-bound traffic over cellular when available. Tasker's HTTP Request has no interface-binding option — it follows Android's routing table which prefers cellular.
+- **Why `curl --interface wlan0` works from adb**: Forces binding to WiFi interface, bypassing Android policy routing.
+- **Why Tasker HTTP worked without data off (observed today)**: Likely because during initial WiFi association, cmvwifi briefly becomes the only default route before Android re-establishes cellular routing. This is a race condition — not reliable.
+- **Open question**: Does Tasker HTTP GET `1.1.1.1` reliably get intercepted by the portal, or only sometimes? Needs further testing with fresh portal session.
+- **Possible fix if Tasker HTTP is unreliable**: Use `Run Shell` (non-root, no timeout issues) with the static curl binary at `/data/local/tmp/curl --interface wlan0` — curl works from adb shell as the `shell` user. Tasker's non-root shell runs as `shell` user which should be able to execute it.
+
+### Key Facts
+- Static curl binary at `/data/local/tmp/curl` works from adb shell but NOT from Tasker (Android 16 blocks root shell)
+- Portal IP is dynamic per session (10.64.2.x:9997)
+- `--interface wlan0` is required for curl to reach portal
+- Tasker HTTP Request (code 339) does NOT support interface binding — relies on WiFi interception of 1.1.1.1
+- No need to forget/reconnect cmvwifi — disconnect and reconnect is sufficient
+
+### Files Updated
+- **XML**: Removed mobile data toggle, dynamic portal host detection via regex
 - **Devlog**: This entry
