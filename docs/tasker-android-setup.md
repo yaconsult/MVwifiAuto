@@ -637,13 +637,19 @@ Copy the file to Google Drive, email it to yourself, or use any other method —
 
 ### Step 2: Import into Tasker
 
+> **⚠️ Always delete the existing project first.** Tasker stores its live data in internal app storage — the `/sdcard/Tasker/projects/` file is only an import source. Pushing a new XML file does **not** update the running project. You must delete and reimport every time.
+
+**Delete the old project (if it exists):**
 1. Open **Tasker** on the phone
-2. Look at the **bottom of the screen** — you'll see project tab(s) (e.g. "Base")
-3. **Long-press** on an empty area of that bottom bar (not on an existing tab name)
-4. A menu appears — tap **Import Project**
-5. A file browser opens — navigate to where you placed the `.prj.xml` file
-6. Tap `MVwifiAuto.prj.xml` to select it
-7. Tasker will import and a new **MVwifiAuto** tab will appear at the bottom
+2. Long-press the **MVwifiAuto** tab at the bottom
+3. Tap **Delete Project** → confirm
+
+**Then import the new one:**
+1. **Long-press** on an empty area of the bottom bar (not on a tab name)
+2. A menu appears — tap **Import Project**
+3. A file browser opens — navigate to `Tasker/projects/`
+4. Tap `MVwifiAuto.prj.xml` to select it
+5. Tasker imports and a new **MVwifiAuto** tab appears at the bottom
 
 ### Step 3: Verify the import
 

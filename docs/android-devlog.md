@@ -597,6 +597,7 @@ A9: If 200 → Success / Else → Failure
 - `--interface wlan0` is required for curl to reach portal
 - Tasker HTTP Request (code 339) does NOT support interface binding — relies on WiFi interception of 1.1.1.1
 - No need to forget/reconnect cmvwifi — disconnect and reconnect is sufficient
+- **Always delete the MVwifiAuto project in Tasker before reimporting** — Tasker uses internal app storage, not the `/sdcard` file. Pushing XML never auto-updates the running project.
 
 ### Files Updated
 - **XML**: Removed mobile data toggle, dynamic portal host detection via regex
