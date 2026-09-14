@@ -9,6 +9,7 @@ from mvwifi_auto.wifi_binding import (
     InterfaceBindingError,
     InterfaceBoundAdapter,
     create_wifi_session,
+    detect_wifi_interface,
     get_interface_ip,
 )
 
@@ -87,6 +88,38 @@ class TestGetInterfaceIp:
             get_interface_ip("wlan0")
 
 
+class TestDetectWifiInterface:
+    """Test WiFi interface auto-detection."""
+
+    def test_detects_wlan0(self):
+        """Test that wlan0 is detected when it has an IP."""
+        with patch(
+            "mvwifi_auto.wifi_binding._get_interface_ip_ioctl",
+            side_effect=lambda iface: "10.0.0.5" if iface == "wlan0" else None,
+        ):
+            result = detect_wifi_interface()
+
+        assert result == "wlan0"
+
+    def test_detects_wlan1_when_wlan0_has_no_ip(self):
+        """Test that wlan1 is detected when wlan0 has no IP."""
+        with patch(
+            "mvwifi_auto.wifi_binding._get_interface_ip_ioctl",
+            side_effect=lambda iface: "10.0.0.6" if iface == "wlan1" else None,
+        ):
+            result = detect_wifi_interface()
+
+        assert result == "wlan1"
+
+    def test_no_interface_found_raises_error(self):
+        """Test that error is raised when no WiFi interface has an IP."""
+        with (
+            patch("mvwifi_auto.wifi_binding._get_interface_ip_ioctl", return_value=None),
+            pytest.raises(InterfaceBindingError, match="auto-detect"),
+        ):
+            detect_wifi_interface()
+
+
 class TestInterfaceBoundAdapter:
     """Test the interface-bound HTTP adapter."""
 
@@ -152,3 +185,18 @@ class TestCreateWifiSession:
         adapter = session.get_adapter("http://1.1.1.1/")
         assert adapter.interface == "wlan1"
         assert adapter.source_ip == "192.168.1.50"
+
+    def test_auto_detect_when_interface_none(self):
+        """Test that auto-detection is used when interface is None."""
+        with (
+            patch(
+                "mvwifi_auto.wifi_binding.detect_wifi_interface",
+                return_value="wlan1",
+            ),
+            patch("mvwifi_auto.wifi_binding.get_interface_ip", return_value="10.0.0.7"),
+        ):
+            session = create_wifi_session(None)
+
+        adapter = session.get_adapter("http://1.1.1.1/")
+        assert adapter.interface == "wlan1"
+        assert adapter.source_ip == "10.0.0.7"

@@ -1,8 +1,8 @@
 """Android/Termux entry point for MVwifiAuto.
 
 Reuses the same portal-handling logic as the Linux/NetworkManager
-version, but routes HTTP traffic over WiFi (``wlan0``) to bypass
-Android's cellular-preferred policy routing.
+version, but routes HTTP traffic over WiFi to bypass Android's
+cellular-preferred policy routing.
 
 Designed to be called from Tasker via ``Run Shell`` (non-root) or run
 directly from the Termux command line::
@@ -29,7 +29,7 @@ logger = logging.getLogger("mvwifi_auto.android")
 
 
 def run_once(
-    interface: str = "wlan0",
+    interface: str | None = None,
     verbose: bool = False,
     max_portal_attempts: int = 3,
 ) -> bool:
@@ -41,7 +41,8 @@ def run_once(
     portal, accepts the terms, and verifies internet connectivity.
 
     Args:
-        interface: WiFi interface name (default ``wlan0``).
+        interface: WiFi interface name. If None, auto-detects (tries
+            wlan0, wlan1, etc.). Default: None.
         verbose: Enable debug logging.
         max_portal_attempts: Maximum captive portal retry attempts.
 
@@ -64,10 +65,11 @@ def run_once(
     try:
         session = create_wifi_session(interface)
     except InterfaceBindingError as e:
-        logger.error("Cannot bind to %s: %s", interface, e)
+        logger.error("Cannot bind to WiFi interface: %s", e)
         return False
 
-    logger.info("Handling cmvwifi captive portal via %s", interface)
+    interface_name = session.get_adapter("http://").interface
+    logger.info("Handling cmvwifi captive portal via %s", interface_name)
     return handle_cmvwifi_connection(
         max_attempts=max_portal_attempts,
         session=session,
@@ -99,8 +101,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--interface",
-        default="wlan0",
-        help="WiFi interface name (default: wlan0)",
+        default=None,
+        help="WiFi interface name (default: auto-detect wlan0/wlan1)",
     )
     parser.add_argument(
         "--max-attempts",
