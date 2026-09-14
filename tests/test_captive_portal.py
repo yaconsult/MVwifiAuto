@@ -3,18 +3,20 @@
 import pytest
 
 from mvwifi_auto.captive_portal import (
-    DEFAULT_USER_AGENT,
     CMVWIFI_LOGIN_URL,
+    DEFAULT_USER_AGENT,
     CaptivePortalError,
     accept_cmvwifi_terms,
     detect_captive_portal,
+    detect_portal_host,
+    extract_portal_host,
     get_default_gateway,
     verify_internet_connectivity,
 )
 
 
 class TestGetDefaultGateway:
-    """Test gateway detection."""
+    """Test gateway detection (kept for diagnostics)."""
 
     def test_successful_gateway_detection(self, mock_captive_subprocess):
         """Test detecting gateway from ip route output."""
@@ -44,6 +46,73 @@ class TestGetDefaultGateway:
         gateway = get_default_gateway()
 
         assert gateway is None
+
+
+class TestExtractPortalHost:
+    """Test extracting the portal host from a redirect URL."""
+
+    def test_extract_ip_with_port(self):
+        """Extract host:port from a portal URL with a port."""
+        url = "http://10.64.2.21:9997/user/guest_tou.asp"
+        assert extract_portal_host(url) == "10.64.2.21:9997"
+
+    def test_extract_ip_without_port(self):
+        """Extract host from a portal URL without a port."""
+        url = "http://192.168.1.1/login"
+        assert extract_portal_host(url) == "192.168.1.1"
+
+    def test_extract_https(self):
+        """Extract host from an HTTPS URL."""
+        url = "https://10.64.2.21:9997/portal"
+        assert extract_portal_host(url) == "10.64.2.21:9997"
+
+    def test_extract_invalid_url(self):
+        """Return None for a non-HTTP URL."""
+        assert extract_portal_host("not a url") is None
+        assert extract_portal_host("") is None
+
+
+class TestDetectPortalHost:
+    """Test portal host detection via probe redirect."""
+
+    def test_detect_from_redirect(self, mock_requests):
+        """Test extracting host from the final URL after redirect."""
+        mock_response = mock_requests.get.return_value
+        mock_response.url = "http://10.64.2.21:9997/user/guest_tou.asp"
+
+        host = detect_portal_host()
+
+        assert host == "10.64.2.21:9997"
+
+    def test_detect_no_redirect(self, mock_requests):
+        """Test that a non-redirected probe returns None."""
+        mock_response = mock_requests.get.return_value
+        mock_response.url = "http://1.1.1.1/"
+
+        host = detect_portal_host()
+
+        assert host is None
+
+    def test_detect_request_exception(self, mock_requests):
+        """Test that a request exception returns None."""
+        from requests import RequestException
+
+        mock_requests.get.side_effect = RequestException("fail")
+
+        host = detect_portal_host()
+
+        assert host is None
+
+    def test_detect_uses_custom_probe_url(self, mock_requests):
+        """Test that a custom probe URL is used."""
+        mock_response = mock_requests.get.return_value
+        mock_response.url = "http://10.64.2.23:9997/user/guest_tou.asp"
+
+        host = detect_portal_host(probe_url="http://example.com/")
+
+        call_args = mock_requests.get.call_args
+        assert call_args.args[0] == "http://example.com/"
+        assert host == "10.64.2.23:9997"
 
 
 class TestDetectCaptivePortal:
@@ -99,12 +168,27 @@ class TestDetectCaptivePortal:
 
         assert is_captive is True
 
+    def test_uses_session_when_provided(self, mock_requests):
+        """Test that a provided session is used instead of the requests module."""
+        from unittest.mock import MagicMock
+
+        mock_session = MagicMock()
+        mock_response = mock_session.get.return_value
+        mock_response.status_code = 200
+        mock_response.text = "success"
+
+        is_captive, redirect = detect_captive_portal(session=mock_session)
+
+        assert is_captive is False
+        mock_session.get.assert_called_once()
+        mock_requests.get.assert_not_called()
+
 
 class TestAcceptCmvwifiTerms:
     """Test accepting Mountain View WiFi terms."""
 
     def test_successful_terms_acceptance(self, mock_requests):
-        """Test successful terms acceptance."""
+        """Test successful terms acceptance with explicit portal host."""
         # First response for POST
         mock_post_response = mock_requests.post.return_value
         mock_post_response.status_code = 200
@@ -114,12 +198,27 @@ class TestAcceptCmvwifiTerms:
         mock_get_response.status_code = 200
         mock_get_response.text = "success"
 
-        result = accept_cmvwifi_terms(gateway_ip="192.168.1.1")
+        result = accept_cmvwifi_terms(portal_host="10.64.2.21:9997")
 
         assert result is True
         mock_requests.post.assert_called_once()
 
         # Check POST URL
+        call_args = mock_requests.post.call_args
+        assert call_args.args[0] == f"http://10.64.2.21:9997{CMVWIFI_LOGIN_URL}"
+
+    def test_successful_terms_acceptance_plain_ip(self, mock_requests):
+        """Test successful terms acceptance with a plain IP (no port)."""
+        mock_post_response = mock_requests.post.return_value
+        mock_post_response.status_code = 200
+
+        mock_get_response = mock_requests.get.return_value
+        mock_get_response.status_code = 200
+        mock_get_response.text = "success"
+
+        result = accept_cmvwifi_terms(portal_host="192.168.1.1")
+
+        assert result is True
         call_args = mock_requests.post.call_args
         assert call_args.args[0] == f"http://192.168.1.1{CMVWIFI_LOGIN_URL}"
 
@@ -130,7 +229,7 @@ class TestAcceptCmvwifiTerms:
         mock_requests.post.side_effect = RequestException("Connection failed")
 
         with pytest.raises(CaptivePortalError):
-            accept_cmvwifi_terms(gateway_ip="192.168.1.1")
+            accept_cmvwifi_terms(portal_host="192.168.1.1")
 
     def test_internet_verification_fails(self, mock_requests):
         """Test when terms accepted but internet verification fails."""
@@ -139,37 +238,65 @@ class TestAcceptCmvwifiTerms:
 
         mock_get_response = mock_requests.get.return_value
         mock_get_response.status_code = 200
-        mock_get_response.text = "not success"  # Wrong content
+        mock_get_response.text = "Please login"  # Wrong content
 
-        result = accept_cmvwifi_terms(gateway_ip="192.168.1.1")
+        result = accept_cmvwifi_terms(portal_host="192.168.1.1")
 
         assert result is False
 
-    def test_auto_detect_gateway(self, mock_requests, mock_captive_subprocess):
-        """Test auto-detecting gateway when not provided."""
-        mock_result = mock_captive_subprocess.run.return_value
-        mock_result.returncode = 0
-        mock_result.stdout = "default via 10.0.0.1 dev eth0"
+    def test_auto_detect_portal_host(self, mock_requests, mock_captive_subprocess):
+        """Test auto-detecting portal host when not provided.
 
+        When portal_host is None, the function probes http://1.1.1.1/
+        and extracts the host from the redirect URL.
+        """
+        # detect_portal_host calls requests.get (follows redirects)
+        # The first get call is from detect_portal_host
+        mock_get_response = mock_requests.get.return_value
+        mock_get_response.url = "http://10.64.2.21:9997/user/guest_tou.asp"
+
+        # POST response
         mock_post_response = mock_requests.post.return_value
         mock_post_response.status_code = 200
 
-        mock_get_response = mock_requests.get.return_value
+        # verify_internet_connectivity also calls requests.get
+        # (same mock return value, configure for success)
         mock_get_response.status_code = 200
         mock_get_response.text = "success"
 
         accept_cmvwifi_terms()
 
-        # Should use auto-detected gateway
+        # Should use auto-detected portal host
         call_args = mock_requests.post.call_args
-        assert "10.0.0.1" in call_args.args[0]
+        assert "10.64.2.21:9997" in call_args.args[0]
 
-    def test_no_gateway_raises_error(self, mock_captive_subprocess):
-        """Test that error is raised when gateway cannot be detected."""
-        mock_captive_subprocess.run.side_effect = FileNotFoundError()
+    def test_no_portal_host_raises_error(self, mock_requests):
+        """Test that error is raised when portal host cannot be detected."""
+        from requests import RequestException
 
-        with pytest.raises(CaptivePortalError, match="gateway"):
+        # detect_portal_host returns None when request fails
+        mock_requests.get.side_effect = RequestException("no network")
+
+        with pytest.raises(CaptivePortalError, match="portal host"):
             accept_cmvwifi_terms()
+
+    def test_uses_session_when_provided(self, mock_requests):
+        """Test that a provided session is used for POST and verification."""
+        from unittest.mock import MagicMock
+
+        mock_session = MagicMock()
+        mock_post_response = mock_session.post.return_value
+        mock_post_response.status_code = 200
+
+        mock_get_response = mock_session.get.return_value
+        mock_get_response.status_code = 200
+        mock_get_response.text = "success"
+
+        result = accept_cmvwifi_terms(portal_host="10.64.2.21", session=mock_session)
+
+        assert result is True
+        mock_session.post.assert_called_once()
+        mock_requests.post.assert_not_called()
 
 
 class TestVerifyInternetConnectivity:
@@ -221,3 +348,18 @@ class TestVerifyInternetConnectivity:
 
         call_args = mock_requests.get.call_args
         assert "firefox.com" in call_args.args[0]
+
+    def test_uses_session_when_provided(self, mock_requests):
+        """Test that a provided session is used instead of the requests module."""
+        from unittest.mock import MagicMock
+
+        mock_session = MagicMock()
+        mock_response = mock_session.get.return_value
+        mock_response.status_code = 200
+        mock_response.text = "success"
+
+        result = verify_internet_connectivity(session=mock_session)
+
+        assert result is True
+        mock_session.get.assert_called_once()
+        mock_requests.get.assert_not_called()

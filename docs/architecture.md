@@ -92,9 +92,27 @@ MV WiFi Auto is a user-space daemon that automatically connects to Mountain View
 
 **Key Functions**
 - `detect_captive_portal()` - Detect if behind captive portal
-- `accept_cmvwifi_terms(gateway_ip)` - Accept Mountain View WiFi terms
+- `detect_portal_host()` - Probe for portal host by following a redirect
+- `extract_portal_host()` - Extract host (IP or IP:port) from a redirect URL
+- `accept_cmvwifi_terms(portal_host)` - Accept Mountain View WiFi terms
 - `verify_internet_connectivity()` - Confirm internet access
-- `get_default_gateway()` - Get gateway IP from routing table
+- `get_default_gateway()` - Get gateway IP from routing table (diagnostics)
+
+**Portal Host Detection**
+
+The portal sign-in host is *not* necessarily the default gateway. The
+captive portal redirects HTTP requests to a dynamic host (e.g.
+`10.64.2.21:9997`) which may differ from the routing gateway
+(`10.65.8.1`). The portal host is extracted from the redirect URL, not
+from `ip route`.
+
+**Interface Binding**
+
+All HTTP functions accept an optional `session` parameter (a
+`requests.Session`). When `None`, the default `requests` module is
+used (Linux/NetworkManager). On Android/Termux, a WiFi-bound session
+from `wifi_binding.create_wifi_session()` forces traffic through
+wlan0, bypassing cellular policy routing.
 
 **Portal Detection Method**
 1. Request `http://detectportal.firefox.com/canonical.html`
@@ -104,9 +122,71 @@ MV WiFi Auto is a user-space daemon that automatically connects to Mountain View
 
 **Mountain View WiFi Specifics**
 - Open network (no password)
-- Captive portal at `http://{gateway}/forms/guest_toued`
+- Captive portal at `http://{portal_host}/forms/guest_toued`
+- Portal host extracted from redirect URL (dynamic per session)
 - POST with `origurl` and `ok=Accept and Continue`
 - Based on implementation in WeatherClock-micropython
+
+### `wifi_binding.py` - Interface-Bound HTTP (Android/Termux)
+
+Binds `requests` HTTP traffic to a specific network interface (e.g.
+`wlan0`), equivalent to `curl --interface wlan0`. Required on Android
+where policy routing sends internet-bound traffic over cellular.
+
+**Key Components**
+- `get_interface_ip(interface)` - Get IPv4 address via ioctl or `ip addr`
+- `InterfaceBoundAdapter` - HTTPAdapter subclass that sets `source_address`
+- `create_wifi_session(interface)` - Factory returning a configured Session
+
+### `android.py` - Android/Termux Entry Point
+
+Reuses the same portal-handling logic as the Linux version, but routes
+HTTP through a WiFi-bound session. Called from Tasker or run directly
+from the Termux command line.
+
+**Key Function**
+- `run_once(interface, verbose, max_portal_attempts)` - Single portal cycle
+- `main()` - CLI entry point (`mvwifi-android`)
+
+### `tasker_gen.py` - Tasker XML Generator
+
+Generates the Tasker `.prj.xml` file from testable Python data
+structures, replacing hand-edited XML. Eliminates parameter-mapping
+bugs by encoding Tasker's action/argument format once.
+
+**Key Components**
+- Data model: `TaskerProject`, `TaskerTask`, `TaskerAction`, `TaskerArg`
+- Action builders: `perform_task()`, `flash()`, `http_request()`, etc.
+- `build_mvwifi_project()` - Constructs the complete MVwifiAuto project
+- `generate_project_xml()` - Serializes to XML string
+- CLI: `python -m mvwifi_auto.tasker_gen --output android/MVwifiAuto.prj.xml`
+
+### `portal_analyzer.py` - Generic Captive Portal Analyzer
+
+A recon tool for capturing the structure of any captive portal — form
+actions, hidden fields, submit buttons, redirect URLs.  Originally
+written as `analyze_costco_portal.py`, now refactored into a reusable,
+testable module.
+
+**Key Components**
+- `analyze_portal()` - Probes a URL, follows redirect, parses forms
+- `parse_forms(html)` - Extracts forms, fields, checkboxes, hidden inputs
+- `PortalReport` - Dataclass with `to_text()` for human-readable output
+- CLI: `mvwifi-analyze-portal --probe-url http://1.1.1.1/ --save-html --interface wlan0`
+
+### `costco_portal.py` - Costco WiFi Portal Handler (Scaffolded)
+
+Handles the Costco WiFi captive portal.  Protocol constants (endpoint
+path, form fields) are TODO — must be captured on-site using
+`mvwifi-analyze-portal`.  The HTTP plumbing (interface binding, redirect
+host detection, internet verification) is shared with `captive_portal.py`.
+
+**Key Functions**
+- `accept_costco_terms(portal_host, session)` - POST to Costco portal
+- `handle_costco_connection(session)` - Full portal handling cycle
+
+**Status**: Scaffolded with placeholder constants.  Run the analyzer on
+Costco WiFi to fill in the real values.
 
 ## Data Flow
 

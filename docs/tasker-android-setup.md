@@ -2,6 +2,8 @@
 
 Complete step-by-step instructions for automating Mountain View WiFi (`cmvwifi`) connection on your rooted Google Pixel using Tasker.
 
+> **See also**: [android-termux-setup.md](android-termux-setup.md) for the recommended Termux + Python approach, which reuses the laptop's working portal code and avoids Android 16's HTTP routing limitations. The Tasker approach below is maintained as an alternative.
+
 ## Overview
 
 This setup automatically connects to `cmvwifi` when in range and handles the captive portal acceptance, similar to your laptop's MVwifiAuto service.
@@ -18,6 +20,18 @@ This setup automatically connects to `cmvwifi` when in range and handles the cap
 - 2 **Tasks**: 
   - `ConnectToCmvwifi` - handles connection
   - `HandlePortal` - accepts terms and verifies
+
+### XML Regeneration
+
+The `android/MVwifiAuto.prj.xml` file is generated from testable Python
+code. To regenerate after editing tasks:
+
+```bash
+uv run python -m mvwifi_auto.tasker_gen --output android/MVwifiAuto.prj.xml
+```
+
+This eliminates the parameter-mapping bugs that occurred during
+hand-editing (see android-devlog.md Sessions 14 and 17).
 
 ---
 
@@ -366,25 +380,26 @@ This task accepts the captive portal terms. Create this first since it's called 
 
 Your task should show:
 ```
-A1:  Perform Task [ Name:DebugFlash Par1:[HandlePortal] Starting portal handling ]
-A2:  HTTP Request [ Method:GET URL:http://detectportal.firefox.com/canonical.html Automatically Follow Redirects:Off Timeout:10 ]
-A3:  Perform Task [ Name:DebugFlash Par1:[HandlePortal] HTTP code: %http_response_code ]
-A4:  If [ %http_response_code ~ 302 OR %http_response_code ~ 307 ]
-A5:    Perform Task [ Name:DebugFlash Par1:[HandlePortal] Captive portal detected ]
-A6:    Variable Set [ Name:%LocationHeader To:%http_headers() ]
-A7:    Variable Search Replace [ Name:%LocationHeader Search:Location: http:// Replace Matches With: ]
-A8:    Variable Split [ Name:%LocationHeader Splitter:/ ]
-A9:    Perform Task [ Name:DebugFlash Par1:[HandlePortal] Gateway IP: %LocationHeader1 ]
-A10:   HTTP Request [ Method:POST URL:http://%LocationHeader1/forms/guest_toued Headers:Content-Type:application/x-www-form-urlencoded Body:origurl=http://www.google.com&ok=Accept and Continue Timeout:10 Automatically Follow Redirects:On ]
-A11:   Wait [ Seconds:2 ]
-A12:   HTTP Request [ Method:GET URL:http://detectportal.firefox.com/success.txt Automatically Follow Redirects:On Timeout:5 ]
-A13:   If [ %http_response_code ~ 200 ]
-A13a:    Perform Task [ Name:DebugFlash Par1:[HandlePortal] Success: Connected with internet! ]
-A13b:  Else
-A13c:    Perform Task [ Name:DebugFlash Par1:[HandlePortal] Failed: Portal acceptance failed ]
-A14:   End If
-A15: End If
+A1:  Perform Task [ Name:DebugFlash Par1:[HandlePortal] v19 starting ]
+A2:  Wait [ Seconds:3 ]
+A3:  HTTP Request [ Method:GET URL:http://1.1.1.1/ Follow Redirects:On Timeout:10 ]
+A4:  Variable Search Replace [ Var:%http_response_url Search:http://([^/]+)/.* Result:%PortalHost ]
+A5:  Perform Task [ Name:DebugFlash Par1:Portal: %PortalHost ]
+A6:  HTTP Request [ Method:POST URL:http://%PortalHost/forms/guest_toued Headers:Content-Type:application/x-www-form-urlencoded Body:origurl=http%3a%2f%2f1%2e1%2e1%2e1%2f&ok=Accept+and+Continue Timeout:10 ]
+A7:  Perform Task [ Name:DebugFlash Par1:POST: %http_response_code ]
+A8:  HTTP Request [ Method:GET URL:http://detectportal.firefox.com/success.txt Timeout:10 ]
+A9:  Variable Set [ Name:%VerifyResult To:%http_response_code ]
+A10: If [ %VerifyResult ~ 200 ]
+A11:   Perform Task [ Name:DebugFlash Par1:[HandlePortal] Success: Connected with internet! ]
+A12: Else
+A13:   Perform Task [ Name:DebugFlash Par1:[HandlePortal] Failed: Portal acceptance failed ]
+A14: End If
 ```
+
+> **Note**: The portal host is extracted dynamically from the redirect
+> URL using `Variable Search Replace` with regex `http://([^/]+)/.*`.
+> This is necessary because the portal IP changes between sessions
+> (e.g. `10.64.2.21:9997` vs `10.64.2.23:9997`).
 
 ---
 

@@ -20,6 +20,7 @@ PUBLIC_NETWORK = "cmvwifi"
 SCAN_TIMEOUT = 15.0  # seconds to wait for WiFi scan
 CONNECT_TIMEOUT = 30  # seconds to wait for connection
 
+
 # Logging setup
 def setup_logging(verbose: bool = False) -> logging.Logger:
     """Configure logging.
@@ -76,7 +77,7 @@ class WiFiController:
             self._nm = NetworkManager()
         return self._nm
 
-    def check_current_state(self) -> dict:
+    def check_current_state(self) -> dict[str, object]:
         """Check current WiFi connection state.
 
         Returns:
@@ -84,7 +85,9 @@ class WiFiController:
         """
         return get_connection_info()
 
-    def decide_action(self, current_ssid: str | None, available_networks: list[dict]) -> ConnectionDecision:
+    def decide_action(
+        self, current_ssid: str | None, available_networks: list[dict[str, object]]
+    ) -> ConnectionDecision:
         """Decide what action to take based on current state and available networks.
 
         Logic:
@@ -225,7 +228,9 @@ class WiFiController:
 
             # If connected to public network but no internet, handle captive portal
             if current_ssid == self.public_network and not has_internet:
-                self.logger.info("Connected to public network but no internet, handling captive portal...")
+                self.logger.info(
+                    "Connected to public network but no internet, handling captive portal..."
+                )
                 return handle_cmvwifi_connection()
 
             # Scan for available networks
@@ -240,7 +245,9 @@ class WiFiController:
             self.logger.debug(f"Found {len(available)} networks: {[n['ssid'] for n in available]}")
 
             # Decide action
-            decision = self.decide_action(current_ssid, available)
+            decision = self.decide_action(
+                current_ssid if isinstance(current_ssid, str) else None, available
+            )
             self.logger.info(f"Decision: {decision.action} - {decision.reason}")
 
             # Execute decision
@@ -294,7 +301,9 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(description="Auto-connect to Mountain View public WiFi")
     parser.add_argument("--daemon", "-d", action="store_true", help="Run in daemon mode")
-    parser.add_argument("--interval", "-i", type=int, default=60, help="Check interval in seconds (daemon mode)")
+    parser.add_argument(
+        "--interval", "-i", type=int, default=60, help="Check interval in seconds (daemon mode)"
+    )
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
     parser.add_argument("--once", action="store_true", help="Run once and exit")
 

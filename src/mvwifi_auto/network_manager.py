@@ -6,7 +6,7 @@ import time
 try:
     import dbus
 except ImportError:
-    dbus = None  # type: ignore
+    dbus = None
 
 
 class NetworkManagerError(Exception):
@@ -71,12 +71,16 @@ class NetworkManager:
 
                 # Get the connection object
                 try:
-                    conn_path_obj = conn_iface.Get(self.NM_ACTIVE_CONNECTION_INTERFACE, "Connection")
+                    conn_path_obj = conn_iface.Get(
+                        self.NM_ACTIVE_CONNECTION_INTERFACE, "Connection"
+                    )
                 except dbus.DBusException:
                     continue
 
                 settings_obj = self._bus.get_object(self.NM_SERVICE, conn_path_obj)
-                settings_iface = dbus.Interface(settings_obj, "org.freedesktop.NetworkManager.Settings.Connection")
+                settings_iface = dbus.Interface(
+                    settings_obj, "org.freedesktop.NetworkManager.Settings.Connection"
+                )
 
                 try:
                     settings = settings_iface.GetSettings()
@@ -92,7 +96,7 @@ class NetworkManager:
         except dbus.DBusException:
             return None
 
-    def scan_wifi_networks(self, timeout: float = 10.0) -> list[dict]:
+    def scan_wifi_networks(self, timeout: float = 10.0) -> list[dict[str, object]]:
         """Scan for available WiFi networks.
 
         Args:
@@ -155,20 +159,26 @@ class NetworkManager:
 
                     # Determine security
                     has_security = (flags & 0x1) or wpa_flags or rsn_flags
-                    security = "WPA2" if rsn_flags else ("WPA" if wpa_flags else ("WEP" if flags & 0x1 else "Open"))
+                    security = (
+                        "WPA2"
+                        if rsn_flags
+                        else ("WPA" if wpa_flags else ("WEP" if flags & 0x1 else "Open"))
+                    )
 
-                    networks.append({
-                        "ssid": ssid,
-                        "signal": signal,
-                        "security": security,
-                        "path": str(ap_path),
-                        "has_security": bool(has_security),
-                    })
+                    networks.append(
+                        {
+                            "ssid": ssid,
+                            "signal": signal,
+                            "security": security,
+                            "path": str(ap_path),
+                            "has_security": bool(has_security),
+                        }
+                    )
                 except dbus.DBusException:
                     continue
 
             # Sort by signal strength
-            networks.sort(key=lambda x: x["signal"], reverse=True)
+            networks.sort(key=lambda x: int(x["signal"]), reverse=True)  # type: ignore[call-overload]
             return networks
 
         except dbus.DBusException as e:
@@ -218,7 +228,7 @@ class NetworkManager:
             return False
 
 
-def get_connection_info() -> dict:
+def get_connection_info() -> dict[str, object]:
     """Get current connection information.
 
     Returns:
@@ -228,7 +238,7 @@ def get_connection_info() -> dict:
         nm = NetworkManager()
         ssid = nm.get_active_connection_ssid()
 
-        result = {
+        result: dict[str, object] = {
             "connected": ssid is not None,
             "ssid": ssid,
             "has_internet": False,
@@ -242,7 +252,7 @@ def get_connection_info() -> dict:
         return {"connected": False, "ssid": None, "has_internet": False, "error": str(e)}
 
 
-def find_network(ssid: str, timeout: float = 10.0) -> dict | None:
+def find_network(ssid: str, timeout: float = 10.0) -> dict[str, object] | None:
     """Scan for a specific network.
 
     Args:

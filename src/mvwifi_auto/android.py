@@ -1,0 +1,123 @@
+"""Android/Termux entry point for MVwifiAuto.
+
+Reuses the same portal-handling logic as the Linux/NetworkManager
+version, but routes HTTP traffic over WiFi (``wlan0``) to bypass
+Android's cellular-preferred policy routing.
+
+Designed to be called from Tasker via ``Run Shell`` (non-root) or run
+directly from the Termux command line::
+
+    mvwifi-android --once
+    mvwifi-android --once --verbose
+
+Requires:
+    - Termux with Python 3.11+
+    - ``requests`` installed (``pip install requests``)
+    - cmvwifi already connected (via Tasker's Net → Connect to WiFi)
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+
+from mvwifi_auto.captive_portal import handle_cmvwifi_connection
+from mvwifi_auto.wifi_binding import InterfaceBindingError, create_wifi_session
+
+logger = logging.getLogger("mvwifi_auto.android")
+
+
+def run_once(
+    interface: str = "wlan0",
+    verbose: bool = False,
+    max_portal_attempts: int = 3,
+) -> bool:
+    """Run a single portal-handling cycle on Android.
+
+    Assumes the phone is already associated with ``cmvwifi`` (handled
+    by Tasker's WiFi Near profile + Connect to WiFi action).  This
+    function creates a WiFi-bound HTTP session, detects the captive
+    portal, accepts the terms, and verifies internet connectivity.
+
+    Args:
+        interface: WiFi interface name (default ``wlan0``).
+        verbose: Enable debug logging.
+        max_portal_attempts: Maximum captive portal retry attempts.
+
+    Returns:
+        True if internet access was established.
+    """
+    if verbose:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    else:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            datefmt="%H:%M:%S",
+        )
+
+    try:
+        session = create_wifi_session(interface)
+    except InterfaceBindingError as e:
+        logger.error("Cannot bind to %s: %s", interface, e)
+        return False
+
+    logger.info("Handling cmvwifi captive portal via %s", interface)
+    return handle_cmvwifi_connection(
+        max_attempts=max_portal_attempts,
+        session=session,
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point for the Android/Termux version.
+
+    Args:
+        argv: Command-line arguments (default: ``sys.argv[1:]``).
+
+    Returns:
+        0 on success, 1 on failure.
+    """
+    parser = argparse.ArgumentParser(
+        description="Handle cmvwifi captive portal on Android (via Termux)",
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Run portal handling once and exit (default)",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Verbose logging",
+    )
+    parser.add_argument(
+        "--interface",
+        default="wlan0",
+        help="WiFi interface name (default: wlan0)",
+    )
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=3,
+        help="Maximum portal retry attempts (default: 3)",
+    )
+
+    args = parser.parse_args(argv)
+
+    success = run_once(
+        interface=args.interface,
+        verbose=args.verbose,
+        max_portal_attempts=args.max_attempts,
+    )
+    return 0 if success else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

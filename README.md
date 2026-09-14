@@ -159,11 +159,53 @@ uv run mypy src/
 Based on the [micropython captive portal implementation](https://github.com/lpinard/WeatherClock-micropython), the Mountain View WiFi captive portal:
 
 1. Redirects all HTTP requests to a login page
-2. Requires POST to `/forms/guest_toued` with:
+2. The portal host (IP:port) is extracted from the redirect URL — it may differ from the default gateway
+3. Requires POST to `/forms/guest_toued` with:
    - `origurl`: The original URL you tried to visit
    - `ok`: Button value ("Accept and Continue")
 
 The service handles this automatically after connecting to `cmvwifi`.
+
+## Android Support
+
+Two approaches are available for Android:
+
+### Termux + Python (Recommended)
+
+Runs the same Python portal-handling code as the laptop, with HTTP
+traffic bound to wlan0 to bypass Android's cellular-preferred policy
+routing. See [docs/android-termux-setup.md](docs/android-termux-setup.md)
+for setup instructions.
+
+### Tasker (Alternative)
+
+Uses Tasker's WiFi Near profile for detection and HTTP Request actions
+for portal handling. The Tasker XML is generated from testable Python
+code via `tasker_gen.py`. See
+[docs/tasker-android-setup.md](docs/tasker-android-setup.md) for setup
+instructions.
+
+To regenerate the Tasker XML:
+
+```bash
+uv run python -m mvwifi_auto.tasker_gen --output android/MVwifiAuto.prj.xml
+```
+
+## Costco WiFi Support (Scaffolded)
+
+Costco WiFi has a similar captive portal. The handler is scaffolded in
+`src/mvwifi_auto/costco_portal.py` but the actual protocol (endpoint
+path, form fields) must be captured on-site.
+
+To capture the Costco portal structure:
+
+```bash
+# On a device connected to Costco WiFi:
+mvwifi-analyze-portal --probe-url http://1.1.1.1/ --save-html --interface wlan0
+```
+
+Then fill in the `COSTCO_LOGIN_URL` and `COSTCO_POST_DATA` constants in
+`src/mvwifi_auto/costco_portal.py` from the analyzer output.
 
 ## Troubleshooting
 
@@ -207,8 +249,14 @@ nmcli general status
 
 - `src/mvwifi_auto/controller.py` - Main logic and decision engine
 - `src/mvwifi_auto/network_manager.py` - NetworkManager D-Bus interface
-- `src/mvwifi_auto/captive_portal.py` - Captive portal handling
+- `src/mvwifi_auto/captive_portal.py` - Captive portal handling (cmvwifi)
+- `src/mvwifi_auto/costco_portal.py` - Costco WiFi portal handler (scaffolded)
+- `src/mvwifi_auto/portal_analyzer.py` - Generic portal analysis tool
+- `src/mvwifi_auto/wifi_binding.py` - Interface-bound HTTP adapter (Android/Termux)
+- `src/mvwifi_auto/android.py` - Android/Termux entry point
+- `src/mvwifi_auto/tasker_gen.py` - Tasker XML generator
 - `systemd/mvwifi-auto.service` - User systemd service unit
+- `android/MVwifiAuto.prj.xml` - Tasker project (generated)
 
 ## License
 

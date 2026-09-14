@@ -1,6 +1,7 @@
 """Pytest configuration and fixtures."""
 
 import logging
+import subprocess as real_subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -42,9 +43,6 @@ def mock_requests():
     """Mock requests library."""
     with patch("mvwifi_auto.captive_portal.requests") as mock:
         yield mock
-
-
-import subprocess as real_subprocess
 
 
 @pytest.fixture

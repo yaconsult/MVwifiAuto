@@ -603,3 +603,101 @@ A9: If 200 → Success / Else → Failure
 ### Files Updated
 - **XML**: Removed mobile data toggle, dynamic portal host detection via regex
 - **Devlog**: This entry
+
+---
+
+## Session 18 — 2026-09-14 — Termux Pivot & XML Generator
+
+### Conclusion from Sessions 1-17
+
+After 17 sessions of fighting Android 16's platform limitations, the
+root causes are clear and unfixable from Tasker:
+
+1. **Tasker HTTP Request (code 339) has no interface binding** — Android 16 policy routing sends internet-bound traffic over cellular whenever mobile data is on.
+2. **Tasker root shell is blocked on Android 16** — the one workaround that works (`curl --interface wlan0`) can't be invoked from Tasker.
+3. **The "pure Tasker HTTP" flow relies on a race condition** — during initial WiFi association, cmvwifi briefly becomes the only default route. Not reliable.
+
+### Decision: Termux + Python (Reuse Working Code)
+
+Instead of continuing to fight the platform, the Android port now runs
+the same Python portal-handling code as the laptop via Termux. Tasker's
+role is reduced to:
+- WiFi Near profile for detection
+- Triggering the Python script via Run Shell (non-root)
+
+### New Module: `wifi_binding.py`
+
+`InterfaceBoundAdapter` — a `requests` HTTPAdapter subclass that binds
+all sockets to a named interface's local IP address, equivalent to
+`curl --interface wlan0`. This bypasses Android's policy routing.
+
+- `get_interface_ip("wlan0")` — ioctl (SIOCGIFADDR) with `ip addr` fallback
+- `create_wifi_session("wlan0")` — returns a `requests.Session` with the adapter mounted for http and https
+
+### New Module: `android.py`
+
+Termux entry point that:
+1. Creates a WiFi-bound session via `create_wifi_session("wlan0")`
+2. Calls `handle_cmvwifi_connection(session=session)` — the same function the laptop uses
+3. Returns 0 on success, 1 on failure
+
+CLI: `mvwifi-android --once --verbose`
+
+### Portal Host Fix (Shared with Python)
+
+`captive_portal.py` was updated to extract the portal host from the
+redirect URL instead of using the default gateway IP. This was an open
+item from Session 14 (Bug 4): the portal sign-in IP (`10.64.2.21:9997`)
+differs from the routing gateway (`10.65.8.1`).
+
+New functions:
+- `extract_portal_host(url)` — regex extraction of host from redirect URL
+- `detect_portal_host(probe_url, session)` — probes `http://1.1.1.1/`, follows redirect, extracts host
+
+All HTTP functions now accept an optional `session` parameter for
+interface binding.
+
+### New Module: `tasker_gen.py` — Testable XML Generator
+
+Replaces hand-edited XML with a Python generator. The parameter-mapping
+bugs from Sessions 14 and 17 (wrong arg order for Run Shell, wrong
+`%par1` vs `%par2`, etc.) are now structurally impossible — the
+generator encodes the correct format once.
+
+- Data model: `TaskerProject`, `TaskerTask`, `TaskerAction`, `TaskerArg`
+- Action builders: `perform_task()`, `flash()`, `http_request()`, `connect_wifi()`, etc.
+- `build_mvwifi_project()` — constructs the complete project
+- `generate_project_xml()` — serializes to pretty-printed XML
+- CLI: `python -m mvwifi_auto.tasker_gen --output android/MVwifiAuto.prj.xml`
+
+The Tasker XML is still maintained as an alternative for users who
+prefer the pure-Tasker approach, but the Termux + Python approach is
+now the recommended path.
+
+### Testing
+- 115 tests pass (4 skipped — D-Bus tests requiring real NetworkManager)
+- New: `test_wifi_binding.py` (10), `test_android.py` (10), `test_tasker_gen.py` (33)
+- Updated: `test_captive_portal.py` (30, was 18)
+- Generated XML validated with `xmllint --noout`
+
+### Files Updated
+- **New**: `src/mvwifi_auto/wifi_binding.py`
+- **New**: `src/mvwifi_auto/android.py`
+- **New**: `src/mvwifi_auto/tasker_gen.py`
+- **New**: `src/mvwifi_auto/portal_analyzer.py` (refactored from `analyze_costco_portal.py`)
+- **New**: `src/mvwifi_auto/costco_portal.py` (scaffolded, TODOs for on-site capture)
+- **New**: `tests/test_wifi_binding.py`
+- **New**: `tests/test_android.py`
+- **New**: `tests/test_tasker_gen.py`
+- **New**: `tests/test_portal_analyzer.py`
+- **New**: `tests/test_costco_portal.py`
+- **Modified**: `src/mvwifi_auto/captive_portal.py` — portal host from redirect, session parameter
+- **Modified**: `tests/test_captive_portal.py` — updated for new API
+- **Regenerated**: `android/MVwifiAuto.prj.xml` — from `tasker_gen.py`
+- **Modified**: `pyproject.toml` — added `mvwifi-android` and `mvwifi-analyze-portal` entry points
+- **Docs**: README, architecture, troubleshooting, DEVLOG, this devlog, tasker setup, new Termux setup
+
+### Costco WiFi Next Steps
+- Run `mvwifi-analyze-portal --interface wlan0` on Costco WiFi to capture the portal protocol
+- Fill in `COSTCO_LOGIN_URL` and `COSTCO_POST_DATA` in `costco_portal.py`
+- The HTTP plumbing (interface binding, redirect host detection, verification) is already shared and portal-agnostic

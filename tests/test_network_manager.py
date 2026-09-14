@@ -57,10 +57,9 @@ class TestGetActiveConnectionSsid:
             "802-11-wireless": {"ssid": [ord(c) for c in "dd-wrt"]}
         }
 
-        ssid = mock_network_manager.get_active_connection_ssid()
-
         # This test reveals complexity of mocking D-Bus - simplified for now
         # In real test, need to properly mock the chain of calls
+        mock_network_manager.get_active_connection_ssid()
 
 
 class TestScanWifiNetworks:
@@ -200,5 +199,5 @@ class TestFindNetwork:
     def test_handles_error_gracefully(self):
         """Test handling of NetworkManager errors."""
         # Should return None on error rather than raise
-        result = find_network("cmvwifi", timeout=0.001)
         # May return None or actual result depending on environment
+        find_network("cmvwifi", timeout=0.001)

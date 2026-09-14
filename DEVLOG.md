@@ -92,6 +92,50 @@
 - Monitor for actual captive portal scenarios
 - Document polkit requirement in install.sh
 
+## 2026-09-14 - Portal Host Fix, Android Termux Port, Tasker XML Generator, Costco Scaffold
+
+### Completed
+- [x] Fixed `captive_portal.py` to extract portal host from redirect URL instead of using default gateway IP
+- [x] Added `extract_portal_host()` and `detect_portal_host()` functions
+- [x] Added `session` parameter to all HTTP functions for interface binding
+- [x] Created `wifi_binding.py` — `InterfaceBoundAdapter` that binds sockets to wlan0 (like `curl --interface`)
+- [x] Created `android.py` — Termux entry point that reuses Python portal logic with WiFi-bound session
+- [x] Created `tasker_gen.py` — testable Python generator for Tasker `.prj.xml` files
+- [x] Regenerated `android/MVwifiAuto.prj.xml` from the generator
+- [x] Added `mvwifi-android` console script entry point
+- [x] Refactored `analyze_costco_portal.py` into `mvwifi_auto/portal_analyzer.py` (generic, testable)
+- [x] Scaffolded `mvwifi_auto/costco_portal.py` with TODOs for on-site protocol capture
+- [x] Added `mvwifi-analyze-portal` console script entry point
+- [x] Updated all tests (157 pass, 4 skipped)
+- [x] Updated documentation
+
+### Technical Decisions
+1. **Redirect host over gateway IP** — The portal sign-in host (`10.64.2.21:9997`) differs from the routing gateway (`10.65.8.1`). The Android devlog identified this in Session 14. Now both implementations extract the host from the redirect `Location` header, sharing a single source of truth.
+2. **Session parameter for interface binding** — All HTTP functions in `captive_portal.py` accept an optional `requests.Session`. On Linux, `None` uses the default module. On Android, `create_wifi_session("wlan0")` returns a session that binds all sockets to wlan0's local IP, bypassing cellular policy routing.
+3. **Termux + Python over pure Tasker** — After 17 sessions of fighting Android 16's platform limitations (blocked root shell, no interface binding in Tasker HTTP, policy routing), the Android port now runs the same Python code as the laptop via Termux. Tasker's role is reduced to WiFi Near detection + triggering the Python script.
+4. **Testable XML generator** — Replaced hand-edited XML with `tasker_gen.py` that builds Tasker projects from Python dataclasses. Parameter-mapping bugs (Sessions 14, 17) are now structurally impossible — the generator encodes the correct arg ordering once.
+
+### Challenges
+- **Mocked requests exceptions** — When `requests` is patched by pytest, `requests.RequestException` becomes a MagicMock and can't be caught. Fixed by importing the real exception classes at module level (`_RequestsRequestException`, etc.).
+- **`detect_portal_host` false positive** — When no redirect occurs, `response.url == probe_url`. Added an explicit check to return `None` in that case.
+- **ElementTree pretty-printing** — `tostring()` produces single-line output. Used `xml.etree.ElementTree.indent()` (Python 3.9+) with tab indentation to match Tasker's export format.
+
+### Testing
+- 115 tests pass, 4 skipped (D-Bus tests requiring real NetworkManager)
+- New test files: `test_wifi_binding.py` (10 tests), `test_android.py` (10 tests), `test_tasker_gen.py` (33 tests)
+- Updated `test_captive_portal.py`: 30 tests (was 18) covering new `extract_portal_host`, `detect_portal_host`, and `session` parameter
+- Generated XML validated with `xmllint --noout`
+
+### Next Steps
+- [ ] Test Termux approach on actual Android device near cmvwifi
+- [ ] Run `mvwifi-analyze-portal` on Costco WiFi to capture portal protocol
+- [ ] Fill in `costco_portal.py` constants from analyzer output
+- [ ] Export final working XML from phone for reference
+- [ ] Consider CI/CD workflow
+- [ ] Add config file support
+
+---
+
 ## Template for Future Entries
 
 ### YYYY-MM-DD - Brief Description

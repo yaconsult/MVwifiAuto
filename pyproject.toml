@@ -9,6 +9,8 @@ dependencies = [
 
 [project.scripts]
 mvwifi-auto = "mvwifi_auto.cli:main"
+mvwifi-android = "mvwifi_auto.android:main"
+mvwifi-analyze-portal = "mvwifi_auto.portal_analyzer:main"
 
 [dependency-groups]
 dev = [

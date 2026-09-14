@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from mvwifi_auto.controller import ConnectionDecision, WiFiController
 
 
@@ -114,9 +112,7 @@ class TestConnectToPublicWifi:
 
     @patch("mvwifi_auto.controller.handle_cmvwifi_connection")
     @patch.object(WiFiController, "_get_nm")
-    def test_successful_connection(
-        self, mock_get_nm, mock_handle_portal, controller
-    ):
+    def test_successful_connection(self, mock_get_nm, mock_handle_portal, controller):
         """Test successful connection to public WiFi."""
         mock_nm = MagicMock()
         mock_nm.connect_to_open_network.return_value = True
@@ -142,9 +138,7 @@ class TestConnectToPublicWifi:
 
     @patch("mvwifi_auto.controller.handle_cmvwifi_connection")
     @patch.object(WiFiController, "_get_nm")
-    def test_portal_failure(
-        self, mock_get_nm, mock_handle_portal, controller
-    ):
+    def test_portal_failure(self, mock_get_nm, mock_handle_portal, controller):
         """Test when connection succeeds but portal handling fails."""
         mock_nm = MagicMock()
         mock_nm.connect_to_open_network.return_value = True
@@ -161,9 +155,7 @@ class TestRunOnce:
 
     @patch("mvwifi_auto.controller.get_connection_info")
     @patch.object(WiFiController, "_get_nm")
-    def test_already_on_preferred_with_internet(
-        self, mock_get_nm, mock_get_info, controller
-    ):
+    def test_already_on_preferred_with_internet(self, mock_get_nm, mock_get_info, controller):
         """When already on preferred with internet - no action needed."""
         mock_get_info.return_value = {
             "connected": True,
@@ -190,9 +182,7 @@ class TestRunOnce:
             "has_internet": False,
         }
         mock_nm = MagicMock()
-        mock_nm.scan_wifi_networks.return_value = [
-            {"ssid": "cmvwifi", "signal": 70}
-        ]
+        mock_nm.scan_wifi_networks.return_value = [{"ssid": "cmvwifi", "signal": 70}]
         mock_get_nm.return_value = mock_nm
         mock_connect.return_value = True
 
@@ -203,9 +193,7 @@ class TestRunOnce:
 
     @patch("mvwifi_auto.controller.get_connection_info")
     @patch.object(WiFiController, "_get_nm")
-    def test_handles_network_manager_error(
-        self, mock_get_nm, mock_get_info, controller
-    ):
+    def test_handles_network_manager_error(self, mock_get_nm, mock_get_info, controller):
         """Should handle NetworkManager errors gracefully."""
         from mvwifi_auto.network_manager import NetworkManagerError
 

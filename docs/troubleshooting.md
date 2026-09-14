@@ -162,16 +162,19 @@ journalctl --user -u mvwifi-auto -f
    nmcli connection show --active | grep cmvwifi
    ```
 
-2. **Get gateway IP**:
+2. **Get portal host**:
    ```bash
-   ip route show default
-   # Should show gateway for cmvwifi connection
+   # The portal host is extracted from the redirect URL, not the gateway
+   curl -v --max-redirs 5 http://1.1.1.1/ 2>&1 | grep "Location:"
+   # Or follow redirects and check the final URL:
+   curl -L -o /dev/null -w "%{url_effective}\n" http://1.1.1.1/
    ```
 
 3. **Test portal acceptance manually**:
    ```bash
-   GATEWAY=$(ip route | grep default | head -1 | awk '{print $3}')
-   curl -X POST "http://${GATEWAY}/forms/guest_toued" \
+   # Extract the host from the redirect URL (e.g. 10.64.2.21:9997)
+   PORTAL_HOST="10.64.2.21:9997"
+   curl -X POST "http://${PORTAL_HOST}/forms/guest_toued" \
      -d "origurl=http://www.google.com" \
      -d "ok=Accept and Continue" \
      -v
