@@ -5,6 +5,10 @@ set -e
 
 echo "=== MV WiFi Auto Installer ==="
 
+# Resolve the repo root (directory containing this script)
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "Repo directory: $REPO_DIR"
+
 # Check prerequisites
 echo "Checking prerequisites..."
 
@@ -30,6 +34,7 @@ echo "Prerequisites OK"
 
 # Setup virtual environment with system site packages
 echo "Setting up virtual environment..."
+cd "$REPO_DIR"
 if [ ! -d ".venv" ]; then
     uv venv --system-site-packages
 fi
@@ -60,14 +65,14 @@ cp systemd/mvwifi-auto-resume.service ~/.config/systemd/user/
 BIN_PATH="$HOME/.local/bin"
 mkdir -p "$BIN_PATH"
 
-# Create wrapper script
+# Create wrapper script (uses repo directory, not a hardcoded path)
 WRAPPER="$BIN_PATH/mvwifi-auto"
-cat > "$WRAPPER" << 'EOF'
+cat > "$WRAPPER" << EOF
 #!/bin/bash
-# Wrapper script to run mvwifi-auto from the project directory
-cd "$HOME/PycharmProjects/MVwifiAuto"
-export PYTHONPATH="$HOME/PycharmProjects/MVwifiAuto/src"
-exec python3 -m mvwifi_auto.cli "$@"
+# Wrapper script to run mvwifi-auto
+cd "$REPO_DIR"
+export PYTHONPATH="$REPO_DIR/src"
+exec python3 -m mvwifi_auto.cli "\$@"
 EOF
 chmod +x "$WRAPPER"
 

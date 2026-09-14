@@ -19,7 +19,7 @@ Automatically connects to Mountain View public WiFi (`cmvwifi`) when in range an
 Run the install script that automates everything:
 
 ```bash
-cd ~/PycharmProjects/MVwifiAuto
+cd ~/DevinProjects/MVwifiAuto
 ./install.sh
 ```
 
@@ -43,7 +43,7 @@ journalctl --user -u mvwifi-auto -f  # Watch logs
 If you prefer not to use `install.sh`:
 
 ```bash
-cd ~/PycharmProjects/MVwifiAuto
+cd ~/DevinProjects/MVwifiAuto
 
 # Setup venv with system site packages
 uv venv --system-site-packages
