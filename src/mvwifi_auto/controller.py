@@ -14,7 +14,7 @@ from mvwifi_auto.network_manager import (
 )
 
 # Configuration constants
-PREFERRED_NETWORKS = ["dd-wrt"]
+PREFERRED_NETWORKS = ["dd-wrt", "dd-wrt_5G"]
 PUBLIC_NETWORK = "cmvwifi"
 
 SCAN_TIMEOUT = 15.0  # seconds to wait for WiFi scan

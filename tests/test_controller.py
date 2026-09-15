@@ -28,7 +28,7 @@ class TestWiFiControllerInitialization:
     def test_default_initialization(self):
         """Test controller with default settings."""
         controller = WiFiController()
-        assert controller.preferred_networks == ["dd-wrt"]
+        assert controller.preferred_networks == ["dd-wrt", "dd-wrt_5G"]
         assert controller.public_network == "cmvwifi"
 
     def test_custom_networks(self):
