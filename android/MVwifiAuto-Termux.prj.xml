@@ -81,8 +81,28 @@
 		<nme>RunPortalScript</nme>
 		<rty>2</rty>
 		<Action sr="act0" ve="7">
-			<code>130</code>
-			<Bundle sr="arg0">&lt;Vals sr="val"&gt;&lt;com.termux.tasker&gt;&lt;var1&gt;mvwifi_portal&lt;/var1&gt;&lt;var2&gt;&lt;/var2&gt;&lt;var3&gt;true&lt;/var3&gt;&lt;/com.termux.tasker&gt;&lt;com.termux.tasker-type&gt;java.lang.String&lt;/com.termux.tasker-type&gt;&lt;/Vals&gt;</Bundle>
+			<code>1256900802</code>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<com.termux.execute.arguments />
+					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
+					<com.termux.tasker.extra.EXECUTABLE>mvwifi_portal</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
+					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
+					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
+					<com.termux.tasker.extra.VERSION_CODE>4</com.termux.tasker.extra.VERSION_CODE>
+					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
+					<com.termux.tasker.extra.WORKDIR />
+					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
+					<com.twofortyfouram.locale.intent.extra.BLURB>mvwifi_portal</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
+					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
+					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">com.termux.tasker</Str>
+			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
+			<Int sr="arg3" val="10" />
 		</Action>
 	</Task>
 	<Task sr="task80">

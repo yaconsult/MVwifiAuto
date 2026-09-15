@@ -24,7 +24,13 @@ from __future__ import annotations
 import argparse
 import sys
 from dataclasses import dataclass, field
-from xml.etree.ElementTree import Element, SubElement, indent, tostring
+from xml.etree.ElementTree import (
+    Element,
+    SubElement,
+    fromstring,
+    indent,
+    tostring,
+)
 
 # ---------------------------------------------------------------------------
 # Action codes (from Tasker documentation / empirical exports)
@@ -44,9 +50,8 @@ CODE_HTTP_REQUEST = 339
 CODE_CONNECT_WIFI = 398
 CODE_WIFI_NEAR_STATE = 170
 
-# Termux:Tasker plugin action code (from Tasker exports)
-CODE_TERMUX_TASK = 130  # Plugin actions reuse Perform Task code;
-# the plugin is identified by the Bundle arg
+# Termux:Tasker plugin action code (from official Termux:Tasker template export)
+CODE_TERMUX_TASK = 1256900802
 
 # Goto action code
 CODE_GOTO = 731
@@ -175,7 +180,15 @@ def _add_arg(parent: Element, arg: TaskerArg) -> None:
         )
     elif arg.kind == "Bundle":
         bundle = SubElement(parent, "Bundle", {"sr": f"arg{arg.index}"})
-        bundle.text = arg.value  # raw XML stored as text; will be parsed on import
+        # Parse the bundle XML string and insert it as child elements.
+        # If we set it as .text, the XML special characters get escaped
+        # (&lt; instead of <), which Tasker cannot parse as nested bundle data.
+        try:
+            bundle_root = fromstring(arg.value)
+            bundle.append(bundle_root)
+        except Exception:
+            # If for some reason it's not valid XML, keep the original text
+            bundle.text = arg.value
 
 
 def _add_action(task_elem: Element, index: int, action: TaskerAction) -> None:
@@ -475,31 +488,59 @@ def termux_task(
     """Build a Termux:Tasker plugin action.
 
     This uses the Termux:Tasker plugin to execute a script in Termux's
-    full environment.  The plugin action uses code 130 with a Bundle
-    arg containing the Termux-specific configuration.
+    full environment.  The plugin action format is based on the official
+    Termux:Tasker template export.
 
     Args:
         executable: Script name in ~/.termux/tasker/ (no path needed).
         arguments: Arguments to pass to the script (space-separated).
         background: Run in background (no terminal window).
     """
-    # Termux:Tasker plugin uses a Bundle for its configuration.
-    # The bundle contains the executable path, arguments, and background flag.
-    # The actual plugin class is com.termux.tasker.TermuxTask
+    # Build the Bundle XML matching the official Termux:Tasker template.
+    # The Bundle contains plugin-specific extras that Tasker passes to
+    # Termux:Tasker's FireReceiver.
+    blurb = f"{executable} {arguments}".strip()
     bundle_xml = (
         '<Vals sr="val">'
-        "<com.termux.tasker>"
-        f"<var1>{executable}</var1>"
-        f"<var2>{arguments}</var2>"
-        f"<var3>{'true' if background else 'false'}</var3>"
-        "</com.termux.tasker>"
-        "<com.termux.tasker-type>java.lang.String</com.termux.tasker-type>"
+        f"<com.termux.execute.arguments>{arguments}</com.termux.execute.arguments>"
+        "<com.termux.execute.arguments-type>java.lang.String"
+        "</com.termux.execute.arguments-type>"
+        f"<com.termux.tasker.extra.EXECUTABLE>{executable}"
+        "</com.termux.tasker.extra.EXECUTABLE>"
+        "<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String"
+        "</com.termux.tasker.extra.EXECUTABLE-type>"
+        f"<com.termux.tasker.extra.TERMINAL>"
+        f"{'false' if background else 'true'}"
+        "</com.termux.tasker.extra.TERMINAL>"
+        "<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean"
+        "</com.termux.tasker.extra.TERMINAL-type>"
+        "<com.termux.tasker.extra.VERSION_CODE>4"
+        "</com.termux.tasker.extra.VERSION_CODE>"
+        "<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer"
+        "</com.termux.tasker.extra.VERSION_CODE-type>"
+        "<com.termux.tasker.extra.WORKDIR></com.termux.tasker.extra.WORKDIR>"
+        "<com.termux.tasker.extra.WORKDIR-type>java.lang.String"
+        "</com.termux.tasker.extra.WORKDIR-type>"
+        f"<com.twofortyfouram.locale.intent.extra.BLURB>{blurb}"
+        "</com.twofortyfouram.locale.intent.extra.BLURB>"
+        "<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String"
+        "</com.twofortyfouram.locale.intent.extra.BLURB-type>"
+        "<net.dinglisch.android.tasker.subbundled>true"
+        "</net.dinglisch.android.tasker.subbundled>"
+        "<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean"
+        "</net.dinglisch.android.tasker.subbundled-type>"
         "</Vals>"
     )
     return TaskerAction(
         code=CODE_TERMUX_TASK,
         args=[
             TaskerArg.bundle_arg(0, bundle_xml),
+            # arg1: plugin package name
+            TaskerArg.str_arg(1, "com.termux.tasker"),
+            # arg2: plugin config activity
+            TaskerArg.str_arg(2, "com.termux.tasker.EditConfigurationActivity"),
+            # arg3: plugin version code
+            TaskerArg.int_arg(3, 10),
         ],
     )
 

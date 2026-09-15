@@ -391,11 +391,16 @@ class TestTermuxProject:
         run_script = next(t for t in tasks if t.find("nme").text == "RunPortalScript")
         actions = run_script.findall("Action")
         assert len(actions) == 1
-        # The action should have a Bundle arg (Termux:Tasker config)
+        # The action should have code 1256900802 (Termux:Tasker plugin)
+        assert actions[0].find("code").text == "1256900802"
+        # The Bundle arg contains the plugin config as child elements
         bundles = actions[0].findall("Bundle")
         assert len(bundles) == 1
-        bundle_text = bundles[0].text or ""
-        assert "mvwifi_portal" in bundle_text
+        # Serialize the bundle to check its content
+        from xml.etree.ElementTree import tostring
+        bundle_xml = tostring(bundles[0], encoding="unicode")
+        assert "mvwifi_portal" in bundle_xml
+        assert "com.termux.tasker.extra.EXECUTABLE" in bundle_xml
 
     def test_connect_and_run_has_wifi_connect(self):
         """Test that ConnectAndRun has a Connect to WiFi action."""
@@ -450,10 +455,17 @@ class TestTermuxProject:
         """Test the termux_task action builder."""
         action = termux_task("mvwifi_portal", background=True)
         assert action.code == CODE_TERMUX_TASK
-        assert len(action.args) == 1
+        # arg0: Bundle with plugin config
         assert action.args[0].kind == "Bundle"
         assert "mvwifi_portal" in action.args[0].value
-        assert "true" in action.args[0].value  # background=true
+        assert "com.termux.tasker.extra.EXECUTABLE" in action.args[0].value
+        assert "false" in action.args[0].value  # background=true -> TERMINAL=false
+        # arg1: plugin package
+        assert action.args[1].value == "com.termux.tasker"
+        # arg2: config activity
+        assert action.args[2].value == "com.termux.tasker.EditConfigurationActivity"
+        # arg3: version code
+        assert action.args[3].value == "10"
 
     def test_goto_builder(self):
         """Test the goto_action builder."""
