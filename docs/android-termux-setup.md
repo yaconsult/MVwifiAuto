@@ -241,20 +241,65 @@ portal handling. Exit code 0 means success.
 > environment without the Termux PATH. Using just `mvwifi-android`
 > will fail with "no such file".
 
-### Step 2: Grant Tasker Permission to Run Termux Scripts
+### Step 2: Enable Termux:Tasker Integration
 
-Tasker needs permission to invoke Termux:Tasker commands:
+Two things must be enabled for Tasker to run Termux scripts:
 
-1. Open **Tasker**
-2. Tap the **three dots** (menu) → **Preferences**
-3. Tap the **Plugin** tab (or **Misc** on some versions)
-4. Find **Termux:Tasker** in the list
-5. Enable it / grant the `com.termux.permission.RUN_COMMAND` permission
-6. Tap **back** to save
+#### 2a: Grant RUN_COMMAND permission to Tasker
 
-If you don't see Termux:Tasker in the plugins list, make sure both
-Termux and Termux:Tasker are installed and have been opened at least
-once.
+Tasker needs permission to run commands in the Termux environment:
+
+1. Open **Android Settings** → **Apps** → **Tasker**
+2. Tap **Permissions**
+3. Tap **Additional permissions** (may be under a "More" section)
+4. Enable **Run commands in Termux environment**
+
+If you don't see "Additional permissions" or "Run commands in Termux
+environment", make sure:
+- Tasker is version 5.9.3 or newer
+- Termux:Tasker is installed and has been opened at least once
+- Both Termux and Termux:Tasker are from F-Droid (not Play Store)
+
+You can also grant it via adb:
+
+```bash
+adb shell pm grant com.joaomgcd.tasker com.termux.permission.RUN_COMMAND
+```
+
+#### 2b: Allow external apps in Termux
+
+Termux must be configured to allow external apps (like Tasker) to run
+commands:
+
+```bash
+# In Termux:
+mkdir -p ~/.termux
+echo "allow-external-apps = true" >> ~/.termux/termux.properties
+```
+
+Then **force-close Termux** (Settings → Apps → Termux → Force Stop)
+and reopen it for the change to take effect.
+
+> **Warning**: This allows any app with the `RUN_COMMAND` permission
+> to execute commands in your Termux environment. Only grant the
+> permission to apps you trust (like Tasker).
+
+#### 2c: Verify the setup
+
+Test that Tasker can run a simple Termux command:
+
+1. In Termux, create a test script:
+   ```bash
+   echo '#!/data/data/com.termux/files/usr/bin/sh' > ~/.termux/tasker/test
+   echo 'echo "Termux:Tasker works!" > /dev/null' >> ~/.termux/tasker/test
+   chmod +x ~/.termux/tasker/test
+   ```
+
+2. In Tasker, create a test task with a **Plugin → Termux:Task**
+   action, executable: `test`
+
+3. Run the task — if it succeeds without error, the integration is
+   working. If you get a permission error, go back and check 2a and 2b.
 
 ### Step 3: Create the Portal Handler Task
 
