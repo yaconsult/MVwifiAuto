@@ -9,6 +9,7 @@ directly from the Termux command line::
 
     mvwifi-android --once
     mvwifi-android --once --verbose
+    mvwifi-android --once --verbose --log-file /sdcard/mvwifi.log
 
 Requires:
     - Termux with Python 3.11+
@@ -110,8 +111,28 @@ def main(argv: list[str] | None = None) -> int:
         default=3,
         help="Maximum portal retry attempts (default: 3)",
     )
+    parser.add_argument(
+        "--log-file",
+        default=None,
+        help="Write logs to a file (e.g. /sdcard/mvwifi.log)",
+    )
 
     args = parser.parse_args(argv)
+
+    # Add file handler if requested
+    if args.log_file:
+        file_handler = logging.FileHandler(args.log_file, mode="w")
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        if args.verbose:
+            file_handler.setLevel(logging.DEBUG)
+        else:
+            file_handler.setLevel(logging.INFO)
+        logging.getLogger().addHandler(file_handler)
 
     success = run_once(
         interface=args.interface,
