@@ -50,19 +50,6 @@ def run_once(
     Returns:
         True if internet access was established.
     """
-    if verbose:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    else:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s",
-            datefmt="%H:%M:%S",
-        )
-
     try:
         session = create_wifi_session(interface)
     except InterfaceBindingError as e:
@@ -119,20 +106,30 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    # Add file handler if requested
+    # Configure logging (console + optional file)
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    log_format = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(log_format)
+    root_logger.addHandler(console_handler)
+
+    # File handler (optional)
     if args.log_file:
-        file_handler = logging.FileHandler(args.log_file, mode="w")
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
-        )
-        if args.verbose:
-            file_handler.setLevel(logging.DEBUG)
-        else:
-            file_handler.setLevel(logging.INFO)
-        logging.getLogger().addHandler(file_handler)
+        try:
+            file_handler = logging.FileHandler(args.log_file, mode="w")
+            file_handler.setLevel(log_level)
+            file_handler.setFormatter(log_format)
+            root_logger.addHandler(file_handler)
+        except OSError as e:
+            print(f"Warning: cannot write to {args.log_file}: {e}")
 
     success = run_once(
         interface=args.interface,
