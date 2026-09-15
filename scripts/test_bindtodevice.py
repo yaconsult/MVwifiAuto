@@ -9,7 +9,6 @@ This script tests whether we can use SO_BINDTODEVICE from Termux.
 """
 
 import socket
-import struct
 
 # SO_BINDTODEVICE socket option number (Linux)
 SO_BINDTODEVICE = 25
@@ -26,7 +25,7 @@ def test_bindtodevice():
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             iface_bytes = iface.encode("utf-8") + b"\0"
             sock.setsockopt(socket.SOL_SOCKET, SO_BINDTODEVICE, iface_bytes)
-            print(f"  SO_BINDTODEVICE: OK (set on socket)")
+            print("  SO_BINDTODEVICE: OK (set on socket)")
 
             # Try connecting to see if it actually routes
             try:
@@ -39,7 +38,7 @@ def test_bindtodevice():
             sock.close()
         except PermissionError as e:
             print(f"  SO_BINDTODEVICE: PERMISSION DENIED ({e})")
-            print(f"  -> Need root or CAP_NET_RAW")
+            print("  -> Need root or CAP_NET_RAW")
         except OSError as e:
             print(f"  SO_BINDTODEVICE: error ({e})")
         print()
@@ -52,7 +51,7 @@ def test_bindtodevice():
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             iface_bytes = iface.encode("utf-8") + b"\0"
             sock.setsockopt(socket.SOL_SOCKET, SO_BINDTODEVICE, iface_bytes)
-            print(f"  SO_BINDTODEVICE: OK")
+            print("  SO_BINDTODEVICE: OK")
             sock.settimeout(5)
             try:
                 sock.connect(("1.1.1.1", 80))
@@ -89,7 +88,7 @@ def test_bindtodevice():
             timeout=5,
         )
         print(f"  su id: {result.stdout.strip()}")
-        print(f"  Root available: yes")
+        print("  Root available: yes")
     except Exception as e:
         print(f"  su not available: {e}")
 

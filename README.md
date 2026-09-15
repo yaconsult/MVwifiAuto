@@ -1,6 +1,8 @@
 # MV WiFi Auto
 
-Automatically connects to Mountain View public WiFi (`cmvwifi`) when in range and handles the captive portal acceptance. Designed as a user systemd service that runs on Fedora (and other Linux systems with NetworkManager).
+Automatically connects to Mountain View's citywide community WiFi (`cmvwifi`) when in range and handles the captive portal acceptance. Designed as a user systemd service that runs on Fedora (and other Linux systems with NetworkManager).
+
+The `cmvwifi` network is available at multiple locations throughout Mountain View, including the Mountain View Public Library, Shoreline Park, and various cafes and public spaces. See the [City of Mountain View WiFi page](https://www.mountainview.gov/city-hall/it/wifi) for coverage details.
 
 ## How It Works
 
@@ -128,9 +130,9 @@ Or pass custom settings via environment variables (not yet implemented - PR welc
 
 **Preferred networks** (like `dd-wrt`) and **other saved networks** (like `Pixel_6a`) are handled automatically by NetworkManager:
 
-- **At home**: NetworkManager connects to `dd-wrt` automatically (if saved)
+- **At home**: NetworkManager connects to `dd-wrt` or `dd-wrt_5G` automatically (if saved)
 - **In the car**: NetworkManager connects to `Pixel_6a` hotspot automatically (if saved)
-- **At Peets/MV Library**: Our service connects to `cmvwifi` and handles captive portal
+- **At the library, Shoreline Park, cafes, etc.**: Our service connects to `cmvwifi` and handles the captive portal
 
 The service only intervenes for `cmvwifi`. All other networks are left to NetworkManager.
 
@@ -173,8 +175,9 @@ Two approaches are available for Android:
 ### Termux + Python (Recommended)
 
 Runs the same Python portal-handling code as the laptop, with HTTP
-traffic bound to wlan0 to bypass Android's cellular-preferred policy
-routing. See [docs/android-termux-setup.md](docs/android-termux-setup.md)
+traffic bound to the WiFi interface via `SO_BINDTODEVICE` to bypass
+Android's cellular-preferred policy routing. Verified working with
+cellular data enabled. See [docs/android-termux-setup.md](docs/android-termux-setup.md)
 for setup instructions.
 
 ### Tasker (Alternative)

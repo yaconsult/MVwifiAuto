@@ -39,7 +39,7 @@ def try_proc_fib_trie():
         with open("/proc/net/fib_trie") as f:
             lines = f.readlines()
         # Look for IP addresses in the routing trie
-        for i, line in enumerate(lines):
+        for _i, line in enumerate(lines):
             stripped = line.strip()
             if stripped.startswith("10.") or stripped.startswith("192.168") or stripped.startswith("172."):
                 print(f"  {stripped}")

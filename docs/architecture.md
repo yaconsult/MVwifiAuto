@@ -133,9 +133,18 @@ Binds `requests` HTTP traffic to a specific network interface (e.g.
 `wlan0`), equivalent to `curl --interface wlan0`. Required on Android
 where policy routing sends internet-bound traffic over cellular.
 
+Uses `SO_BINDTODEVICE` (socket option 25) for kernel-level interface
+binding, which bypasses Android's policy routing table entirely. Source
+IP binding alone is insufficient — Android's policy routing ignores
+the source address and still routes over cellular. `SO_BINDTODEVICE`
+forces the kernel to send packets through the named interface
+regardless of routing rules. Confirmed working from Termux without
+root (the `shell` user has `CAP_NET_RAW`).
+
 **Key Components**
 - `get_interface_ip(interface)` - Get IPv4 address via ioctl or `ip addr`
-- `InterfaceBoundAdapter` - HTTPAdapter subclass that sets `source_address`
+- `detect_wifi_interface()` - Auto-detect active WiFi interface (wlan0/wlan1)
+- `InterfaceBoundAdapter` - HTTPAdapter subclass that sets `source_address` and `SO_BINDTODEVICE`
 - `create_wifi_session(interface)` - Factory returning a configured Session
 
 ### `android.py` - Android/Termux Entry Point

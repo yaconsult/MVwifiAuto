@@ -35,8 +35,9 @@ Termux Python environment
     ▼
 mvwifi_auto.android.run_once()
     │
-    ├─ create_wifi_session("wlan0")
-    │    └─ InterfaceBoundAdapter binds sockets to wlan0's IP
+    ├─ create_wifi_session("wlan0")  # or auto-detect
+    │    └─ InterfaceBoundAdapter: source_address + SO_BINDTODEVICE
+    │       (kernel-level interface binding, bypasses policy routing)
     │
     └─ handle_cmvwifi_connection(session=...)
          ├─ detect_captive_portal(session=...)
@@ -255,10 +256,16 @@ will trigger automatically when cmvwifi is in range.
 2. **Tasker** runs `mvwifi-android --once` via Run Shell (non-root)
 3. **Python** creates a `requests.Session` bound to wlan0:
    - `InterfaceBoundAdapter` sets `source_address` to wlan0's local IP
-   - All HTTP traffic goes through wlan0, bypassing cellular policy routing
-4. **Python** detects the captive portal by GETting `http://1.1.1.1/`
-   - The portal intercepts and redirects to `http://<host>:<port>/...`
-   - The host is extracted from the redirect URL
+   - `SO_BINDTODEVICE` (socket option 25) forces the kernel to route
+     packets through wlan0, bypassing Android's policy routing
+   - Source IP binding alone is insufficient — Android ignores it and
+     routes over cellular. `SO_BINDTODEVICE` is required.
+4. **Python** detects the captive portal by GETting
+   `http://detectportal.firefox.com/canonical.html`
+   - The portal intercepts and returns a 302 redirect
+   - The portal host is extracted from the redirect `Location` header
+   - The host is dynamic (e.g. `10.64.2.24:9997`) and differs from the
+     default gateway
 5. **Python** POSTs to `http://<host>/forms/guest_toued` to accept terms
 6. **Python** verifies internet connectivity via
    `http://detectportal.firefox.com/success.txt`
@@ -267,55 +274,61 @@ will trigger automatically when cmvwifi is in range.
 
 ### "Could not determine IPv4 address for interface 'wlan0'"
 
-The interface name may differ on your device. Check with:
-
-```bash
-ip addr | grep -E "^[0-9]+:"
-```
-
-Then specify the correct interface:
+The interface name may differ on your device. The script auto-detects
+the WiFi interface (tries wlan0, wlan1, wlan2, wlan), but you can
+specify it manually:
 
 ```bash
 mvwifi-android --once --interface wlan1
 ```
 
-### Python script not found from Tasker
-
-Termux's PATH may not be available in Tasker's shell. Use the full
-path:
-
-```
-/data/data/com.termux/files/usr/bin/mvwifi-android --once
-```
-
-### Portal detection fails
-
-Turn off mobile data temporarily and run with verbose output:
+To find the correct interface name, run the diagnostic script:
 
 ```bash
-mvwifi-android --once --verbose
+python scripts/detect_interface.py
 ```
 
-Check that the WiFi-bound session is using the correct source IP. The
-verbose output will show the interface and source IP.
+Note: `ip addr` does not work from Termux (Android blocks netlink
+sockets). The ioctl-based detection in the script works fine.
 
-### `requests` not installed
+### HTTP requests timing out (cellular is ON)
+
+If requests hang for ~40 seconds and never complete, the interface
+binding may not be taking effect. The script uses `SO_BINDTODEVICE`
+for kernel-level binding, which should work from Termux without root.
+To verify:
 
 ```bash
-pip install requests
+python scripts/test_bindtodevice.py
 ```
+
+This tests whether `SO_BINDTODEVICE` works on your device. If it
+reports "PERMISSION DENIED", your device may need root.
+
+### Logging to a file for debugging
+
+```bash
+# Write to Termux home (no permissions needed)
+mvwifi-android --once --verbose --log-file ~/mvwifi.log
+
+# Write to shared storage (requires termux-setup-storage)
+mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi.log
+```
+
+Then transfer the log via Google Drive, `adb pull`, or `cat` and
+copy from the Termux screen.
 
 ## Comparison: Termux vs Pure Tasker
 
 | Aspect | Termux + Python | Pure Tasker |
 |--------|----------------|-------------|
-| Interface binding | Yes (InterfaceBoundAdapter) | No |
+| Interface binding | Yes (SO_BINDTODEVICE + source IP) | No |
 | Reliability | High (same code as laptop) | Race condition dependent |
-| Root required | No (non-root shell) | No |
+| Root required | No (SO_BINDTODEVICE works as shell user) | No |
 | Tasker Settings needed | Yes (for WiFi connection) | Yes |
 | Tasker integration | Termux:Tasker plugin or Run Shell | Native HTTP Request |
 | Code reuse | Full (shares captive_portal.py) | None (reimplemented in XML) |
-| Testability | 157 unit tests | XML generator tests only |
+| Testability | 163 unit tests | XML generator tests only |
 | Maintenance | Edit Python | Edit Python generator → regenerate XML |
 
 ## Files

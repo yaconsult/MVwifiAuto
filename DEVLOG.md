@@ -136,6 +136,56 @@
 
 ---
 
+## 2026-09-15 - SO_BINDTODEVICE Fix, Android Portal Flow Verified, Home SSID Update
+
+### Completed
+- [x] Added `SO_BINDTODEVICE` to `InterfaceBoundAdapter` for kernel-level interface binding
+- [x] Verified full captive portal flow on Android with cellular ON
+- [x] Added `--log-file` option to `mvwifi-android` for on-device debugging
+- [x] Added auto-detection of WiFi interface (wlan0/wlan1)
+- [x] Added `dd-wrt_5G` to `PREFERRED_NETWORKS` so both home SSIDs are recognized
+- [x] Fixed `install.sh` to derive repo path from script location (no hardcoded `PycharmProjects`)
+- [x] Redeployed laptop service with new code
+- [x] Updated all documentation
+
+### Technical Decisions
+1. **SO_BINDTODEVICE over source-IP-only binding** — The original `InterfaceBoundAdapter` only set `source_address` (the interface's local IP). On Android, policy routing ignores source IP binding and still routes packets over cellular. `SO_BINDTODEVICE` (socket option 25) forces the kernel to route packets through the named interface at the kernel level, bypassing policy routing entirely. This is what `curl --interface` does internally. Confirmed working from Termux without root on a Pixel device.
+2. **Auto-detection of WiFi interface** — Pixel devices may use `wlan0` or `wlan1`. The ioctl-based detection tries each candidate and returns the first with an IP. Eliminates the need for `--interface` in normal use.
+3. **Both home SSIDs as preferred** — `dd-wrt` (2.4 GHz) and `dd-wrt_5G` (5 GHz) are both saved networks that auto-connect at home. Adding both to `PREFERRED_NETWORKS` prevents the service from trying to switch to `cmvwifi` when connected to the 5 GHz network.
+
+### Key Findings (Android)
+- **Source IP binding is insufficient on Android** — Android's policy routing table overrides source IP binding. HTTP requests with the correct wlan0 source IP still went over cellular, causing 40-second timeouts.
+- **SO_BINDTODEVICE works from Termux without root** — The `shell` user (which Termux runs as) has `CAP_NET_RAW`, allowing `SO_BINDTODEVICE` on sockets. No root or Magisk needed for the HTTP binding.
+- **`ip addr` is blocked from Termux** — Android blocks netlink sockets for non-system apps. The ioctl path (`SIOCGIFADDR`) works fine as a fallback.
+- **Portal host was `10.64.2.24:9997`** — Confirmed that the portal host differs from the default gateway (`10.65.8.1`), validating the redirect-based host extraction approach.
+- **Full flow verified with cellular ON** — Portal detection (302), host extraction, POST acceptance (302), and internet verification (200) all succeeded with mobile data enabled.
+
+### Testing
+- 163 tests pass, 4 skipped (D-Bus tests requiring real NetworkManager)
+- New tests for `SO_BINDTODEVICE` socket options in `test_wifi_binding.py` (16 total, was 10)
+- ruff: all checks passed
+- mypy: no issues found in 10 source files
+- On-device verification: full portal flow completed successfully with cellular ON
+
+### Files Updated
+- **Modified**: `src/mvwifi_auto/wifi_binding.py` — added `SO_BINDTODEVICE` via `socket_options`
+- **Modified**: `src/mvwifi_auto/android.py` — added `--log-file` option, moved logging setup to `main()`
+- **Modified**: `src/mvwifi_auto/controller.py` — added `dd-wrt_5G` to `PREFERRED_NETWORKS`
+- **Modified**: `tests/test_wifi_binding.py` — added SO_BINDTODEVICE tests
+- **Modified**: `tests/test_controller.py` — updated preferred networks test
+- **New**: `scripts/test_bindtodevice.py` — on-device diagnostic for SO_BINDTODEVICE
+- **New**: `scripts/detect_interface.py` — on-device interface detection diagnostic
+- **Modified**: `install.sh` — portable repo path detection
+- **Docs**: DEVLOG, android-devlog, architecture, troubleshooting, android-termux-setup, README
+
+### Next Steps
+- [ ] Wire up Tasker integration (Termux:Tasker plugin or Run Shell)
+- [ ] Test Tasker WiFi Near profile triggering `mvwifi-android`
+- [ ] Run `mvwifi-analyze-portal` on Costco WiFi to capture portal protocol
+- [ ] Fill in `costco_portal.py` constants from analyzer output
+
+---
+
 ## Template for Future Entries
 
 ### YYYY-MM-DD - Brief Description

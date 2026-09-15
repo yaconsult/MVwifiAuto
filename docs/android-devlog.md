@@ -701,3 +701,108 @@ now the recommended path.
 - Run `mvwifi-analyze-portal --interface wlan0` on Costco WiFi to capture the portal protocol
 - Fill in `COSTCO_LOGIN_URL` and `COSTCO_POST_DATA` in `costco_portal.py`
 - The HTTP plumbing (interface binding, redirect host detection, verification) is already shared and portal-agnostic
+
+---
+
+## Session 19 — 2026-09-15 — SO_BINDTODEVICE: Portal Flow Verified with Cellular ON
+
+### The Problem: Source IP Binding Was Not Enough
+
+Session 18 introduced `InterfaceBoundAdapter` which bound sockets
+to wlan0's source IP address. On-device testing revealed this was
+insufficient: Android's policy routing ignores source IP binding and
+still routes packets over cellular (rmnet1). HTTP requests would hang
+for ~40 seconds per attempt and never reach the captive portal.
+
+### Diagnosis
+
+A diagnostic script (`scripts/test_bindtodevice.py`) tested three
+approaches from Termux:
+
+1. **Source IP binding only** — what we had. Android policy routing
+   ignores it. Requests hang.
+2. **`SO_BINDTODEVICE`** (socket option 25) — forces the kernel to route
+   packets through the named interface at the kernel level, bypassing
+   policy routing entirely. This is what `curl --interface` does
+   internally.
+3. **Root via Magisk** — available but not needed.
+
+Result: `SO_BINDTODEVICE` works from Termux **without root**. The
+`shell` user (which Termux runs as) has `CAP_NET_RAW`, allowing
+`SO_BINDTODEVICE` on both UDP and TCP sockets. A direct TCP connection
+to `1.1.1.1:80` via `SO_BINDTODEVICE` on `wlan0` returned a response
+(the portal's 500 intercept page), confirming packets went through
+WiFi.
+
+### Fix
+
+`InterfaceBoundAdapter` now sets `SO_BINDTODEVICE` via urllib3's
+`socket_options` parameter in addition to `source_address`. Each new
+socket gets `setsockopt(SOL_SOCKET, SO_BINDTODEVICE, "wlan0\0")` before
+connecting. Falls back to source-IP-only if `SO_BINDTODEVICE` fails
+(e.g. on desktop Linux without `CAP_NET_RAW`).
+
+### On-Device Verification
+
+With cellular ON and cmvwifi associated (portal consent expired):
+
+```
+12:26:56 - Auto-detected WiFi interface: wlan0 (IP: 10.65.8.237)
+12:26:56 - Created WiFi-bound session on wlan0 (source IP: 10.65.8.237, SO_BINDTODEVICE)
+12:26:58 - Starting new HTTP connection (1): detectportal.firefox.com:80
+12:26:59 - http://detectportal.firefox.com:80 "GET /canonical.html HTTP/1.1" 302 0
+12:26:59 - Starting new HTTP connection (1): 10.64.2.24:9997
+12:26:59 - http://10.64.2.24:9997 "POST /forms/guest_toued HTTP/1.1" 302 0
+12:26:59 - Starting new HTTPS connection (1): www.mountainview.gov:443
+12:27:00 - https://www.mountainview.gov:443 "GET / HTTP/1.1" 403 410
+12:27:03 - http://detectportal.firefox.com:80 "GET /canonical.html HTTP/1.1" 200 90
+12:27:04 - http://detectportal.firefox.com:80 "GET /success.txt HTTP/1.1" 200 8
+```
+
+Full flow succeeded:
+1. Portal detected (302 redirect from detectportal.firefox.com)
+2. Portal host extracted from redirect: `10.64.2.24:9997`
+3. Terms accepted (POST to `/forms/guest_toued` → 302)
+4. Internet verified (success.txt → 200)
+
+All with **cellular data enabled**.
+
+### Additional Work This Session
+
+- **Auto-detection of WiFi interface** — Pixel devices may use `wlan0`
+  or `wlan1`. The ioctl-based detection tries each candidate and returns
+  the first with an IP. No more `--interface` flag needed.
+- **`--log-file` option** — Added to `mvwifi-android` for on-device
+  debugging. Writes to a file (e.g. `~/storage/shared/mvwifi.log`) that
+  can be transferred via Google Drive or `adb pull`.
+- **`dd-wrt_5G` added to preferred networks** — The 5 GHz home SSID is
+  now recognized as a preferred network, preventing the service from
+  trying to switch to `cmvwifi` when connected at home.
+- **`install.sh` made portable** — Derives the repo path from the
+  script's own location instead of hardcoding `~/PycharmProjects`. The
+  laptop service was redeployed with the new code.
+
+### Key Facts Confirmed
+- `SO_BINDTODEVICE` works from Termux without root on Android 16
+- `ip addr` is blocked from Termux (netlink socket permission denied)
+- `SIOCGIFADDR` ioctl works fine from Termux for interface IP detection
+- Portal host is dynamic (`10.64.2.24:9997` this session, `10.64.2.21:9997` previously)
+- The portal host differs from the default gateway (`10.65.8.1`)
+- Source IP binding alone does NOT bypass Android policy routing
+- `SO_BINDTODEVICE` + source IP binding together reliably bypass policy routing
+
+### Files Updated
+- `src/mvwifi_auto/wifi_binding.py` — added `SO_BINDTODEVICE` via `socket_options`
+- `src/mvwifi_auto/android.py` — added `--log-file`, moved logging to `main()`
+- `src/mvwifi_auto/controller.py` — added `dd-wrt_5G` to `PREFERRED_NETWORKS`
+- `tests/test_wifi_binding.py` — added SO_BINDTODEVICE tests (16 total)
+- `tests/test_controller.py` — updated preferred networks test
+- `scripts/test_bindtodevice.py` — new on-device diagnostic
+- `scripts/detect_interface.py` — new on-device interface detection
+- `install.sh` — portable repo path detection
+- Docs: DEVLOG, this devlog, architecture, troubleshooting, Termux setup, README
+
+### Next Steps
+- Wire up Tasker integration (Termux:Tasker plugin or Run Shell)
+- Test Tasker WiFi Near profile triggering `mvwifi-android`
+- Costco portal capture using `mvwifi-analyze-portal`

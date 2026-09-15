@@ -33,7 +33,7 @@ journalctl --user -u mvwifi-auto --since "5 minutes ago"
 2. **Virtual environment issues**
    ```bash
    # Reinstall from scratch
-   cd ~/PycharmProjects/MVwifiAuto
+   cd ~/DevinProjects/MVwifiAuto
    rm -rf .venv
    uv venv --system-site-packages
    uv sync
@@ -107,7 +107,7 @@ mvwifi-auto --once --verbose
 
 2. **Run manual test with verbose output**:
    ```bash
-   cd ~/PycharmProjects/MVwifiAuto
+   cd ~/DevinProjects/MVwifiAuto
    uv run mvwifi-auto --once --verbose
    ```
 
@@ -233,14 +233,14 @@ systemctl --user edit mvwifi-auto
 
 Or run manually:
 ```bash
-cd ~/PycharmProjects/MVwifiAuto
+cd ~/DevinProjects/MVwifiAuto
 uv run mvwifi-auto --daemon --interval 30 --verbose
 ```
 
 ### Run Tests
 
 ```bash
-cd ~/PycharmProjects/MVwifiAuto
+cd ~/DevinProjects/MVwifiAuto
 
 # Run all tests
 uv run pytest
@@ -350,7 +350,7 @@ When reporting issues, include:
 
 4. **Test output**:
    ```bash
-   cd ~/PycharmProjects/MVwifiAuto
+   cd ~/DevinProjects/MVwifiAuto
    uv run mvwifi-auto --once --verbose 2>&1
    ```
 
@@ -358,3 +358,64 @@ When reporting issues, include:
    - Fedora version
    - NetworkManager version (`nmcli --version`)
    - Python version (`python3 --version`)
+
+## Android/Termux Issues
+
+### HTTP requests timing out with cellular ON
+
+**Problem**: `mvwifi-android --once --verbose` hangs for ~40 seconds
+per request and never completes.
+
+**Cause**: Source IP binding alone doesn't bypass Android's policy
+routing. The kernel still routes packets over cellular even with the
+correct wlan0 source IP.
+
+**Fix**: The code uses `SO_BINDTODEVICE` (socket option 25) for
+kernel-level interface binding. This should work from Termux without
+root. If it doesn't, verify with:
+
+```bash
+python scripts/test_bindtodevice.py
+```
+
+If `SO_BINDTODEVICE` reports "PERMISSION DENIED", your device may need
+root or `CAP_NET_RAW`.
+
+### "Could not determine IPv4 address for interface 'wlan0'"
+
+**Cause**: The WiFi interface may be `wlan1` on some Pixel devices, or
+WiFi isn't connected yet (no IP assigned).
+
+**Fix**: The script auto-detects the interface. If that fails, find it
+manually:
+
+```bash
+python scripts/detect_interface.py
+```
+
+Note: `ip addr` does not work from Termux (Android blocks netlink
+sockets). The ioctl-based detection in the script works fine.
+
+### `ip addr` returns "cannot bind netlink socket permission denied"
+
+**Cause**: Android blocks netlink sockets for non-system apps. This is
+expected — Termux cannot use `ip addr`.
+
+**Fix**: Use the ioctl-based detection instead. The diagnostic script
+`scripts/detect_interface.py` uses `SIOCGIFADDR` ioctl which works from
+Termux.
+
+### Debugging on the phone
+
+Write logs to a file for transfer:
+
+```bash
+# To Termux home (no permissions needed)
+mvwifi-android --once --verbose --log-file ~/mvwifi.log
+
+# To shared storage (requires termux-setup-storage first)
+mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi.log
+```
+
+Transfer via `adb pull`, Google Drive, or `cat` and copy from the
+Termux screen.
