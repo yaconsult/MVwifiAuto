@@ -1,16 +1,16 @@
 """Bind HTTP requests to a specific network interface.
 
 On Android, policy routing sends internet-bound traffic over cellular
-whenever mobile data is on.  Tasker's HTTP Request has no interface
-binding, so the captive portal redirect — which only arrives over WiFi —
-is never seen.  ``curl --interface wlan0`` works from the adb shell
-because it binds the socket to wlan0's local IP address, bypassing the
-policy routing table.
+whenever mobile data is on.  Binding only the source IP address is not
+enough — Android's policy routing ignores it.  ``SO_BINDTODEVICE``
+forces the kernel to route packets through a specific interface,
+bypassing the policy routing table.  This is what ``curl --interface``
+does internally.
 
-This module provides the same capability for Python ``requests``: an
-:class:`InterfaceBoundAdapter` that forces every connection through a
-named interface, plus :func:`create_wifi_session` which returns a
-ready-to-use ``requests.Session``.
+This module provides an :class:`InterfaceBoundAdapter` that forces
+every connection through a named interface using both source IP binding
+and ``SO_BINDTODEVICE``, plus :func:`create_wifi_session` which returns
+a ready-to-use ``requests.Session``.
 
 Used by :mod:`mvwifi_auto.android` on Termux to reuse the exact same
 portal-handling code that runs on the laptop.
@@ -35,6 +35,9 @@ logger = logging.getLogger("mvwifi_auto.wifi_binding")
 
 # SIOCGIFADDR ioctl request number (Linux)
 _SIOCGIFADDR = 0x8915
+
+# SO_BINDTODEVICE socket option number (Linux)
+_SO_BINDTODEVICE = 25
 
 # Common WiFi interface names on Android (ordered by likelihood)
 _WIFI_INTERFACE_CANDIDATES = ["wlan0", "wlan1", "wlan2", "wlan"]
@@ -153,9 +156,10 @@ def detect_wifi_interface() -> str:
 class InterfaceBoundAdapter(HTTPAdapter):  # type: ignore[misc]
     """HTTP adapter that binds all sockets to a specific interface.
 
-    Works like ``curl --interface <name>``: the socket source address
-    is set to the interface's local IP, which causes the kernel to route
-    traffic through that interface regardless of policy routing rules.
+    Uses ``SO_BINDTODEVICE`` (kernel-level interface binding) to force
+    packets through the specified interface, bypassing Android's policy
+    routing.  Falls back to source IP binding if ``SO_BINDTODEVICE`` is
+    not available (e.g. on desktop Linux without root).
 
     Example::
 
@@ -175,16 +179,31 @@ class InterfaceBoundAdapter(HTTPAdapter):  # type: ignore[misc]
         """
         self._source_ip = get_interface_ip(interface)
         self._interface = interface
+        # SO_BINDTODEVICE value must be the interface name as bytes,
+        # null-terminated, padded to the kernel's IFNAMSIZ (16 bytes).
+        self._bindtodevice_value = interface.encode("utf-8") + b"\0"
         super().__init__(**kwargs)
 
+    def _socket_options(self) -> list[tuple[int, int, bytes]]:
+        """Return socket options for SO_BINDTODEVICE.
+
+        urllib3 applies each tuple as ``setsockopt(level, optname, value)``
+        on every new socket.
+        """
+        return [(socket.SOL_SOCKET, _SO_BINDTODEVICE, self._bindtodevice_value)]
+
     def init_poolmanager(self, *args: object, **kwargs: object) -> None:
-        """Inject source_address into the urllib3 pool manager."""
+        """Inject source_address and SO_BINDTODEVICE into the pool manager."""
         kwargs["source_address"] = (self._source_ip, 0)
+        existing: list[tuple[int, int, bytes]] = kwargs.get("socket_options", [])  # type: ignore[assignment]
+        kwargs["socket_options"] = existing + self._socket_options()
         super().init_poolmanager(*args, **kwargs)
 
     def proxy_manager_for(self, *args: object, **kwargs: object) -> object:
-        """Inject source_address into proxy manager connections."""
+        """Inject source_address and SO_BINDTODEVICE into proxy connections."""
         kwargs["source_address"] = (self._source_ip, 0)
+        existing: list[tuple[int, int, bytes]] = kwargs.get("socket_options", [])  # type: ignore[assignment]
+        kwargs["socket_options"] = existing + self._socket_options()
         return super().proxy_manager_for(*args, **kwargs)
 
     @property
@@ -230,7 +249,7 @@ def create_wifi_session(
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     logger.debug(
-        "Created WiFi-bound session on %s (source IP: %s)",
+        "Created WiFi-bound session on %s (source IP: %s, SO_BINDTODEVICE)",
         interface,
         adapter.source_ip,
     )

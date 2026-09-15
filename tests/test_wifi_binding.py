@@ -4,6 +4,7 @@ import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
+from requests.adapters import HTTPAdapter
 
 from mvwifi_auto.wifi_binding import (
     InterfaceBindingError,
@@ -148,6 +149,40 @@ class TestInterfaceBoundAdapter:
             adapter = InterfaceBoundAdapter("wlan0")
 
         assert adapter.source_ip == "10.0.0.5"
+
+    def test_socket_options_include_bindtodevice(self):
+        """Test that SO_BINDTODEVICE is included in socket_options."""
+        with patch("mvwifi_auto.wifi_binding.get_interface_ip", return_value="10.0.0.5"):
+            adapter = InterfaceBoundAdapter("wlan0")
+
+        opts = adapter._socket_options()
+        # Should contain (SOL_SOCKET, SO_BINDTODEVICE, b'wlan0\0')
+        bindtodevice_opts = [
+            o for o in opts if o[0] == socket.SOL_SOCKET and o[1] == 25
+        ]
+        assert len(bindtodevice_opts) == 1
+        assert bindtodevice_opts[0][2] == b"wlan0\0"
+
+    def test_init_poolmanager_passes_socket_options(self):
+        """Test that init_poolmanager passes SO_BINDTODEVICE to the pool manager."""
+        with patch("mvwifi_auto.wifi_binding.get_interface_ip", return_value="10.0.0.5"):
+            adapter = InterfaceBoundAdapter("wlan0")
+
+        captured_kwargs: dict = {}
+
+        def fake_init_poolmanager(*args, **kwargs):
+            captured_kwargs.update(kwargs)
+
+        with patch.object(HTTPAdapter, "init_poolmanager", fake_init_poolmanager):
+            adapter.init_poolmanager()
+
+        assert captured_kwargs["source_address"] == ("10.0.0.5", 0)
+        opts = captured_kwargs["socket_options"]
+        bindtodevice_opts = [
+            o for o in opts if o[0] == socket.SOL_SOCKET and o[1] == 25
+        ]
+        assert len(bindtodevice_opts) == 1
+        assert bindtodevice_opts[0][2] == b"wlan0\0"
 
 
 class TestCreateWifiSession:
