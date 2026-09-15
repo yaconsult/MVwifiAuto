@@ -212,9 +212,16 @@ Create a wrapper that runs the Python portal handler:
 ```bash
 # In Termux:
 mkdir -p ~/.termux/tasker
+
+# Find the full path to mvwifi-android
+which mvwifi-android
+# Should show: /data/data/com.termux/files/usr/bin/mvwifi-android
+
+# Create the wrapper script using the full path
+# (Termux:Tasker runs in a minimal environment without PATH)
 cat > ~/.termux/tasker/mvwifi_portal << 'EOF'
 #!/data/data/com.termux/files/usr/bin/sh
-exec mvwifi-android --once
+exec /data/data/com.termux/files/usr/bin/mvwifi-android --once
 EOF
 chmod +x ~/.termux/tasker/mvwifi_portal
 ```
@@ -228,6 +235,11 @@ echo "Exit code: $?"
 
 It should output logging lines showing interface detection and
 portal handling. Exit code 0 means success.
+
+> **Important**: The wrapper script must use the **full path** to
+> `mvwifi-android` because the Termux:Tasker plugin runs in a minimal
+> environment without the Termux PATH. Using just `mvwifi-android`
+> will fail with "no such file".
 
 ### Step 2: Grant Tasker Permission to Run Termux Scripts
 
