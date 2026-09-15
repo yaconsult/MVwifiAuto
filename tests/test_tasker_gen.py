@@ -8,11 +8,13 @@ from mvwifi_auto.tasker_gen import (
     CODE_ELSE,
     CODE_END_IF,
     CODE_FLASH,
+    CODE_GOTO,
     CODE_HTTP_REQUEST,
     CODE_IF,
     CODE_PERFORM_TASK,
     CODE_RUN_SHELL,
     CODE_STOP,
+    CODE_TERMUX_TASK,
     CODE_VARIABLE_SEARCH_REPLACE,
     CODE_VARIABLE_SET,
     CODE_WAIT,
@@ -22,17 +24,20 @@ from mvwifi_auto.tasker_gen import (
     TaskerProject,
     TaskerTask,
     build_mvwifi_project,
+    build_termux_project,
     connect_wifi,
     debug_flash,
     else_action,
     end_if,
     flash,
     generate_project_xml,
+    goto_action,
     http_request,
     if_condition,
     perform_task,
     run_shell,
     stop,
+    termux_task,
     variable_search_replace,
     variable_set,
     wait,
@@ -326,3 +331,133 @@ class TestXmlGeneration:
         xml_text = generate_project_xml(project)
         # parseString raises on malformed XML
         parseString(xml_text.encode("utf-8"))
+
+
+class TestTermuxProject:
+    """Test the Termux approach project builder."""
+
+    def test_generates_valid_xml(self):
+        """Test that the Termux project XML is well-formed."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        assert root.tag == "TaskerData"
+
+    def test_parses_with_xml_parser(self):
+        """Test that the Termux XML can be parsed by a strict parser."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        parseString(xml_text.encode("utf-8"))
+
+    def test_project_name(self):
+        """Test that the project name is MVwifiAuto-Termux."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        assert root.find("Project").find("name").text == "MVwifiAuto-Termux"
+
+    def test_has_five_tasks(self):
+        """Test that the Termux project has 5 tasks."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        assert len(tasks) == 5
+        task_names = {t.find("nme").text for t in tasks}
+        assert task_names == {
+            "DebugFlash",
+            "DebugOn",
+            "DebugOff",
+            "RunPortalScript",
+            "ConnectAndRun",
+        }
+
+    def test_profile_links_to_connect_and_run(self):
+        """Test that the WiFi Near profile links to ConnectAndRun (id=80)."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        profile = root.find("Profile")
+        assert profile is not None
+        assert profile.find("nme").text == "cmvwifi Auto Connect"
+        assert profile.find("mid0").text == "80"
+
+    def test_run_portal_script_has_termux_plugin(self):
+        """Test that RunPortalScript uses the Termux:Tasker plugin."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        run_script = next(t for t in tasks if t.find("nme").text == "RunPortalScript")
+        actions = run_script.findall("Action")
+        assert len(actions) == 1
+        # The action should have a Bundle arg (Termux:Tasker config)
+        bundles = actions[0].findall("Bundle")
+        assert len(bundles) == 1
+        bundle_text = bundles[0].text or ""
+        assert "mvwifi_portal" in bundle_text
+
+    def test_connect_and_run_has_wifi_connect(self):
+        """Test that ConnectAndRun has a Connect to WiFi action."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        actions = connect_task.findall("Action")
+        codes = [int(a.find("code").text) for a in actions]
+        assert CODE_CONNECT_WIFI in codes
+
+    def test_connect_and_run_has_wait(self):
+        """Test that ConnectAndRun has a Wait action for DHCP."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        actions = connect_task.findall("Action")
+        codes = [int(a.find("code").text) for a in actions]
+        assert CODE_WAIT in codes
+
+    def test_connect_and_run_has_perform_task(self):
+        """Test that ConnectAndRun calls RunPortalScript via Perform Task."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        actions = connect_task.findall("Action")
+        perform_actions = [a for a in actions if a.find("code").text == str(CODE_PERFORM_TASK)]
+        assert len(perform_actions) >= 1
+        # The first arg should be the task name "RunPortalScript"
+        str_args = perform_actions[0].findall("Str")
+        assert any(s.text == "RunPortalScript" for s in str_args)
+
+    def test_connect_and_run_has_if_goto(self):
+        """Test that ConnectAndRun has If + Goto for already-connected check."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        actions = connect_task.findall("Action")
+        codes = [int(a.find("code").text) for a in actions]
+        assert CODE_IF in codes
+        assert CODE_GOTO in codes
+        assert CODE_END_IF in codes
+
+    def test_termux_task_builder(self):
+        """Test the termux_task action builder."""
+        action = termux_task("mvwifi_portal", background=True)
+        assert action.code == CODE_TERMUX_TASK
+        assert len(action.args) == 1
+        assert action.args[0].kind == "Bundle"
+        assert "mvwifi_portal" in action.args[0].value
+        assert "true" in action.args[0].value  # background=true
+
+    def test_goto_builder(self):
+        """Test the goto_action builder."""
+        action = goto_action(6)
+        assert action.code == CODE_GOTO
+        assert action.args[0].value == "Action Number"
+        assert action.args[1].value == "6"

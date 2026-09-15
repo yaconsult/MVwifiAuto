@@ -172,6 +172,38 @@ Before starting, make sure you have all of these:
       turned OFF** (connect once manually, accept the portal, then
       disable auto-connect)
 
+### Import the Tasker Project (Optional)
+
+The repo includes a pre-built Tasker XML for the Termux approach:
+
+```
+android/MVwifiAuto-Termux.prj.xml
+```
+
+This contains the `ConnectAndRun`, `RunPortalScript`, `DebugFlash`,
+`DebugOn`, and `DebugOff` tasks, plus the `cmvwifi Auto Connect`
+profile — all pre-configured for the Termux:Tasker plugin.
+
+To import it:
+
+```bash
+# Push to phone
+adb push android/MVwifiAuto-Termux.prj.xml /sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml
+```
+
+Then in Tasker: long-press the bottom nav bar → **Import Project**
+→ select `MVwifiAuto-Termux`.
+
+> **Note**: After import, you still need to create the wrapper script
+> (Step 1) and grant the Termux:Tasker permission (Step 2). The XML
+> only contains the Tasker tasks and profile — it can't create files
+> in Termux or grant permissions.
+>
+> To regenerate the XML after editing:
+> ```bash
+> uv run python -m mvwifi_auto.tasker_gen --termux
+> ```
+
 ### Step 1: Create the Wrapper Script
 
 Termux:Tasker looks for executable scripts in `~/.termux/tasker/`.

@@ -44,6 +44,13 @@ CODE_HTTP_REQUEST = 339
 CODE_CONNECT_WIFI = 398
 CODE_WIFI_NEAR_STATE = 170
 
+# Termux:Tasker plugin action code (from Tasker exports)
+CODE_TERMUX_TASK = 130  # Plugin actions reuse Perform Task code;
+# the plugin is identified by the Bundle arg
+
+# Goto action code
+CODE_GOTO = 731
+
 # Condition operator: 2 = equals (~ in Tasker UI)
 OP_EQUALS = 2
 
@@ -445,6 +452,58 @@ def run_shell(
     )
 
 
+def goto_action(action_number: int) -> TaskerAction:
+    """Build a Goto (code 731) action to jump to a specific action number.
+
+    Args:
+        action_number: The 1-based action number to jump to.
+    """
+    return TaskerAction(
+        code=CODE_GOTO,
+        args=[
+            TaskerArg.str_arg(0, "Action Number"),
+            TaskerArg.int_arg(1, action_number),
+        ],
+    )
+
+
+def termux_task(
+    executable: str,
+    arguments: str = "",
+    background: bool = True,
+) -> TaskerAction:
+    """Build a Termux:Tasker plugin action.
+
+    This uses the Termux:Tasker plugin to execute a script in Termux's
+    full environment.  The plugin action uses code 130 with a Bundle
+    arg containing the Termux-specific configuration.
+
+    Args:
+        executable: Script name in ~/.termux/tasker/ (no path needed).
+        arguments: Arguments to pass to the script (space-separated).
+        background: Run in background (no terminal window).
+    """
+    # Termux:Tasker plugin uses a Bundle for its configuration.
+    # The bundle contains the executable path, arguments, and background flag.
+    # The actual plugin class is com.termux.tasker.TermuxTask
+    bundle_xml = (
+        '<Vals sr="val">'
+        "<com.termux.tasker>"
+        f"<var1>{executable}</var1>"
+        f"<var2>{arguments}</var2>"
+        f"<var3>{'true' if background else 'false'}</var3>"
+        "</com.termux.tasker>"
+        "<com.termux.tasker-type>java.lang.String</com.termux.tasker-type>"
+        "</Vals>"
+    )
+    return TaskerAction(
+        code=CODE_TERMUX_TASK,
+        args=[
+            TaskerArg.bundle_arg(0, bundle_xml),
+        ],
+    )
+
+
 # ---------------------------------------------------------------------------
 # MVwifiAuto project builder
 # ---------------------------------------------------------------------------
@@ -685,7 +744,12 @@ def _build_cmvwifi_profile() -> TaskerProfile:
 
 
 def build_mvwifi_project() -> TaskerProject:
-    """Build the complete MVwifiAuto Tasker project.
+    """Build the complete MVwifiAuto Tasker project (pure-Tasker approach).
+
+    This is the original pure-Tasker approach using HTTP Request actions
+    for portal handling.  It does NOT work on Android 16 due to policy
+    routing (see android-devlog.md Sessions 14-17).  Kept for reference
+    and for devices where the policy routing issue doesn't apply.
 
     Returns:
         A :class:`TaskerProject` containing all tasks and the WiFi Near
@@ -702,6 +766,109 @@ def build_mvwifi_project() -> TaskerProject:
     profiles = [_build_cmvwifi_profile()]
     return TaskerProject(
         name="MVwifiAuto",
+        profiles=profiles,
+        tasks=tasks,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Termux project builder (recommended approach)
+# ---------------------------------------------------------------------------
+def _build_run_portal_script_task_termux() -> TaskerTask:
+    """Build the RunPortalScript task (id=70) — Termux:Tasker plugin.
+
+    This task runs the Python portal handler via the Termux:Tasker plugin.
+    The plugin executes the wrapper script at ~/.termux/tasker/mvwifi_portal
+    in Termux's full environment.
+    """
+    return TaskerTask(
+        id=70,
+        name="RunPortalScript",
+        actions=[
+            # A1: Run the portal handler via Termux:Tasker plugin
+            termux_task("mvwifi_portal", background=True),
+        ],
+    )
+
+
+def _build_connect_and_run_task_termux() -> TaskerTask:
+    """Build the ConnectAndRun task (id=80) — Termux approach.
+
+    Connects to cmvwifi (if not already connected), waits for DHCP,
+    then calls RunPortalScript to handle the captive portal.
+    """
+    return TaskerTask(
+        id=80,
+        name="ConnectAndRun",
+        actions=[
+            # A1: Store current SSID
+            variable_set("%CurrentSSID", "%WIFII"),
+            # A2: If already on cmvwifi, skip connection
+            if_condition("%CurrentSSID", "cmvwifi"),
+            # A3: Goto A6 (Perform Task) — skip connect and wait
+            goto_action(6),
+            # A4: End If
+            end_if(),
+            # A5: Connect to cmvwifi
+            connect_wifi("cmvwifi"),
+            # A6: Wait 5 seconds for DHCP
+            wait(seconds=5),
+            # A7: Run the portal script
+            perform_task("RunPortalScript", wait_for_finish=True),
+            # A8: Flash completion
+            flash("Portal handling complete"),
+        ],
+    )
+
+
+def _build_cmvwifi_profile_termux() -> TaskerProfile:
+    """Build the cmvwifi Auto Connect profile (id=2) — Termux approach."""
+    return TaskerProfile(
+        id=2,
+        name="cmvwifi Auto Connect",
+        state=TaskerState(
+            code=CODE_WIFI_NEAR_STATE,
+            args=[
+                TaskerArg.str_arg(0, "cmvwifi"),
+                TaskerArg.int_arg(1, 0),
+                TaskerArg.str_arg(2),
+                TaskerArg.str_arg(3),
+            ],
+        ),
+        task_id=80,  # ConnectAndRun
+    )
+
+
+def build_termux_project() -> TaskerProject:
+    """Build the MVwifiAuto Tasker project for the Termux approach.
+
+    This is the recommended approach.  Tasker handles WiFi detection
+    and connection; the Python script (via Termux:Tasker plugin) handles
+    the captive portal with SO_BINDTODEVICE interface binding.
+
+    Tasks:
+        - DebugFlash: shared debug helper (reused from pure-Tasker version)
+        - DebugOn / DebugOff: toggle debug mode
+        - RunPortalScript: runs mvwifi-android via Termux:Tasker plugin
+        - ConnectAndRun: connects to cmvwifi, waits for DHCP, calls
+          RunPortalScript
+
+    Profile:
+        - cmvwifi Auto Connect: WiFi Near → ConnectAndRun
+
+    Returns:
+        A :class:`TaskerProject` ready for XML generation.
+    """
+    tasks = [
+        _build_debug_flash_task(),
+        _build_debug_on_task(),
+        _build_debug_off_task(),
+        _build_run_portal_script_task_termux(),
+        _build_connect_and_run_task_termux(),
+    ]
+    profiles = [_build_cmvwifi_profile_termux()]
+    return TaskerProject(
+        name="MVwifiAuto-Termux",
         profiles=profiles,
         tasks=tasks,
     )
@@ -733,10 +900,22 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print XML to stdout instead of writing a file",
     )
+    parser.add_argument(
+        "--termux",
+        action="store_true",
+        help="Generate the Termux approach project (recommended) instead of "
+        "the pure-Tasker approach",
+    )
 
     args = parser.parse_args(argv)
 
-    project = build_mvwifi_project()
+    if args.termux:
+        project = build_termux_project()
+        if args.output == "android/MVwifiAuto.prj.xml":
+            args.output = "android/MVwifiAuto-Termux.prj.xml"
+    else:
+        project = build_mvwifi_project()
+
     xml_text = generate_project_xml(project)
 
     if args.stdout:
