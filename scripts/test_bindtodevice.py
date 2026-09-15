@@ -98,4 +98,18 @@ def test_bindtodevice():
 
 
 if __name__ == "__main__":
-    test_bindtodevice()
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--log-file":
+        import io
+        from contextlib import redirect_stdout
+
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            test_bindtodevice()
+        output = buf.getvalue()
+        with open(sys.argv[2], "w") as f:
+            f.write(output)
+        print(f"Written to {sys.argv[2]}")
+    else:
+        test_bindtodevice()
