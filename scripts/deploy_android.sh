@@ -63,7 +63,7 @@ echo "[2/5] Creating Termux wrapper script..."
 adb shell "su -c 'mkdir -p $TASKER_DIR'"
 adb shell "su -c 'cat > $TASKER_DIR/mvwifi_portal << \"ENDOFSCRIPT\"
 #!/data/data/com.termux/files/usr/bin/sh
-exec /data/data/com.termux/files/usr/bin/mvwifi-android --once
+exec /data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_tasker.log
 ENDOFSCRIPT'"
 adb shell "su -c 'chmod 755 $TASKER_DIR/mvwifi_portal'"
 echo "  Created: $TASKER_DIR/mvwifi_portal"

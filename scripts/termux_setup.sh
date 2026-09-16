@@ -43,7 +43,7 @@ echo "[2/4] Creating wrapper script for Termux:Tasker..."
 mkdir -p "$TASKER_DIR"
 cat > "$TASKER_DIR/mvwifi_portal" << 'WRAPPER_EOF'
 #!/data/data/com.termux/files/usr/bin/sh
-exec /data/data/com.termux/files/usr/bin/mvwifi-android --once
+exec /data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_tasker.log
 WRAPPER_EOF
 chmod 755 "$TASKER_DIR/mvwifi_portal"
 echo "  Created: $TASKER_DIR/mvwifi_portal"
