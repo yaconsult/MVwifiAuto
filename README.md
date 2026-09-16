@@ -177,21 +177,37 @@ Two approaches are available for Android:
 Runs the same Python portal-handling code as the laptop, with HTTP
 traffic bound to the WiFi interface via `SO_BINDTODEVICE` to bypass
 Android's cellular-preferred policy routing. Verified working with
-cellular data enabled. See [docs/android-termux-setup.md](docs/android-termux-setup.md)
-for setup instructions.
+cellular data enabled.
+
+The flow: Tasker detects cmvwifi via WiFi Near → connects via Tasker
+Settings → waits for DHCP → triggers `mvwifi-android` via the
+Termux:Tasker plugin → Python binds to wlan0, detects the portal,
+accepts terms, and verifies internet. On success, no log file is
+left; on failure, `~/storage/shared/mvwifi_tasker.log` contains the
+diagnostic output.
+
+See [docs/android-termux-setup.md](docs/android-termux-setup.md)
+for setup instructions, or run `scripts/deploy_android.sh` with the
+phone connected via USB for one-command deployment.
 
 ### Tasker (Alternative)
 
 Uses Tasker's WiFi Near profile for detection and HTTP Request actions
-for portal handling. The Tasker XML is generated from testable Python
-code via `tasker_gen.py`. See
+for portal handling. Does not work on Android 16 due to policy routing
+(see [docs/android-devlog.md](docs/android-devlog.md) for details).
+The Tasker XML is generated from testable Python code via
+`tasker_gen.py`. See
 [docs/tasker-android-setup.md](docs/tasker-android-setup.md) for setup
 instructions.
 
 To regenerate the Tasker XML:
 
 ```bash
+# Pure-Tasker approach (does not work on Android 16)
 uv run python -m mvwifi_auto.tasker_gen --output android/MVwifiAuto.prj.xml
+
+# Termux approach (recommended)
+uv run python -m mvwifi_auto.tasker_gen --termux -o android/MVwifiAuto-Termux.prj.xml
 ```
 
 ## Costco WiFi Support (Scaffolded)

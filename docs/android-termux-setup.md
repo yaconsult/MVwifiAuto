@@ -4,6 +4,63 @@ The recommended approach for Android: run the same Python
 portal-handling code as the laptop, with HTTP traffic bound to wlan0
 to bypass Android's cellular-preferred policy routing.
 
+## How It Works (Summary)
+
+cmvwifi requires accepting terms on a captive portal page before
+granting internet access. This system automates that process using
+three layers:
+
+**Layer 1 — Tasker (detection & connection)**
+- WiFi Near profile detects when cmvwifi is in range
+- `ConnectAndRun` task connects to cmvwifi via Tasker Settings, waits
+  5 seconds for DHCP
+- Then triggers `RunPortalScript` via the Termux:Tasker plugin
+
+**Layer 2 — Termux:Tasker (bridge)**
+- Wrapper script at `~/.termux/tasker/mvwifi_portal` runs
+  `mvwifi-android --once`
+- Must use the full path (`/data/data/com.termux/files/usr/bin/mvwifi-android`)
+  because the plugin runs in a minimal environment without PATH
+- Requires `allow-external-apps = true` in `~/.termux/termux.properties`
+  and the `RUN_COMMAND` permission granted to Tasker
+
+**Layer 3 — Python (portal handling)**
+- Auto-detects the WiFi interface (wlan0 on this device)
+- Creates an HTTP session with both source IP binding AND
+  `SO_BINDTODEVICE` — the latter is critical because source IP alone
+  doesn't bypass Android's policy routing
+- GETs `detectportal.firefox.com/canonical.html` → gets 302 redirect
+- Extracts the portal host from the redirect `Location` header
+  (dynamic, not the gateway)
+- POSTs to `http://<host>/forms/guest_toued` to accept terms
+- Verifies internet via `detectportal.firefox.com/success.txt` → 200
+
+### Why It's Hard on Android
+- **Android policy routing** prefers cellular data over WiFi, so HTTP
+  requests go over cellular even when WiFi is associated — the portal
+  never sees the request and never gets accepted
+- **The portal host is dynamic** — it's not the default gateway
+  (gateway was `10.65.8.1`, portal host was `10.64.2.24:9997`), so you
+  can't hardcode it
+- **Termux can't use `ip addr`** — Android blocks netlink sockets, so
+  interface detection has to use ioctl or `/proc` fallbacks
+- **Tasker's HTTP actions don't work** — same policy routing problem,
+  plus Tasker can't bind sockets to a specific interface
+
+### Key Findings
+1. **`SO_BINDTODEVICE` works from Termux without root** — it's a
+   kernel-level socket option that forces packets through wlan0
+   regardless of policy routing
+2. **Source IP binding alone is insufficient** — Android ignores it and
+   routes over cellular; 40-second timeouts in the log confirmed this
+3. **The portal host is dynamic** — must be extracted from the
+   redirect, not hardcoded
+4. **The Termux:Tasker plugin uses action code `1256900802`** with a
+   specific Bundle format — not code 130, and the Bundle must be child
+   elements, not escaped text
+5. **Log files are deleted on success** — if
+   `~/storage/shared/mvwifi_tasker.log` exists, something failed
+
 ## Why Termux Over Pure Tasker?
 
 After 17 sessions of fighting Android 16's platform limitations (see
