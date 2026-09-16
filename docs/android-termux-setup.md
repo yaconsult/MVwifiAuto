@@ -219,9 +219,11 @@ which mvwifi-android
 
 # Create the wrapper script using the full path
 # (Termux:Tasker runs in a minimal environment without PATH)
+# The --log-file flag writes to shared storage; the file is deleted
+# on success, so it only exists if something went wrong.
 cat > ~/.termux/tasker/mvwifi_portal << 'EOF'
 #!/data/data/com.termux/files/usr/bin/sh
-exec /data/data/com.termux/files/usr/bin/mvwifi-android --once
+exec /data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi_tasker.log
 EOF
 chmod +x ~/.termux/tasker/mvwifi_portal
 ```
@@ -232,6 +234,12 @@ Test it works:
 ~/.termux/tasker/mvwifi_portal
 echo "Exit code: $?"
 ```
+
+> **Log file behavior**: The `--log-file` flag writes verbose logs to
+> `~/storage/shared/mvwifi_tasker.log`. On success, the log file is
+> **deleted automatically** — it only exists if the run failed. This
+> makes it easy to check for problems: if the file exists, something
+> went wrong and the log will tell you what.
 
 It should output logging lines showing interface detection and
 portal handling. Exit code 0 means success.
@@ -499,21 +507,14 @@ ConnectAndRun
 
 **Debugging with logs:**
 
-If the portal handling fails, add `--verbose --log-file` to the
-wrapper script for detailed logging:
+The wrapper script already includes `--verbose --log-file` by default.
+The log file is written to `~/storage/shared/mvwifi_tasker.log` and
+is **deleted on success** — it only exists if the run failed.
+
+After a failed run, check the log:
 
 ```bash
-# In Termux, update the wrapper script:
-cat > ~/.termux/tasker/mvwifi_portal << 'EOF'
-#!/data/data/com.termux/files/usr/bin/sh
-exec mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi.log
-EOF
-```
-
-Then after a failed run, check the log:
-
-```bash
-cat ~/storage/shared/mvwifi.log
+cat ~/storage/shared/mvwifi_tasker.log
 ```
 
 Or transfer it via Google Drive / `adb pull` for easier reading.
@@ -565,8 +566,10 @@ RunPortalScript
   ```bash
   ~/.termux/tasker/mvwifi_portal
   ```
-- Add `--verbose --log-file ~/storage/shared/mvwifi.log` to the
-  wrapper script for detailed logging
+- Check the log file (only exists on failure):
+  ```bash
+  cat ~/storage/shared/mvwifi_tasker.log
+  ```
 - Make sure WiFi is connected to cmvwifi before the script runs
   (the 5-second wait should be enough, but try increasing it)
 
@@ -690,6 +693,10 @@ mvwifi-android --once --verbose --log-file ~/mvwifi.log
 # Write to shared storage (requires termux-setup-storage)
 mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi.log
 ```
+
+On success, the log file is **deleted automatically** — it only
+exists if the run failed. This makes it easy to check for problems:
+if the file exists, something went wrong.
 
 Then transfer the log via Google Drive, `adb pull`, or `cat` and
 copy from the Termux screen.

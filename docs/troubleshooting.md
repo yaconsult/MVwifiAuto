@@ -417,5 +417,12 @@ mvwifi-android --once --verbose --log-file ~/mvwifi.log
 mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi.log
 ```
 
+On success, the log file is **deleted automatically** — it only
+exists if the run failed. This makes it easy to check for problems:
+if the file exists, something went wrong.
+
+The Tasker wrapper script writes to
+`~/storage/shared/mvwifi_tasker.log` by default.
+
 Transfer via `adb pull`, Google Drive, or `cat` and copy from the
 Termux screen.

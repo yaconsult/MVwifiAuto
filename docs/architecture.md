@@ -165,10 +165,13 @@ bugs by encoding Tasker's action/argument format once.
 
 **Key Components**
 - Data model: `TaskerProject`, `TaskerTask`, `TaskerAction`, `TaskerArg`
-- Action builders: `perform_task()`, `flash()`, `http_request()`, etc.
-- `build_mvwifi_project()` - Constructs the complete MVwifiAuto project
+- Action builders: `perform_task()`, `flash()`, `http_request()`,
+  `termux_task()`, `goto_action()`, etc.
+- `build_mvwifi_project()` - Pure-Tasker project (HTTP Request actions)
+- `build_termux_project()` - Termux approach project (Termux:Tasker
+  plugin + Python portal handler) — recommended
 - `generate_project_xml()` - Serializes to XML string
-- CLI: `python -m mvwifi_auto.tasker_gen --output android/MVwifiAuto.prj.xml`
+- CLI: `python -m mvwifi_auto.tasker_gen --termux -o android/MVwifiAuto-Termux.prj.xml`
 
 ### `portal_analyzer.py` - Generic Captive Portal Analyzer
 

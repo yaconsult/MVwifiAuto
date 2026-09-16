@@ -803,6 +803,111 @@ All with **cellular data enabled**.
 - Docs: DEVLOG, this devlog, architecture, troubleshooting, Termux setup, README
 
 ### Next Steps
-- Wire up Tasker integration (Termux:Tasker plugin or Run Shell)
-- Test Tasker WiFi Near profile triggering `mvwifi-android`
+- Costco portal capture using `mvwifi-analyze-portal`
+
+---
+
+## Session 20: Tasker + Termux:Tasker Integration (2026-09-15)
+
+### Goal
+Wire up Tasker to automatically trigger `mvwifi-android` when cmvwifi
+comes in range, using the Termux:Tasker plugin.
+
+### Problem: Broken Wrapper Script
+The first attempt at creating the wrapper script at
+`~/.termux/tasker/mvwifi_portal` resulted in a broken shebang line —
+the shebang and exec command were on a single line, so the shell
+couldn't parse it. Tasker reported "no such file" when trying to
+run the script.
+
+**Fix**: Recreated the script via adb with proper two-line format:
+```sh
+#!/data/data/com.termux/files/usr/bin/sh
+exec /data/data/com.termux/files/usr/bin/mvwifi-android --once
+```
+
+### Problem: Missing Termux:Tasker Prerequisites
+Two critical prerequisites were not documented:
+1. **`com.termux.permission.RUN_COMMAND`** must be granted to Tasker
+   via Android Settings → Apps → Tasker → Permissions → Additional
+   permissions → Run commands in Termux environment
+2. **`allow-external-apps = true`** must be set in
+   `~/.termux/termux.properties` (then force-close Termux and reopen)
+
+Without these, the Termux:Tasker plugin cannot execute commands.
+
+### Problem: Wrong Plugin Action Format in Generated XML
+The first generated `MVwifiAuto-Termux.prj.xml` used code 130
+(Perform Task) with a custom Bundle format. Tasker imported the
+project but showed "ignoring no-actions task RunPortalScript" —
+the Bundle was stored as escaped text (`<` instead of `<`), so
+Tasker couldn't parse it as nested bundle data.
+
+**Fix 1**: Changed the Bundle generation in `tasker_gen.py` to parse
+the bundle XML string and insert it as child elements instead of
+escaped text.
+
+**Fix 2**: Discovered the correct Termux:Tasker plugin action format
+from the official Termux:Tasker template export:
+- Action code: `1256900802` (not 130)
+- Bundle keys: `com.termux.tasker.extra.EXECUTABLE`,
+  `com.termux.tasker.extra.TERMINAL`, `com.termux.tasker.extra.VERSION_CODE`,
+  `com.termux.tasker.extra.WORKDIR`,
+  `com.twofortyfouram.locale.intent.extra.BLURB`,
+  `net.dinglisch.android.tasker.subbundled`
+- Additional args: `com.termux.tasker` (package),
+  `com.termux.tasker.EditConfigurationActivity` (activity), `10` (version)
+
+### Verification: End-to-End Success
+After fixing the XML format, the project imported correctly into
+Tasker. Running `RunPortalScript` from Tasker produced this log:
+
+```
+2026-09-15 17:01:00 - Auto-detected WiFi interface: wlan0 (IP: 192.168.1.248)
+2026-09-15 17:01:00 - Created WiFi-bound session on wlan0 (SO_BINDTODEVICE)
+2026-09-15 17:01:00 - Handling cmvwifi captive portal via wlan0
+2026-09-15 17:01:02 - GET canonical.html → 200 (no portal at home)
+2026-09-15 17:01:02 - GET success.txt → 200 (internet works)
+```
+
+This confirms the full chain: Tasker → Termux:Tasker plugin →
+wrapper script → `mvwifi-android` → WiFi-bound HTTP session →
+portal check → internet verification.
+
+### Improvement: Log-on-Failure Behavior
+Changed `android.py` to delete the log file on success. The log
+file only exists if the run failed, making it easy to check for
+problems: if `mvwifi_tasker.log` exists, something went wrong.
+
+### Deployment Scripts
+Created two deployment scripts:
+- `scripts/deploy_android.sh` — PC-side deployment via adb (pushes
+  Tasker XML, creates wrapper script, enables allow-external-apps,
+  grants RUN_COMMAND permission)
+- `scripts/termux_setup.sh` — Termux-side setup (installs package,
+  creates wrapper script, enables allow-external-apps)
+
+### Key Findings
+- The Termux:Tasker plugin action uses code `1256900802`, not 130
+- Bundle contents must be child elements, not escaped text
+- `allow-external-apps = true` in `termux.properties` is mandatory
+- The `RUN_COMMAND` permission must be granted to Tasker via Android
+  Settings (not Tasker preferences)
+- The wrapper script must use the full path to `mvwifi-android`
+  because the Termux:Tasker plugin runs in a minimal environment
+  without the Termux PATH
+
+### Files Updated
+- `src/mvwifi_auto/tasker_gen.py` — fixed Bundle generation, added
+  `termux_task()`, `goto_action()`, `build_termux_project()`
+- `src/mvwifi_auto/android.py` — log file deleted on success
+- `tests/test_tasker_gen.py` — 13 new tests for Termux project
+- `tests/test_android.py` — 3 new tests for log-on-failure behavior
+- `android/MVwifiAuto-Termux.prj.xml` — generated, validated
+- `scripts/deploy_android.sh` — new PC-side deployment script
+- `scripts/termux_setup.sh` — new Termux-side setup script
+- Docs: android-termux-setup, troubleshooting, this devlog
+
+### Next Steps
+- Test the full automatic flow near cmvwifi (library, Shoreline Park)
 - Costco portal capture using `mvwifi-analyze-portal`

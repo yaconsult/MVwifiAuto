@@ -179,8 +179,63 @@
 - **Docs**: DEVLOG, android-devlog, architecture, troubleshooting, android-termux-setup, README
 
 ### Next Steps
-- [ ] Wire up Tasker integration (Termux:Tasker plugin or Run Shell)
-- [ ] Test Tasker WiFi Near profile triggering `mvwifi-android`
+- [x] Wire up Tasker integration (Termux:Tasker plugin or Run Shell)
+- [x] Test Tasker WiFi Near profile triggering `mvwifi-android`
+- [ ] Run `mvwifi-analyze-portal` on Costco WiFi to capture portal protocol
+- [ ] Fill in `costco_portal.py` constants from analyzer output
+
+---
+
+## 2026-09-15: Tasker + Termux:Tasker Integration Verified
+
+### Summary
+Successfully wired up Tasker to automatically trigger `mvwifi-android`
+via the Termux:Tasker plugin. The full chain works end-to-end:
+Tasker → Termux:Tasker plugin → wrapper script → Python portal handler.
+
+### Key Changes
+- **Fixed Termux:Tasker plugin action format** — The plugin uses
+  action code `1256900802` (not 130) with a specific Bundle structure
+  matching the official Termux:Tasker template
+- **Fixed Bundle XML generation** — Bundle contents must be child
+  elements, not escaped text, or Tasker can't parse them
+- **Log-on-failure behavior** — Log file is deleted on success, kept
+  only on failure, making it easy to check for problems
+- **Deployment scripts** — `scripts/deploy_android.sh` (PC-side via
+  adb) and `scripts/termux_setup.sh` (Termux-side)
+- **Importable Tasker XML** — `android/MVwifiAuto-Termux.prj.xml`
+  with `ConnectAndRun`, `RunPortalScript`, and WiFi Near profile
+
+### Verification
+Running `RunPortalScript` from Tasker produced a successful log:
+- Auto-detected `wlan0` with `SO_BINDTODEVICE`
+- Portal check returned 200 (no portal at home)
+- Internet verification returned 200 (success)
+
+### Testing
+- 178 tests pass, 4 skipped
+- 13 new tests for Termux project in `test_tasker_gen.py`
+- 3 new tests for log-on-failure behavior in `test_android.py`
+- ruff: all checks passed
+- mypy: no issues found
+
+### Files Updated
+- **Modified**: `src/mvwifi_auto/tasker_gen.py` — fixed Bundle
+  generation, added `termux_task()`, `goto_action()`,
+  `build_termux_project()`
+- **Modified**: `src/mvwifi_auto/android.py` — log file deleted on
+  success
+- **Modified**: `tests/test_tasker_gen.py` — 13 new tests
+- **Modified**: `tests/test_android.py` — 3 new tests
+- **New**: `android/MVwifiAuto-Termux.prj.xml` — importable Tasker
+  project for the Termux approach
+- **New**: `scripts/deploy_android.sh` — PC-side deployment via adb
+- **New**: `scripts/termux_setup.sh` — Termux-side setup
+- **Docs**: DEVLOG, android-devlog, android-termux-setup,
+  troubleshooting
+
+### Next Steps
+- [ ] Test the full automatic flow near cmvwifi (library, Shoreline Park)
 - [ ] Run `mvwifi-analyze-portal` on Costco WiFi to capture portal protocol
 - [ ] Fill in `costco_portal.py` constants from analyzer output
 
