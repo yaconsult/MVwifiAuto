@@ -136,6 +136,18 @@ def main(argv: list[str] | None = None) -> int:
         verbose=args.verbose,
         max_portal_attempts=args.max_attempts,
     )
+
+    # On success, delete the log file so only failures leave a trace.
+    # This makes it easy to check for problems: if the log file exists,
+    # something went wrong.
+    if success and args.log_file:
+        try:
+            import os
+
+            os.remove(args.log_file)
+        except OSError:
+            pass  # file may not exist or not be writable
+
     return 0 if success else 1
 
 

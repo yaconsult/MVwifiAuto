@@ -137,3 +137,32 @@ class TestMain:
 
         call_kwargs = mock_run.call_args.kwargs
         assert call_kwargs["max_portal_attempts"] == 5
+
+    def test_log_file_deleted_on_success(self, tmp_path):
+        """Test that the log file is deleted on success."""
+        log_file = tmp_path / "mvwifi.log"
+        log_file.write_text("some log content")
+
+        with patch("mvwifi_auto.android.run_once", return_value=True):
+            main(["--once", "--log-file", str(log_file)])
+
+        assert not log_file.exists()
+
+    def test_log_file_kept_on_failure(self, tmp_path):
+        """Test that the log file is kept on failure."""
+        log_file = tmp_path / "mvwifi.log"
+        log_file.write_text("some log content")
+
+        with patch("mvwifi_auto.android.run_once", return_value=False):
+            main(["--once", "--log-file", str(log_file)])
+
+        assert log_file.exists()
+
+    def test_log_file_missing_on_success_no_error(self, tmp_path):
+        """Test that missing log file on success doesn't cause an error."""
+        log_file = tmp_path / "nonexistent.log"
+
+        with patch("mvwifi_auto.android.run_once", return_value=True):
+            exit_code = main(["--once", "--log-file", str(log_file)])
+
+        assert exit_code == 0
