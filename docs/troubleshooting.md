@@ -361,6 +361,35 @@ When reporting issues, include:
 
 ## Android/Termux Issues
 
+### WiFi Near profile never activates
+
+**Problem**: The `cmvwifi Auto Connect` profile is enabled (green
+dot) but never turns green even when cmvwifi is visible in the
+WiFi scan list.
+
+**Cause**: The imported profile may have wrong WiFi Near arg order.
+Tasker normalizes imported args by type, not by index — if an Int
+is sent where a Str is expected, the value ends up in the wrong
+position. In our case, `Int 0` for arg1 became `Str "0"` for the
+MAC field, meaning the profile looked for a network with MAC
+address "0" which never matches.
+
+**Fix**: Regenerate and re-import the Tasker XML:
+
+```bash
+cd ~/DevinProjects/MVwifiAuto
+uv run python -m mvwifi_auto.tasker_gen --termux -o android/MVwifiAuto-Termux.prj.xml
+adb push android/MVwifiAuto-Termux.prj.xml /sdcard/Tasker/projects/
+```
+
+Then import the project in Tasker (long-press bottom nav bar →
+Import Project → `MVwifiAuto-Termux`).
+
+**Verify**: After importing, the profile should activate when
+near the target SSID. You can test at home by creating a WiFi
+Near profile for a visible network (e.g. `dd-wrt`) — it should
+turn green within 60 seconds.
+
 ### HTTP requests timing out with cellular ON
 
 **Problem**: `mvwifi-android --once --verbose` hangs for ~40 seconds

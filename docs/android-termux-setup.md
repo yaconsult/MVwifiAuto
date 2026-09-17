@@ -641,6 +641,11 @@ RunPortalScript
   it on Android 10+)
 - Make sure Tasker has Location permission
 - Check that the profile is active (green dot in PROFILES tab)
+- **If the profile never activates even when the SSID is visible:**
+  the imported profile may have wrong arg order. Re-import the
+  project after regenerating it with `tasker_gen.py` — the correct
+  WiFi Near arg order is SSID, MAC, Capabilities, Min Signal,
+  Channel, Toggle WiFi (see Session 21 of the devlog)
 
 **Script not found:**
 - Verify the wrapper script exists: `ls -la ~/.termux/tasker/mvwifi_portal`

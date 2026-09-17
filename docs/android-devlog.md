@@ -911,3 +911,79 @@ Created two deployment scripts:
 ### Next Steps
 - Test the full automatic flow near cmvwifi (library, Shoreline Park)
 - Costco portal capture using `mvwifi-analyze-portal`
+
+---
+
+## Session 21: WiFi Near Parameter Order Fix (2026-09-16)
+
+### Problem
+After successfully deploying the Tasker + Termux:Tasker integration
+(Session 20), the `cmvwifi Auto Connect` profile was enabled but
+never activated when near cmvwifi. The user could see cmvwifi in
+the WiFi scan list, and Tasker's `%CurrentSSID` variable showed
+the network in scan results, but the profile never turned green.
+
+### Diagnosis
+1. **Profile was enabled** — `%PENABLED` showed `cmvwifi Auto Connect`
+2. **WiFi Near scanning worked** — `%CurrentSSID` showed `>>> SCAN <<<`
+   with cmvwifi in the results
+3. **Profile never activated** — `%PACTIVE` was always empty
+4. **Even a manually-created WiFi Near profile** for `dd-wrt` (visible
+   at home) did not activate
+
+### Root Cause
+The generated `MVwifiAuto-Termux.prj.xml` had the WiFi Near state
+args in the wrong order. The generator produced:
+
+```xml
+<Str sr="arg0" ve="3">cmvwifi</Str>   <!-- SSID -->
+<Int sr="arg1" val="0" />           <!-- WRONG: should be Str for MAC -->
+<Str sr="arg2" ve="3" />              <!-- WRONG: should be Str for Capabilities -->
+<Str sr="arg3" ve="3" />              <!-- WRONG: should be Int for Min Signal -->
+```
+
+When Tasker imported this, it normalized the args to its internal
+format. Our `Int 0` for arg1 became `Str "0"` for the MAC field —
+meaning the profile was looking for a network with MAC address "0",
+which never matches anything.
+
+The correct WiFi Near arg order is:
+
+```
+arg0: Str (SSID)
+arg1: Str (MAC — empty = any)
+arg2: Str (Capabilities — empty = any)
+arg3: Int (Min Activate Signal Level)
+arg4: Int (Channel — 0 = any)
+arg5: Int (Toggle WiFi — 0 = off)
+```
+
+### The Fix
+Updated `tasker_gen.py` to generate the correct arg order for
+WiFi Near states. The fix affects both `build_mvwifi_project()`
+and `build_termux_project()`.
+
+### Verification
+1. Imported corrected `test_wifinear_v2.prj.xml` with WiFi Near
+   profile for `dd-wrt` (visible at home)
+2. Profile activated immediately — `%PACTIVE` showed
+   `WiFiNear-ddwrt-v2` as active
+3. Confirmed WiFi Near works correctly on Android 16 with the
+   proper arg format
+
+### Key Finding
+Tasker normalizes imported args by type, not by index. If an Int
+is sent where a Str is expected (or vice versa), Tasker converts
+the value type but keeps it in the wrong position. This makes
+parameter-order bugs silently fatal — the profile imports but
+never matches.
+
+### Files Updated
+- `src/mvwifi_auto/tasker_gen.py` — fixed WiFi Near arg order
+- `tests/test_tasker_gen.py` — added `test_wifi_near_state_args`
+- `android/MVwifiAuto.prj.xml` — regenerated with correct format
+- `android/MVwifiAuto-Termux.prj.xml` — regenerated with correct format
+
+### Next Steps
+- Test the full automatic flow near cmvwifi (library, Shoreline Park)
+- Costco portal capture using `mvwifi-analyze-portal`
