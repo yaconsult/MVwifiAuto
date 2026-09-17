@@ -774,10 +774,12 @@ def _build_cmvwifi_profile() -> TaskerProfile:
         state=TaskerState(
             code=CODE_WIFI_NEAR_STATE,
             args=[
-                TaskerArg.str_arg(0, "cmvwifi"),
-                TaskerArg.int_arg(1, 0),
-                TaskerArg.str_arg(2),
-                TaskerArg.str_arg(3),
+                TaskerArg.str_arg(0, "cmvwifi"),   # SSID
+                TaskerArg.str_arg(1),              # MAC (empty = any)
+                TaskerArg.str_arg(2),              # Capabilities (empty = any)
+                TaskerArg.int_arg(3, 0),           # Min Activate Signal Level
+                TaskerArg.int_arg(4, 0),           # Channel (0 = any)
+                TaskerArg.int_arg(5, 0),           # Toggle WiFi (0 = off)
             ],
         ),
         task_id=50,
@@ -870,10 +872,12 @@ def _build_cmvwifi_profile_termux() -> TaskerProfile:
         state=TaskerState(
             code=CODE_WIFI_NEAR_STATE,
             args=[
-                TaskerArg.str_arg(0, "cmvwifi"),
-                TaskerArg.int_arg(1, 0),
-                TaskerArg.str_arg(2),
-                TaskerArg.str_arg(3),
+                TaskerArg.str_arg(0, "cmvwifi"),   # SSID
+                TaskerArg.str_arg(1),              # MAC (empty = any)
+                TaskerArg.str_arg(2),              # Capabilities (empty = any)
+                TaskerArg.int_arg(3, 0),           # Min Activate Signal Level
+                TaskerArg.int_arg(4, 0),           # Channel (0 = any)
+                TaskerArg.int_arg(5, 0),           # Toggle WiFi (0 = off)
             ],
         ),
         task_id=80,  # ConnectAndRun

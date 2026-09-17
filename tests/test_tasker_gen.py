@@ -215,6 +215,34 @@ class TestXmlGeneration:
         assert state is not None
         assert state.find("code").text == str(CODE_WIFI_NEAR_STATE)
 
+    def test_wifi_near_state_args(self):
+        """Test WiFi Near state has correct parameter order and types.
+
+        WiFi Near state args must be:
+          arg0: SSID (Str), arg1: MAC (Str), arg2: Capabilities (Str),
+          arg3: Min Signal (Int), arg4: Channel (Int), arg5: Toggle WiFi (Int)
+        """
+        project = build_mvwifi_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        state = root.find("Profile").find("State")
+        assert state is not None
+        args = state.findall("Str") + state.findall("Int")
+        # Should have 6 args: 3 Str + 3 Int
+        assert len(args) == 6
+        # arg0: SSID = "cmvwifi" (Str)
+        assert state.find('Str[@sr="arg0"]').text == "cmvwifi"
+        # arg1: MAC = "" (Str, empty = any)
+        assert state.find('Str[@sr="arg1"]').text in (None, "")
+        # arg2: Capabilities = "" (Str, empty = any)
+        assert state.find('Str[@sr="arg2"]').text in (None, "")
+        # arg3: Min Signal = 0 (Int)
+        assert state.find('Int[@sr="arg3"]').get("val") == "0"
+        # arg4: Channel = 0 (Int)
+        assert state.find('Int[@sr="arg4"]').get("val") == "0"
+        # arg5: Toggle WiFi = 0 (Int)
+        assert state.find('Int[@sr="arg5"]').get("val") == "0"
+
     def test_all_six_tasks_present(self):
         """Test that all six tasks are present in the XML."""
         project = build_mvwifi_project()
