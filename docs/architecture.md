@@ -202,7 +202,45 @@ Costco WiFi to fill in the real values.
 
 ## Data Flow
 
-### Normal Operation (On dd-wrt)
+### Platform Comparison
+
+| Aspect | Linux (Fedora) | Android (Termux + Tasker) |
+|--------|----------------|---------------------------|
+| Trigger | systemd daemon polls every 60s | Tasker **WiFi Near** profile (event-driven) |
+| Detection | `decide_action()` scans via NetworkManager/D-Bus | WiFi Near matches SSID before association |
+| Connect | `nmcli device wifi connect cmvwifi` | Tasker "Connect to WiFi" (via Tasker Settings) |
+| Portal detect | HTTP GET + redirect check | Same `captive_portal.py` logic |
+| HTTP routing | Default route (no binding needed) | `SO_BINDTODEVICE` on wlan0 — required to bypass Android's policy routing when cellular is active |
+| Portal accept | POST to `forms/guest_toued` | Same |
+| Verify | GET `success.txt` | Same |
+| Re-check | Daemon polls every 60s; resume service after suspend | WiFi Near re-fires on each new detection |
+| Logging | `journalctl --user -u mvwifi-auto` | `mvwifi_tasker.log` (kept only on failure) |
+
+The portal-handling code (`captive_portal.py`,
+`wifi_binding.py`) is shared between platforms. The Linux
+daemon owns detection *and* connection; on Android those
+responsibilities are split — Tasker handles detection and
+association, `mvwifi-android` (Termux) handles only the portal.
+
+### Android Flow (Tasker + Termux)
+
+```
+1. Tasker WiFi Near profile sees "cmvwifi" in scan results
+2. ConnectAndRun task runs:
+   a. If %WIFII already ~ "cmvwifi" → skip to step c
+   b. Else Connect to WiFi "cmvwifi" (Tasker Settings app)
+   c. Wait 5s for DHCP
+   d. Perform Task "RunPortalScript"
+3. RunPortalScript → Termux:Tasker plugin →
+   ~/.termux/tasker/mvwifi_portal → mvwifi-android --once
+4. Python: bind session to wlan0, GET canonical.html,
+   extract portal host from redirect, POST terms, verify
+5. Android independently re-validates connectivity
+   (connectivitycheck.gstatic.com) — may take 1-3 min before
+   the OS marks WiFi as having internet
+```
+
+### Normal Operation (On dd-wrt) — Linux
 
 ```
 1. run_once() called
