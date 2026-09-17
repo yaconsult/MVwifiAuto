@@ -317,6 +317,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Save the portal page HTML to a file",
     )
     parser.add_argument(
+        "--html-path",
+        default="/tmp/portal.html",
+        help="Where to save HTML with --save-html (default: /tmp/portal.html). "
+        "On Termux use e.g. ~/storage/shared/portal.html since /tmp is not writable",
+    )
+    parser.add_argument(
         "--output",
         "-o",
         default="-",
@@ -345,6 +351,7 @@ def main(argv: list[str] | None = None) -> int:
         probe_url=args.probe_url,
         timeout=args.timeout,
         save_html=args.save_html,
+        html_path=args.html_path,
         session=session,
     )
 

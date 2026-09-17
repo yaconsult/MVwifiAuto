@@ -379,7 +379,8 @@ needed — `install.sh` already serves that role.
 ### Next Steps
 - [ ] Repeat at other cmvwifi locations to confirm consistency
 - [ ] Verify failure path retains `mvwifi_tasker.log`
-- [ ] Run `mvwifi-analyze-portal` on Costco WiFi to capture portal protocol
+- [ ] Run `mvwifi-analyze-portal` on Costco WiFi — full runbook:
+  `docs/costco-portal-capture.md`
 - [ ] Fill in `costco_portal.py` constants from analyzer output
 
 ---

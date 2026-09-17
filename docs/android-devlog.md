@@ -1052,4 +1052,5 @@ speed.
   Park) to confirm consistency
 - Test the failure path: if the portal script fails, verify
   `mvwifi_tasker.log` is retained
-- Costco portal capture using `mvwifi-analyze-portal`
+- Costco portal capture using `mvwifi-analyze-portal` — runbook:
+  `docs/costco-portal-capture.md`

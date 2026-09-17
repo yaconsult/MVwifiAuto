@@ -1,9 +1,12 @@
 """Captive portal handler for Costco WiFi.
 
 Scaffolded module — the actual portal protocol (endpoint path, form
-fields, headers) must be captured on-site using the portal analyzer::
+fields, headers) must be captured on-site using the portal analyzer.
+See ``docs/costco-portal-capture.md`` for the full runbook::
 
-    mvwifi-analyze-portal --probe-url http://1.1.1.1/ --save-html --interface wlan0
+    mvwifi-analyze-portal --probe-url http://1.1.1.1/ --save-html \
+        --html-path ~/storage/shared/costco_portal.html \
+        --output ~/storage/shared/costco_portal_report.txt
 
 Once the protocol is known, fill in the constants below and the
 existing functions will handle the rest.  The HTTP plumbing (interface

@@ -239,11 +239,15 @@ Costco WiFi has a similar captive portal. The handler is scaffolded in
 `src/mvwifi_auto/costco_portal.py` but the actual protocol (endpoint
 path, form fields) must be captured on-site.
 
-To capture the Costco portal structure:
+To capture the Costco portal structure, follow the full runbook in
+[docs/costco-portal-capture.md](docs/costco-portal-capture.md). Quick
+version:
 
 ```bash
-# On a device connected to Costco WiFi:
-mvwifi-analyze-portal --probe-url http://1.1.1.1/ --save-html --interface wlan0
+# On a device connected to Costco WiFi (Termux):
+mvwifi-analyze-portal --probe-url http://1.1.1.1/ \
+    --save-html --html-path ~/storage/shared/costco_portal.html \
+    --output ~/storage/shared/costco_portal_report.txt
 ```
 
 Then fill in the `COSTCO_LOGIN_URL` and `COSTCO_POST_DATA` constants in

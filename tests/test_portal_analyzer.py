@@ -314,6 +314,15 @@ class TestMain:
         call_kwargs = mock_analyze.call_args.kwargs
         assert call_kwargs["save_html"] is True
 
+    def test_main_html_path_passthrough(self):
+        """Test that --html-path is passed through to analyze_portal."""
+        with patch("mvwifi_auto.portal_analyzer.analyze_portal") as mock_analyze:
+            mock_analyze.return_value = PortalReport()
+            main(["--save-html", "--html-path", "/data/local/tmp/p.html"])
+
+        call_kwargs = mock_analyze.call_args.kwargs
+        assert call_kwargs["html_path"] == "/data/local/tmp/p.html"
+
     def test_main_output_to_file(self, tmp_path):
         """Test that --output writes to a file."""
         with patch("mvwifi_auto.portal_analyzer.analyze_portal") as mock_analyze:
