@@ -385,6 +385,104 @@ needed — `install.sh` already serves that role.
 
 ---
 
+## 2026-09-17 - Design Notes: Generic Portal Engine
+
+Ideas for evolving from a cmvwifi-specific tool to a generic
+captive-portal acceptor usable by others.
+
+### Portal Pattern Taxonomy (observed + expected)
+
+| Pattern | Example | Handling |
+|---------|---------|----------|
+| Button only | cmvwifi | POST form fields (origurl + ok) |
+| Checkbox + button | Costco | POST fields + checkbox name/value |
+| Login required | xfinitywifi | Needs stored credentials — different problem, see below |
+| Email/data capture | hotels, airports | Needs user-supplied data — config per field |
+| Multi-step / JS | some carriers | Out of scope for simple POST engine |
+
+### Config-Driven Engine (proposed)
+
+The portal-specific surface is tiny — ~4 constants per portal.
+Sketch:
+
+```toml
+[[portal]]
+ssid = "cmvwifi"
+endpoint = "/forms/guest_toued"
+[portal.fields]
+origurl = "http://www.google.com"
+ok = "Accept and Continue"
+
+[[portal]]
+ssid = "CostcoWiFi"
+endpoint = "TBD-from-capture"
+[portal.fields]
+accept = "1"      # checkbox — confirmed required
+ok = "TBD"
+```
+
+This collapses `captive_portal.py` + `costco_portal.py` into one
+generic engine + data. **Do this refactor after Costco capture
+works** — two real implementations keep the abstraction honest.
+
+### Auto-Submit Heuristic (stretch)
+
+The analyzer already parses forms. An auto-submitter could:
+fetch portal page → include hidden fields verbatim → check
+required checkboxes → submit → verify. Covers the "accept terms"
+family (cmvwifi, Costco, most municipal WiFi). Fails on
+multi-step/JS/data-required portals → config override stays as
+fallback. Design: **auto-submit first, config as fallback** —
+not instead of.
+
+### Which Portal Am I On? (the seam)
+
+Generic version needs to identify the current network:
+- Android: Tasker passes `%WIFII` to the task, or read SSID from
+  Android; map SSID → handler from config
+- Linux: `get_connection_info()` already returns the SSID
+
+### Multi-SSID WiFi Near (Tasker)
+
+Tasker's WiFi Near SSID field supports pattern matching —
+`cmvwifi/CostcoWiFi` (slash = OR) matches either network in a
+single profile. Alternatives:
+
+- One profile with `ssid1/ssid2` pattern — simplest, and the
+  task can branch on which AP was detected
+- Separate profile per SSID, all linking to the same task —
+  clearer in the UI, more profiles to manage
+
+A single multi-SSID profile is probably sufficient since the
+task only needs to know "connect to the SSID we just saw."
+
+### xfinitywifi Extension (deferred)
+
+Open `xfinitywifi` hotspots at customer locations usually
+require an Xfinity account login (or a complimentary-pass flow
+needing an email). That's the "login required" pattern — a
+different feature: stored credentials, config secrets handling,
+probably a form-fill POST like the others but with real user
+data. Defer until the generic engine exists; would need secure
+credential storage (not plaintext config).
+
+### Prior Art
+
+OpenWrt `travelmate` and GL.iNet travel routers already do
+auto-captive-portal login — proven concept, but nothing packaged
+nicely for Android/Termux. Real niche if we go generic.
+
+### Decision Path
+
+1. Capture Costco, fill `costco_portal.py` (current plan)
+2. Refactor to config-driven engine (2 real portals)
+3. Optional: auto-submit heuristic
+4. Optional: xfinity/login-required portals (needs credential storage)
+5. Publishing for external users — separate decision, don't pay
+   that cost until 2+ portals proven
+
+---
+
 ## Template for Future Entries
 
 ### YYYY-MM-DD - Brief Description
