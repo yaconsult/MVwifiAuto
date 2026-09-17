@@ -295,6 +295,17 @@ the value type but keeps it in the wrong position. This makes
 parameter-order bugs silently fatal — the profile imports but
 never matches.
 
+### Why the Bug Existed
+The wrong arg order was introduced in the original `tasker_gen.py`
+commit (`e9d97ab`). The args were guessed based on the Tasker UI
+fields (SSID, Min Signal, Channel, Toggle WiFi) rather than
+verified against an actual exported WiFi Near profile. The real
+order (SSID, MAC, Capabilities, Min Signal, Channel, Toggle WiFi)
+differs — MAC and Capabilities come before the numeric fields.
+The bug wasn't caught because Tasker imports the profile without
+errors; it just never matches. Real-device testing was the only
+way to find it.
+
 ### Testing
 - 179 tests pass, 4 skipped
 - New test `test_wifi_near_state_args` verifies correct arg
