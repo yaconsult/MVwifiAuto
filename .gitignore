@@ -36,3 +36,6 @@ dmypy.json
 
 # ruff
 .ruff_cache/
+
+# Portal capture output
+portal_capture_*/

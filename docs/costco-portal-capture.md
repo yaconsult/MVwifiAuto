@@ -23,13 +23,58 @@ The capture fills these in.
 
 - Physically at a Costco, connected to `CostcoWiFi` (verify SSID —
   update `costco_portal.py` if it differs)
-- Termux set up per `docs/android-termux-setup.md`
-- `termux-setup-storage` previously run (for `~/storage/shared/`)
 
-If the phone auto-connects and immediately shows "Sign in to network",
-that's ideal — the portal is active.
+The capture works on **either** device:
 
-## Capture
+- **Laptop (recommended)** — no extra setup; the repo is already
+  installed.  Bonus: browser dev tools can watch the real POST when
+  you manually accept the portal.
+- **Phone (Termux)** — needs Termux set up per
+  `docs/android-termux-setup.md` and `termux-setup-storage` run
+  previously (for `~/storage/shared/`)
+
+## Capture on the Laptop (easiest)
+
+Everything is scripted — no internet needed on-site:
+
+```bash
+cd ~/DevinProjects/MVwifiAuto
+
+# 1. Before connecting: scan for the exact SSID
+nmcli device wifi list | grep -i costco
+
+# 2. Connect to it
+nmcli device wifi connect CostcoWiFi
+
+# 3. Run the capture (do NOT accept the portal yet)
+./scripts/capture_portal.sh
+```
+
+This creates `portal_capture_<timestamp>/` containing:
+
+- `report.txt` — parsed portal structure (forms, fields, buttons)
+- `portal.html` — raw portal page HTML
+- `probe_curl.txt` / `probe_body.html` — raw redirect response
+- `portal_follow.html` / `follow_curl.txt` — full redirect chain
+- `wifi_scan.txt`, `connected_ssid.txt`, `device_status.txt`
+
+Then:
+
+```bash
+# 4. Accept the portal in a browser.
+#    IMPORTANT: open dev tools (F12) → Network tab first.
+#    Check the conditions box, click Accept, and note the POST:
+#    endpoint URL, every field name, and every field value
+#    (hidden fields, checkbox name/value, button name/value).
+
+# 5. Verify internet now works
+./scripts/capture_portal.sh --post
+```
+
+The browser dev-tools POST capture is **ground truth** — if the
+analyzer report and the browser disagree, trust the browser.
+
+## Capture on the Phone (Termux)
 
 Run in Termux while connected to Costco WiFi:
 
@@ -54,11 +99,11 @@ Notes:
 
 ## What you get
 
-Two files in shared storage (pull via `adb pull`, Drive, or `cat`):
-
-- `costco_portal_report.txt` — parsed structure: redirect chain,
-  portal host, forms, input fields, buttons, checkboxes
-- `costco_portal.html` — raw portal page HTML
+- **Laptop**: a `portal_capture_<timestamp>/` directory in the repo
+  (listed above)
+- **Phone**: two files in `~/storage/shared/` (pull via `adb pull`,
+  Drive, or `cat`): `costco_portal_report.txt` (parsed structure)
+  and `costco_portal.html` (raw page)
 
 ## What to do with the report
 
@@ -87,7 +132,12 @@ uv run pytest tests/test_costco_portal.py -v
 Once constants are filled in, test live before leaving:
 
 ```bash
+# Phone (Termux):
 mvwifi-android --once --verbose
+
+# Laptop — quick check that the portal is gone:
+curl -s -o /dev/null -w '%{http_code}\n' \
+    http://detectportal.firefox.com/success.txt   # want: 200
 ```
 
 Or POST manually to sanity-check first:
@@ -101,8 +151,9 @@ Success = the report shows internet verification passing.
 
 ## If the portal doesn't appear
 
-- Make sure you're actually on Costco WiFi, not cellular
+- Phone: make sure you're actually on Costco WiFi, not cellular
   (`--interface wlan0` forces WiFi)
+- Laptop: disconnect ethernet/dock so WiFi is the only route
 - The portal may only appear for new/expired sessions — toggle WiFi
   off/on or forget+rejoin the network to force re-detection
 - Try different probe URLs: `http://1.1.1.1/`, `http://neverssl.com/`,
