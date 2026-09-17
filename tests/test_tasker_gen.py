@@ -26,7 +26,6 @@ from mvwifi_auto.tasker_gen import (
     build_mvwifi_project,
     build_termux_project,
     connect_wifi,
-    debug_flash,
     else_action,
     end_if,
     flash,
@@ -70,9 +69,9 @@ class TestActionBuilders:
     """Test action builder helpers."""
 
     def test_perform_task(self):
-        action = perform_task("DebugFlash", par1="hello")
+        action = perform_task("SomeTask", par1="hello")
         assert action.code == CODE_PERFORM_TASK
-        assert action.args[0].value == "DebugFlash"
+        assert action.args[0].value == "SomeTask"
         assert action.args[2].value == "hello"
         assert action.args[10].value == "1"  # wait_for_finish
 
@@ -80,12 +79,6 @@ class TestActionBuilders:
         action = flash("test message")
         assert action.code == CODE_FLASH
         assert action.args[0].value == "test message"
-
-    def test_debug_flash(self):
-        action = debug_flash("my message")
-        assert action.code == CODE_PERFORM_TASK
-        assert action.args[0].value == "DebugFlash"
-        assert action.args[2].value == "my message"
 
     def test_variable_set(self):
         action = variable_set("%Foo", "bar")
@@ -243,21 +236,17 @@ class TestXmlGeneration:
         # arg5: Toggle WiFi = 0 (Int)
         assert state.find('Int[@sr="arg5"]').get("val") == "0"
 
-    def test_all_six_tasks_present(self):
-        """Test that all six tasks are present in the XML."""
+    def test_all_tasks_present(self):
+        """Test that the production tasks are present in the XML."""
         project = build_mvwifi_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        assert len(tasks) == 6
+        assert len(tasks) == 2
         task_names = {t.find("nme").text for t in tasks}
         assert task_names == {
-            "DebugFlash",
-            "DebugOn",
-            "DebugOff",
             "HandlePortal",
             "ConnectToCmvwifi",
-            "TestWiFiScan",
         }
 
     def test_task_ids(self):
@@ -267,23 +256,7 @@ class TestXmlGeneration:
         root = fromstring(xml_text)
         tasks = root.findall("Task")
         task_ids = {int(t.find("id").text) for t in tasks}
-        assert task_ids == {10, 20, 30, 40, 50, 60}
-
-    def test_debug_flash_has_if_block(self):
-        """Test that DebugFlash task has an If block with %DebugMode condition."""
-        project = build_mvwifi_project()
-        xml_text = generate_project_xml(project)
-        root = fromstring(xml_text)
-        tasks = root.findall("Task")
-        debug_flash_task = next(t for t in tasks if t.find("nme").text == "DebugFlash")
-        actions = debug_flash_task.findall("Action")
-        # First action should be If
-        assert actions[0].find("code").text == str(CODE_IF)
-        cond_list = actions[0].find("ConditionList")
-        assert cond_list is not None
-        cond = cond_list.find("Condition")
-        assert cond.find("lhs").text == "%DebugMode"
-        assert cond.find("rhs").text == "true"
+        assert task_ids == {40, 50}
 
     def test_handle_portal_has_http_requests(self):
         """Test that HandlePortal has HTTP Request actions."""
@@ -330,11 +303,8 @@ class TestXmlGeneration:
         root = fromstring(xml_text)
         proj = root.find("Project")
         tids = proj.find("tids").text
-        assert "10" in tids
-        assert "20" in tids
         assert "40" in tids
         assert "50" in tids
-        assert "60" in tids
 
     def test_custom_project(self):
         """Test generating XML for a custom minimal project."""
@@ -384,18 +354,15 @@ class TestTermuxProject:
         root = fromstring(xml_text)
         assert root.find("Project").find("name").text == "MVwifiAuto-Termux"
 
-    def test_has_five_tasks(self):
-        """Test that the Termux project has 5 tasks."""
+    def test_has_two_tasks(self):
+        """Test that the Termux project has 2 tasks."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        assert len(tasks) == 5
+        assert len(tasks) == 2
         task_names = {t.find("nme").text for t in tasks}
         assert task_names == {
-            "DebugFlash",
-            "DebugOn",
-            "DebugOff",
             "RunPortalScript",
             "ConnectAndRun",
         }

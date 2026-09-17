@@ -74,8 +74,10 @@ echo ""
 # --- Step 4: Verify ---
 echo "[4/4] Verifying setup..."
 echo "  Wrapper script:"
+# shellcheck disable=SC2012  # ls -la shows permissions/size, intended for user
 ls -la "$TASKER_DIR/mvwifi_portal" 2>&1 | sed 's/^/    /'
 echo "  mvwifi-android:"
+# shellcheck disable=SC2012  # ls -la shows permissions/size, intended for user
 ls -la "$PREFIX/bin/mvwifi-android" 2>&1 | sed 's/^/    /'
 echo ""
 echo "=== Setup complete! ==="

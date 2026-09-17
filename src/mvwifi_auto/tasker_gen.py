@@ -312,11 +312,6 @@ def flash(text: str) -> TaskerAction:
     )
 
 
-def debug_flash(message: str) -> TaskerAction:
-    """Build a Perform Task action that calls DebugFlash."""
-    return perform_task("DebugFlash", par1=message, wait_for_finish=True)
-
-
 def variable_set(name: str, value: str) -> TaskerAction:
     """Build a Variable Set (code 547) action."""
     return TaskerAction(
@@ -548,47 +543,6 @@ def termux_task(
 # ---------------------------------------------------------------------------
 # MVwifiAuto project builder
 # ---------------------------------------------------------------------------
-def _build_debug_flash_task() -> TaskerTask:
-    """Build the DebugFlash helper task (id=10)."""
-    return TaskerTask(
-        id=10,
-        name="DebugFlash",
-        priority=2,
-        actions=[
-            TaskerAction(
-                code=CODE_IF,
-                conditions=[TaskerCondition(lhs="%DebugMode", op=OP_EQUALS, rhs="true")],
-            ),
-            flash("%par1"),
-            end_if(),
-        ],
-    )
-
-
-def _build_debug_on_task() -> TaskerTask:
-    """Build the DebugOn task (id=20)."""
-    return TaskerTask(
-        id=20,
-        name="DebugOn",
-        actions=[
-            variable_set("%DebugMode", "true"),
-            flash("Debug logging ON"),
-        ],
-    )
-
-
-def _build_debug_off_task() -> TaskerTask:
-    """Build the DebugOff task (id=30)."""
-    return TaskerTask(
-        id=30,
-        name="DebugOff",
-        actions=[
-            variable_set("%DebugMode", "false"),
-            flash("Debug logging OFF"),
-        ],
-    )
-
-
 def _build_handle_portal_task() -> TaskerTask:
     """Build the HandlePortal task (id=40).
 
@@ -599,27 +553,7 @@ def _build_handle_portal_task() -> TaskerTask:
         id=40,
         name="HandlePortal",
         actions=[
-            # A1: Debug entry
-            debug_flash("[HandlePortal] v19 starting"),
-            # A1b: Test curl availability
-            TaskerAction(
-                code=CODE_RUN_SHELL,
-                continue_on_error=True,
-                args=[
-                    TaskerArg.str_arg(0, "/data/local/tmp/curl --version"),
-                    TaskerArg.int_arg(1, 10),
-                    TaskerArg.int_arg(2, 0),
-                    TaskerArg.str_arg(3, "%CurlTest"),
-                    TaskerArg.str_arg(4),
-                    TaskerArg.str_arg(5),
-                    TaskerArg.int_arg(6, 1),
-                    TaskerArg.int_arg(7, 0),
-                    TaskerArg.int_arg(8, 0),
-                ],
-            ),
-            # A1c: Flash curl test result
-            debug_flash("curl: %CurlTest"),
-            # A2: Wait 3s for WiFi to settle
+            # A1: Wait 3s for WiFi to settle
             wait(seconds=3),
             # A4: HTTP GET 1.1.1.1 — follow redirect to get portal URL
             TaskerAction(
@@ -654,8 +588,6 @@ def _build_handle_portal_task() -> TaskerTask:
                 "http://([^/]+)/.*",
                 "%PortalHost",
             ),
-            # A5b: Debug portal host
-            debug_flash("Portal: %PortalHost"),
             # A6: HTTP POST to portal acceptance endpoint
             TaskerAction(
                 code=CODE_HTTP_REQUEST,
@@ -685,8 +617,6 @@ def _build_handle_portal_task() -> TaskerTask:
                     TaskerArg.int_arg(9, 0),
                 ],
             ),
-            # A7: Debug POST response code
-            debug_flash("POST: %http_response_code"),
             # A8: Verify internet via WiFi
             TaskerAction(
                 code=CODE_HTTP_REQUEST,
@@ -710,9 +640,9 @@ def _build_handle_portal_task() -> TaskerTask:
             variable_set("%VerifyResult", "%http_response_code"),
             # A10: If 200 — success
             if_condition("%VerifyResult", "200"),
-            debug_flash("[HandlePortal] Success: Connected with internet!"),
+            flash("Connected with internet!"),
             else_action(),
-            debug_flash("[HandlePortal] Failed: Portal acceptance failed"),
+            flash("Portal acceptance failed"),
             end_if(),
         ],
     )
@@ -724,44 +654,20 @@ def _build_connect_to_cmvwifi_task() -> TaskerTask:
         id=50,
         name="ConnectToCmvwifi",
         actions=[
-            # A1: Debug entry
-            debug_flash("[ConnectToCmvwifi] cmvwifi detected, checking connection..."),
-            # A2: If already connected to cmvwifi
+            # A1: If already connected to cmvwifi
             if_condition("%WIFII", "cmvwifi"),
-            # A3: Already connected, go straight to portal
-            debug_flash("[ConnectToCmvwifi] Already connected, handling portal..."),
-            # A4: Call HandlePortal
+            # A2: Already connected, go straight to portal
             perform_task("HandlePortal", wait_for_finish=True),
-            # A5: Else - not connected
+            # A3: Else - not connected
             else_action(),
-            # A6: Connect to cmvwifi
+            # A4: Connect to cmvwifi
             connect_wifi("cmvwifi"),
-            # A7: Debug connection status
-            debug_flash("[ConnectToCmvwifi] Connected, waiting for portal..."),
-            # A8: Wait 5 seconds
+            # A5: Wait 5 seconds
             wait(seconds=5),
-            # A9: Call HandlePortal
+            # A6: Call HandlePortal
             perform_task("HandlePortal", wait_for_finish=True),
-            # A10: End If
+            # A7: End If
             end_if(),
-        ],
-    )
-
-
-def _build_test_wifi_scan_task() -> TaskerTask:
-    """Build the TestWiFiScan task (id=60)."""
-    return TaskerTask(
-        id=60,
-        name="TestWiFiScan",
-        actions=[
-            debug_flash("[TestWiFiScan] Starting WiFi scan test"),
-            variable_set("%CurrentSSID", "%WIFII"),
-            debug_flash("[TestWiFiScan] Current network: %CurrentSSID"),
-            if_condition("%CurrentSSID", "*dd-wrt*"),
-            debug_flash("[TestWiFiScan] Home network dd-wrt detected!"),
-            stop(),
-            end_if(),
-            debug_flash("[TestWiFiScan] Not on dd-wrt. Current: %CurrentSSID"),
         ],
     )
 
@@ -799,12 +705,8 @@ def build_mvwifi_project() -> TaskerProject:
         profile, ready for XML generation.
     """
     tasks = [
-        _build_debug_flash_task(),
-        _build_debug_on_task(),
-        _build_debug_off_task(),
         _build_handle_portal_task(),
         _build_connect_to_cmvwifi_task(),
-        _build_test_wifi_scan_task(),
     ]
     profiles = [_build_cmvwifi_profile()]
     return TaskerProject(
@@ -892,8 +794,6 @@ def build_termux_project() -> TaskerProject:
     the captive portal with SO_BINDTODEVICE interface binding.
 
     Tasks:
-        - DebugFlash: shared debug helper (reused from pure-Tasker version)
-        - DebugOn / DebugOff: toggle debug mode
         - RunPortalScript: runs mvwifi-android via Termux:Tasker plugin
         - ConnectAndRun: connects to cmvwifi, waits for DHCP, calls
           RunPortalScript
@@ -905,9 +805,6 @@ def build_termux_project() -> TaskerProject:
         A :class:`TaskerProject` ready for XML generation.
     """
     tasks = [
-        _build_debug_flash_task(),
-        _build_debug_on_task(),
-        _build_debug_off_task(),
         _build_run_portal_script_task_termux(),
         _build_connect_and_run_task_termux(),
     ]

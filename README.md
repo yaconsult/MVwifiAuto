@@ -60,6 +60,29 @@ systemctl --user enable mvwifi-auto.service
 systemctl --user start mvwifi-auto.service
 ```
 
+### How Updates Work
+
+The service runs the code **directly from this repository** — there is
+no separate deploy step. `install.sh` resolves the repo location from
+its own path (nothing is hardcoded) and generates
+`~/.local/bin/mvwifi-auto`, a wrapper that sets
+`PYTHONPATH=<repo>/src` and runs `python3 -m mvwifi_auto.cli`. The
+service always imports the latest code in `src/`.
+
+To pick up changes after editing code or running `git pull`:
+
+```bash
+systemctl --user restart mvwifi-auto
+```
+
+Notes:
+
+- The wrapper uses **system** `python3` (not the venv), so `dbus` and
+  `requests` must come from system packages — that's why `install.sh`
+  requires `python3-dbus` and the venv uses `--system-site-packages`.
+- If the repo folder is moved, re-run `./install.sh` to regenerate the
+  wrapper and service files with the new path.
+
 ## Usage
 
 ### As a Service (Recommended)

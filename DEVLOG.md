@@ -320,7 +320,65 @@ way to find it.
 - `android/MVwifiAuto-Termux.prj.xml` — regenerated with correct format
 
 ### Next Steps
-- [ ] Test the full automatic flow near cmvwifi (library, Shoreline Park)
+- [x] Test the full automatic flow near cmvwifi (library, Shoreline Park) — DONE 2026-09-17
+- [ ] Run `mvwifi-analyze-portal` on Costco WiFi to capture portal protocol
+- [ ] Fill in `costco_portal.py` constants from analyzer output
+
+---
+
+## 2026-09-17 - First Real-World cmvwifi Test: SUCCESS
+
+### Result
+The full automatic flow worked at a real cmvwifi location.
+WiFi Near detected the network before association, Tasker
+connected, Termux:Tasker ran the portal script, terms were
+accepted, and the phone got working internet.
+
+### Observed Delay (expected, not a bug)
+Several minutes elapsed between the "Portal handling complete"
+toast and the phone showing a working WiFi connection. This is
+Android's own connectivity validation — the OS re-runs its
+captive portal check and only switches the default route from
+cellular to WiFi after validation passes. Android batches these
+checks; 1-3 minutes is normal when cellular is active.
+
+### Status
+All major components confirmed working end-to-end on Android 16:
+WiFi Near trigger, Connect to WiFi, Termux:Tasker plugin,
+WiFi-bound HTTP session, dynamic portal-host extraction, terms
+POST, internet verification, log-on-failure.
+
+### Post-Test Cleanup
+- Deleted `analyze_costco_portal.py` (superseded by
+  `portal_analyzer.py` + `mvwifi-analyze-portal` CLI) — also
+  resolved the last 21 ruff errors in the repo
+- Removed debug infrastructure from `tasker_gen.py`:
+  `DebugFlash`/`DebugOn`/`DebugOff`/`TestWiFiScan` tasks,
+  `debug_flash()` builder, curl-availability check in
+  `HandlePortal`, and all `debug_flash()` call sites. Both
+  generated projects now contain only production tasks
+- Converted `HandlePortal` success/failure `debug_flash` calls
+  to regular `flash()` so the pure-Tasker reference project
+  still reports its result
+- Regenerated `android/MVwifiAuto.prj.xml` (6→2 tasks) and
+  `android/MVwifiAuto-Termux.prj.xml` (5→2 tasks)
+- Kept: `--verbose` in wrapper scripts (log deleted on success),
+  `Flash "Portal handling complete"` (only user-facing signal),
+  `%CurrentSSID` set (required by If/Goto), diagnostic scripts
+  in `scripts/`
+
+### Linux Service Execution Model (confirmed)
+The systemd service runs code directly from the repo — no deploy
+step needed. `install.sh` resolves the repo path from its own
+location and generates `~/.local/bin/mvwifi-auto` (sets
+`PYTHONPATH=<repo>/src`, runs `python3 -m mvwifi_auto.cli` with
+system python). `git pull` + `systemctl --user restart
+mvwifi-auto` picks up all changes. No separate deploy script is
+needed — `install.sh` already serves that role.
+
+### Next Steps
+- [ ] Repeat at other cmvwifi locations to confirm consistency
+- [ ] Verify failure path retains `mvwifi_tasker.log`
 - [ ] Run `mvwifi-analyze-portal` on Costco WiFi to capture portal protocol
 - [ ] Fill in `costco_portal.py` constants from analyzer output
 

@@ -390,6 +390,23 @@ near the target SSID. You can test at home by creating a WiFi
 Near profile for a visible network (e.g. `dd-wrt`) — it should
 turn green within 60 seconds.
 
+### Delay between "Portal handling complete" and working internet
+
+**Problem**: The "Portal handling complete" toast appears but the
+phone doesn't show a working WiFi connection for several minutes.
+
+**Cause**: This is normal. After our script accepts the portal
+terms, Android runs its own connectivity validation
+(`connectivitycheck.gstatic.com/generate_204`) before switching
+the default route from cellular to WiFi. Android batches these
+checks — 1-3 minutes is normal, especially when cellular data
+is active and being preferred.
+
+**Fix**: None needed — this is OS behavior. If faster switchover
+is needed, disable cellular data during the run (Tasker Settings
+→ Mobile Data toggle) or use `svc data disable` with root, but
+both trade convenience for speed.
+
 ### HTTP requests timing out with cellular ON
 
 **Problem**: `mvwifi-android --once --verbose` hangs for ~40 seconds

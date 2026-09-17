@@ -998,3 +998,58 @@ way to find it.
 ### Next Steps
 - Test the full automatic flow near cmvwifi (library, Shoreline Park)
 - Costco portal capture using `mvwifi-analyze-portal`
+
+---
+
+## Session 22: First Real-World cmvwifi Test (2026-09-17)
+
+### Result: SUCCESS
+The full automatic flow worked at a real cmvwifi location:
+
+1. **WiFi Near triggered** — the `cmvwifi Auto Connect` profile
+   detected cmvwifi before association and fired `ConnectAndRun`
+2. **Connection + portal handling** — Tasker connected to cmvwifi,
+   waited for DHCP, ran `RunPortalScript` via Termux:Tasker, and the
+   Python script accepted the portal terms
+3. **"Portal handling complete"** toast appeared, confirming the
+   script finished successfully
+4. **Internet worked** — after a delay of a few minutes, the phone
+   had working internet over cmvwifi
+
+### Observed Delay (expected, not a bug)
+There was a gap of several minutes between the "Portal handling
+complete" toast and the phone actually showing a working WiFi
+internet connection. This is Android's own connectivity
+validation, not our code:
+
+- Our script accepts the portal terms → toast fires immediately
+- Android then re-runs its own captive portal check
+  (`connectivitycheck.gstatic.com/generate_204`)
+- Only after Android validates WiFi has internet does it switch
+  the default route from cellular to WiFi
+- Android batches these validations; 1-3 minutes is normal,
+  especially when cellular data is active and being preferred
+
+Nothing in our code can speed this up — it's the OS deciding
+the WiFi network is trustworthy. If faster switchover is ever
+needed, options include disabling cellular data during the run
+(via Tasker Settings → Mobile Data toggle) or using
+`svc data disable` with root — but both trade convenience for
+speed.
+
+### Confirmed Working Components
+- WiFi Near detection (fixed arg order) — triggers before
+  association
+- Tasker `Connect to WiFi` action — associates with cmvwifi
+- Termux:Tasker plugin — launches `mvwifi_portal` wrapper
+- `mvwifi-android` — WiFi-bound session, portal detection,
+  dynamic portal-host extraction from redirect, terms POST,
+  internet verification
+- Log-on-failure — no `mvwifi_tasker.log` left behind on success
+
+### Remaining Next Steps
+- Repeat the test at other cmvwifi locations (library, Shoreline
+  Park) to confirm consistency
+- Test the failure path: if the portal script fails, verify
+  `mvwifi_tasker.log` is retained
+- Costco portal capture using `mvwifi-analyze-portal`
