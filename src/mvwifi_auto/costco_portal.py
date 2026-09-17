@@ -15,7 +15,7 @@ with :mod:`mvwifi_auto.captive_portal` and works for any portal.
 
 Protocol differences from cmvwifi (expected, to be verified on-site):
 - Costco WiFi SSID is typically ``CostcoWiFi`` (verify)
-- Portal may require a checkbox acceptance (cmvwifi only has a button)
+- Portal requires a checkbox acceptance (cmvwifi only has a button)
 - POST endpoint and form field names differ
 - Portal host is dynamic (same as cmvwifi — extract from redirect)
 """

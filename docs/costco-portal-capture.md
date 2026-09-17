@@ -11,7 +11,10 @@ verification) but the Costco-specific **protocol constants** are TODO:
 
 - Portal POST endpoint path (cmvwifi uses `/forms/guest_toued`)
 - Form field names and values (cmvwifi uses `origurl` + `ok`)
-- Any required checkboxes or extra fields
+- **Checkbox field name/value** — Costco requires checking a box to
+  accept conditions, unlike cmvwifi which only has a submit button.
+  The POST must include the checkbox field (e.g. `accept=1`) or the
+  acceptance will be rejected.
 - Required headers (Referer, Content-Type, User-Agent)
 
 The capture fills these in.
@@ -65,9 +68,13 @@ the top of the file:
 1. **POST endpoint** — from the form's `action` attribute in the report
 2. **Form fields** — every `<input>` name/value the form submits,
    including hidden fields and checkbox names/values
-3. **Button label** — the submit button's `value` if the portal
+3. **Checkbox** — Costco requires accepting conditions via a checkbox.
+   Find the `<input type="checkbox">` name/value in the report and make
+   sure it ends up in `COSTCO_POST_DATA` — the scaffold has
+   `"accept": "1"` as a placeholder, verify the real field name
+4. **Button label** — the submit button's `value` if the portal
    requires it (cmvwifi sends `ok=Accept and Continue`)
-4. **SSID** — verify `CostcoWiFi` or update to whatever the scan shows
+5. **SSID** — verify `CostcoWiFi` or update to whatever the scan shows
 
 Then update `tests/test_costco_portal.py` expectations to match, run:
 
