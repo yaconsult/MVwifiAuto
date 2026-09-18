@@ -83,7 +83,7 @@ Then:
 #       One-time setup at home (downloads a browser, ~300MB):
 #         uv run --with playwright playwright install chromium
 #       Then on-site:
-#         ./scripts/capture_portal_browser.py
+#         uv run --with playwright python scripts/capture_portal_browser.py
 #       It opens a visible browser, records a HAR + rendered DOM +
 #       screenshot for every page, and keeps recording while you
 #       complete the login manually. Close the window to finish.
