@@ -43,8 +43,8 @@ The capture fills these in.
 
 ## Prerequisites
 
-- Physically at a Costco, connected to `CostcoWiFi` (verify SSID —
-  update `costco_portal.py` if it differs)
+- Physically at a Costco, connected to `Costco Member Wifi`
+  (confirmed SSID — quotes required, it has spaces)
 
 The capture works on **either** device:
 
@@ -66,7 +66,7 @@ cd ~/DevinProjects/MVwifiAuto
 nmcli device wifi list | grep -i costco
 
 # 2. Connect to it
-nmcli device wifi connect CostcoWiFi
+nmcli device wifi connect "Costco Member Wifi"
 
 # 3. Run the capture (do NOT accept the portal yet)
 ./scripts/capture_portal.sh
