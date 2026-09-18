@@ -77,10 +77,19 @@ This creates `portal_capture_<timestamp>/` containing:
 Then:
 
 ```bash
-# 4. Walk the login flow in a browser — see the detailed
-#    "Dev Tools Capture" section below. This is the important part:
-#    the portal is JS-rendered, so the real protocol lives in the
-#    Network tab, not the raw HTML.
+# 4. Walk the login flow in a browser — two ways to do this:
+#
+#    a) Automated (recommended): Playwright recorder script.
+#       One-time setup at home (downloads a browser, ~300MB):
+#         uv run --with playwright playwright install chromium
+#       Then on-site:
+#         ./scripts/capture_portal_browser.py
+#       It opens a visible browser, records a HAR + rendered DOM +
+#       screenshot for every page, and keeps recording while you
+#       complete the login manually. Close the window to finish.
+#
+#    b) Manual: dev tools — see the detailed "Dev Tools Capture"
+#       section below.
 
 # 5. Verify internet now works
 ./scripts/capture_portal.sh --post
@@ -89,7 +98,9 @@ Then:
 ## Dev Tools Capture (detailed)
 
 The portal page is a JS shell — curl sees a blank page. Everything
-that matters happens in the Network tab.
+that matters happens in the Network tab. (Skip this section if you
+used `capture_portal_browser.py` — it records the same data
+automatically: HAR, rendered DOM, screenshots, nav log.)
 
 ### Setup (do this BEFORE triggering the portal)
 
