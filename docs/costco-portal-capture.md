@@ -32,6 +32,12 @@ verification) but the Costco-specific **protocol constants** are TODO:
 - **Question to answer on-site**: is there a non-app path — e.g.
   membership number field, or browser-based Costco.com login —
   and where does the conditions checkbox sit in the flow?
+- **Conflicting public reports**: aggregator sites (and AI answers
+  sourced from them) claim it's open + terms-accept only. First-visit
+  observation showed an app login prompt. Possibilities: the flow
+  changed recently (fits Costco's membership-verification crackdown
+  and SASE rollout), a guest terms path exists alongside the login,
+  or it varies by warehouse. The capture settles it.
 
 The capture fills these in.
 
