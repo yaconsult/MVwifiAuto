@@ -17,6 +17,22 @@ verification) but the Costco-specific **protocol constants** are TODO:
   acceptance will be rejected.
 - Required headers (Referer, Content-Type, User-Agent)
 
+## Known So Far (2026-09-17 first visit)
+
+- **SSID**: `Costco Member Wifi` — open network, multiple BSSIDs on
+  enterprise APs (NOT `CostcoWiFi`)
+- **Portal is JS-rendered** — the probe redirected but the page was
+  blank in curl/script. Content loads via JavaScript, so
+  `mvwifi-analyze-portal` form parsing finds nothing. The report
+  still captures the redirect chain; the **browser dev-tools capture
+  is essential** for the actual auth flow
+- **Login wants the Costco app / Costco.com account** — likely
+  Azure AD B2C OAuth (`signin.costco.com`). This is probably the
+  "login-required" pattern, not a simple terms-accept POST
+- **Question to answer on-site**: is there a non-app path — e.g.
+  membership number field, or browser-based Costco.com login —
+  and where does the conditions checkbox sit in the flow?
+
 The capture fills these in.
 
 ## Prerequisites
@@ -61,18 +77,23 @@ This creates `portal_capture_<timestamp>/` containing:
 Then:
 
 ```bash
-# 4. Accept the portal in a browser.
-#    IMPORTANT: open dev tools (F12) → Network tab first.
-#    Check the conditions box, click Accept, and note the POST:
-#    endpoint URL, every field name, and every field value
-#    (hidden fields, checkbox name/value, button name/value).
+# 4. Walk the login flow in a browser.
+#    IMPORTANT: open dev tools (F12) → Network tab FIRST, and check
+#    "Preserve log" — the portal is JS-rendered and may redirect
+#    through several requests before showing the login screen.
+#    Record: every redirect URL (does it hit signin.costco.com /
+#    Azure B2C?), the XHR/fetch requests the page makes, where the
+#    conditions checkbox appears, and the final POST — endpoint URL,
+#    every field name and value.
 
 # 5. Verify internet now works
 ./scripts/capture_portal.sh --post
 ```
 
-The browser dev-tools POST capture is **ground truth** — if the
-analyzer report and the browser disagree, trust the browser.
+The browser dev-tools capture is **ground truth** — for a JS-rendered
+portal it's the *only* truth, since the raw HTML is a blank shell.
+Right-click any request in the Network tab → "Copy as cURL" gives a
+replayable command.
 
 ## Capture on the Phone (Termux)
 
@@ -107,19 +128,28 @@ Notes:
 
 ## What to do with the report
 
+**Caution**: since the Costco portal is JS-rendered, the analyzer
+report may only show the redirect chain — the real protocol comes
+from the dev-tools capture. Two outcomes:
+
+**If a simple POST exists** (member number field, checkbox, button):
+
 Open `src/mvwifi_auto/costco_portal.py` and fill in the constants at
 the top of the file:
 
-1. **POST endpoint** — from the form's `action` attribute in the report
-2. **Form fields** — every `<input>` name/value the form submits,
-   including hidden fields and checkbox names/values
-3. **Checkbox** — Costco requires accepting conditions via a checkbox.
-   Find the `<input type="checkbox">` name/value in the report and make
-   sure it ends up in `COSTCO_POST_DATA` — the scaffold has
-   `"accept": "1"` as a placeholder, verify the real field name
-4. **Button label** — the submit button's `value` if the portal
-   requires it (cmvwifi sends `ok=Accept and Continue`)
-5. **SSID** — verify `CostcoWiFi` or update to whatever the scan shows
+1. **POST endpoint** — from the final POST in dev tools
+2. **Form fields** — every field name/value the POST submits
+3. **Checkbox** — the checkbox field name/value must be in
+   `COSTCO_POST_DATA` (scaffold has `"accept": "1"` placeholder)
+4. **Button label** — the submit button's `value` if required
+5. **SSID** — done: `Costco Member Wifi` (already corrected)
+
+**If it's OAuth/app-required** (redirect chain hits
+`signin.costco.com` / Azure B2C, or demands the app): a POST-replay
+handler can't work. The realistic Android flow becomes
+"auto-connect + notify to sign in" (WiFi Near → connect → detect
+portal → notify), plus check whether Costco authorizes the device
+for a long session so one manual login covers many visits.
 
 Then update `tests/test_costco_portal.py` expectations to match, run:
 

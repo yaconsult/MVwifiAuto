@@ -395,10 +395,20 @@ captive-portal acceptor usable by others.
 | Pattern | Example | Handling |
 |---------|---------|----------|
 | Button only | cmvwifi | POST form fields (origurl + ok) |
-| Checkbox + button | Costco | POST fields + checkbox name/value |
-| Login required | xfinitywifi | Needs stored credentials — different problem, see below |
+| Checkbox + button | (expected for some portals) | POST fields + checkbox name/value |
+| Login required / OAuth | Costco Member Wifi (likely), xfinitywifi | JS-rendered portal, app/SSO auth — probably not POST-replayable; see below |
 | Email/data capture | hotels, airports | Needs user-supplied data — config per field |
-| Multi-step / JS | some carriers | Out of scope for simple POST engine |
+| Multi-step / JS | Costco Member Wifi, carriers | Raw HTML is a blank shell — analyzer can't parse; needs dev-tools capture |
+
+**Costco update (2026-09-17, first visit):** SSID confirmed as
+`Costco Member Wifi` (open, enterprise multi-SSID APs). The probe
+redirects but returns a blank page to curl — the portal is
+JS-rendered, and the login flow delegates to the Costco
+app/Costco.com account (likely Azure AD B2C). This probably makes
+Costco a "login-required" portal, not checkbox+button. If
+confirmed: the realistic Android goal shifts from auto-accept to
+"auto-connect + notify to sign in", plus check session
+persistence (does Costco authorize the device for days?).
 
 ### Config-Driven Engine (proposed)
 

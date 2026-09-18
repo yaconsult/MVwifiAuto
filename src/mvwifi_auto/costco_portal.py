@@ -13,11 +13,18 @@ existing functions will handle the rest.  The HTTP plumbing (interface
 binding, redirect host detection, internet verification) is shared
 with :mod:`mvwifi_auto.captive_portal` and works for any portal.
 
-Protocol differences from cmvwifi (expected, to be verified on-site):
-- Costco WiFi SSID is typically ``CostcoWiFi`` (verify)
-- Portal requires a checkbox acceptance (cmvwifi only has a button)
-- POST endpoint and form field names differ
-- Portal host is dynamic (same as cmvwifi — extract from redirect)
+Protocol differences from cmvwifi (partially confirmed on-site
+2026-09-17):
+- SSID is ``Costco Member Wifi`` (confirmed by scan — NOT ``CostcoWiFi``)
+- Portal page is JS-rendered — returns a blank shell to curl, so
+  ``portal_analyzer`` form parsing finds nothing. Real protocol must be
+  captured via browser dev tools (Network tab), not raw HTML
+- Login flow delegates to the Costco app / Costco.com auth — likely
+  Azure AD B2C OAuth (``signin.costco.com``), i.e. the "login-required"
+  pattern, not a simple terms-accept POST. May not be automatable
+- Checkbox acceptance exists somewhere in the flow (user-observed) but
+  its position is unconfirmed — capture needed
+- POST endpoint and form field names unknown until browser capture
 """
 
 from __future__ import annotations
@@ -47,8 +54,8 @@ class CostcoPortalError(Exception):
 # TODO: Fill in these constants after capturing the portal structure
 # with `mvwifi-analyze-portal` on a Costco WiFi connection.
 # ---------------------------------------------------------------------------
-# Costco WiFi SSID (verify on-site)
-COSTCO_SSID = "CostcoWiFi"
+# Costco WiFi SSID — confirmed by on-site scan 2026-09-17
+COSTCO_SSID = "Costco Member Wifi"
 
 # Portal form endpoint (relative to the portal host).
 # Example for cmvwifi: "/forms/guest_toued"

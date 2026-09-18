@@ -193,7 +193,7 @@ class TestConstants:
 
     def test_costco_ssid_defined(self):
         """Test that the SSID constant exists for future use."""
-        assert COSTCO_SSID == "CostcoWiFi"
+        assert COSTCO_SSID == "Costco Member Wifi"
 
     def test_login_url_defined(self):
         """Test that the login URL constant exists (TODO: verify on-site)."""
