@@ -471,8 +471,9 @@ def goto_action(action_number: int) -> TaskerAction:
     return TaskerAction(
         code=CODE_GOTO,
         args=[
-            TaskerArg.str_arg(0, "Action Number"),
+            TaskerArg.int_arg(0, 0),  # 0 = Action Number, 1 = Action Label
             TaskerArg.int_arg(1, action_number),
+            TaskerArg.str_arg(2, ""),  # label (empty in number mode)
         ],
     )
 

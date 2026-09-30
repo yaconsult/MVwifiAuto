@@ -474,10 +474,12 @@ class TestTermuxProject:
         tasks = root.findall("Task")
         connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
         actions = connect_task.findall("Action")
-        # Goto is index 2 (A3); its single Int arg is the target number
+        # Goto is index 2 (A3); arg1 (second Int) is the target number
         goto = actions[2]
         assert goto.find("code").text == str(CODE_GOTO)
-        target = int(goto.find("Int").get("val"))
+        ints = goto.findall("Int")
+        assert ints[0].get("val") == "0"  # type: Action Number
+        target = int(ints[1].get("val"))
         # The target action must be the self-heal Run Shell
         target_action = actions[target - 1]
         assert target_action.find("code").text == str(CODE_RUN_SHELL)
@@ -507,5 +509,10 @@ class TestTermuxProject:
         """Test the goto_action builder."""
         action = goto_action(6)
         assert action.code == CODE_GOTO
-        assert action.args[0].value == "Action Number"
+        # arg0: type selector — 0 = Action Number (an Int arg, not
+        # a Str label; Tasker ignores mistyped args)
+        assert action.args[0].value == "0"
+        # arg1: target action number
         assert action.args[1].value == "6"
+        # arg2: label (empty in number mode)
+        assert action.args[2].value == ""

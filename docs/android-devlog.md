@@ -1287,3 +1287,12 @@ If block with the same effect.
 delete + re-import in Tasker to take effect. Verified live config
 after re-import should show codes
 547,37,135,38,398,30,123,130,548.
+
+After re-importing the 135-fix, the task showed "Go To" but with
+**type unset, number 7** — our Goto emitted
+`Str arg0="Action Number"`, but Tasker expects the type as an Int
+(`arg0: 0=Action Number, 1=Action Label`; `arg1`=target;
+`arg2`=label). The string arg was silently dropped at import.
+Corrected `goto_action()` to emit `Int arg0=0, Int arg1=N,
+Str arg2=""` (format verified against real Tasker exports).
+Re-import required again.
