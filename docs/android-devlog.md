@@ -1249,3 +1249,19 @@ Importing a project over an existing one is refused/ignored by
 Tasker — the old project must be deleted first. This was already
 documented for the pure-Tasker path but missing from the Termux
 setup doc and deploy script output; both now carry the warning.
+
+### Upgrade Path + Clone Location Documented
+
+Two gaps in `android-termux-setup.md` closed:
+
+- The clone target (`~/MVwifiAuto`) was already shown in Option A,
+  but a note now explains *why* Termux home is required — `/sdcard`
+  lacks the symlink/exec support an editable install needs
+- New "Updating MVwifiAuto after repo changes" section maps repo
+  changes to deployment steps: Python code = `git pull` on phone
+  (editable install), wrapper/script changes = re-run
+  `deploy_android.sh`, XML changes = push + delete/re-import in
+  Tasker. The per-component update matrix was previously
+  undocumented
+- Files section updated to list both repo scripts and on-device
+  paths

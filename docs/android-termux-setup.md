@@ -181,6 +181,10 @@ cd ~/MVwifiAuto
 pip install -e .
 ```
 
+> The clone lives in Termux's private home (`~/`), not shared
+> storage — `/sdcard` does not support the symlinks and file
+> permissions an editable `pip install -e .` needs.
+
 ### Option B: Copy Files Manually
 
 If you can't clone from the phone, copy the source files from your
@@ -736,6 +740,21 @@ Notes on what persists across a `-w`-less flash:
   re-applies it on every run (via the WRITE_SECURE_SETTINGS grant),
   so the system is self-healing once granted
 
+### Updating MVwifiAuto after repo changes
+
+A `git pull` on the phone does **not** update everything —
+different components have different update paths:
+
+| What changed in the repo | How to deploy it |
+|---|---|
+| `src/mvwifi_auto/*.py` | `cd ~/MVwifiAuto && git pull` in Termux — the editable install takes effect immediately |
+| `termux_setup.sh`, `deploy_android.sh`, wrapper changes | Re-run `./scripts/deploy_android.sh` from the PC — it rewrites `~/.termux/tasker/mvwifi_portal` |
+| `tasker_gen.py`, `android/MVwifiAuto-Termux.prj.xml` | `./scripts/deploy_android.sh` pushes the file, then **delete + re-import** the project in Tasker — the `/sdcard` file is only an import source, Tasker never re-reads it |
+
+When in doubt, check `git log` for what changed since your last
+update, deploy accordingly, then run `./scripts/verify_android.sh`
+to confirm the on-device state is consistent.
+
 **WiFi Near doesn't trigger:**
 - WiFi Near polls periodically (30-60 seconds), not instantly
 - Make sure Location is enabled on the phone (WiFi scanning requires
@@ -880,7 +899,21 @@ copy from the Termux screen.
 
 ## Files
 
+Repo:
+
 - `src/mvwifi_auto/android.py` - Termux entry point
 - `src/mvwifi_auto/wifi_binding.py` - Interface-bound HTTP adapter
 - `src/mvwifi_auto/captive_portal.py` - Shared portal handling
 - `src/mvwifi_auto/tasker_gen.py` - Tasker XML generator (for WiFi Near profile)
+- `android/MVwifiAuto-Termux.prj.xml` - generated Tasker project
+- `scripts/termux_setup.sh` - on-device setup (runs in Termux)
+- `scripts/deploy_android.sh` - full adb deployment (wrapper, XML, settings)
+- `scripts/verify_android.sh` - on-device state checklist
+
+On the phone:
+
+- `~/MVwifiAuto/` - repo clone (editable install target)
+- `~/.termux/tasker/mvwifi_portal` - wrapper executed by Tasker
+- `~/.termux/termux.properties` - `allow-external-apps = true`
+- `~/storage/shared/mvwifi_tasker.log` - run log (overwritten each run)
+- `/sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml` - XML import source
