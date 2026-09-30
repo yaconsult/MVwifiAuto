@@ -545,14 +545,14 @@ at the beginning of `ConnectAndRun`:
 2. **Condition**: `%CurrentSSID` `~` `cmvwifi`
 3. Tap **back** to save
 
-**Action 3 (new): Goto the script**
+**Action 3 (new): Goto the self-heal step**
 
 1. Tap **+** (inside the If block)
 2. Select **Task**
 3. Select **Goto**
 4. **Type**: `Action Number`
-5. **Number**: `5` (the Perform Task action, after adjusting for the
-   new actions above)
+5. **Number**: `7` (the self-heal Run Shell action — both paths
+   re-apply protections before running the plugin)
 6. **Label**: (leave blank)
 7. Tap **back** to save
 
@@ -563,22 +563,36 @@ at the beginning of `ConnectAndRun`:
 3. Select **End If**
 4. Tap **back** to save
 
+**Action 7 (new): Self-heal Termux protections**
+
+1. Tap **+** before the Perform Task action
+2. Select **Code**
+3. Select **Run Shell**
+4. **Command**:
+   `dumpsys deviceidle whitelist +com.termux; settings put global settings_enable_monitor_phantom_procs false; pm grant com.termux android.permission.WRITE_SECURE_SETTINGS`
+5. **Use Root**: ✓ (yes — required for these settings)
+6. **Timeout**: `15` seconds
+7. Enable **Continue Task After Error** (so unrooted phones skip it)
+8. Tap **back** to save
+
 Your updated `ConnectAndRun` task:
 
 ```
 ConnectAndRun
   A1: Variables → Variable Set [ %CurrentSSID = %WIFII ]
   A2: If [ %CurrentSSID ~ cmvwifi ]
-  A3: Task → Goto [ Action Number 6 ]
+  A3: Task → Goto [ Action Number 7 ]
   A4: End If
   A5: Net → Connect to WiFi [ SSID:cmvwifi ]
   A6: Task → Wait [ 5 seconds ]
-  A7: Task → Perform Task [ Name:RunPortalScript ]
-  A8: Alert → Flash [ Portal handling complete ]
+  A7: Code → Run Shell [ root, continue-on-error ]
+  A8: Task → Perform Task [ Name:RunPortalScript ]
+  A9: Alert → Flash [ Portal handling complete ]
 ```
 
-> **Note**: The Goto in A3 jumps to A6 (Perform Task), skipping the
-> Connect to WiFi and Wait actions when already connected. Adjust the
+> **Note**: The Goto in A3 jumps to A7 (the self-heal Run Shell),
+> skipping only the Connect/Wait actions when already connected —
+> protections are re-applied on every run either way. Adjust the
 > action number if you add or remove actions.
 
 ### Step 7: Test the Full Flow
@@ -641,12 +655,13 @@ cmvwifi Auto Connect
 ConnectAndRun
   A1: Variable Set [ %CurrentSSID = %WIFII ]
   A2: If [ %CurrentSSID ~ cmvwifi ]
-  A3: Goto [ Action Number 6 ]
+  A3: Goto [ Action Number 7 ]
   A4: End If
   A5: Connect to WiFi [ SSID:cmvwifi ]
   A6: Wait [ 5 seconds ]
-  A7: Perform Task [ RunPortalScript ]
-  A8: Flash [ Portal handling complete ]
+  A7: Run Shell [ root, self-heal, continue-on-error ]
+  A8: Perform Task [ RunPortalScript ]
+  A9: Flash [ Portal handling complete ]
 
 RunPortalScript
   A1: Plugin → Termux:Task [ Executable:mvwifi_portal, Background:Yes ]
@@ -684,6 +699,34 @@ RunPortalScript
   exemption, phantom killer, permissions, wrapper, config) and
   reports which one regressed. OS updates can silently re-enable
   restrictions.
+
+### After an Android system update
+
+When flashing a monthly update (e.g. Google's `flash-all.sh`
+edited to remove `-w`), `/data` survives so most settings persist —
+but verify anyway, since an update can re-enable restrictions or
+reset settings globals:
+
+```bash
+# Phone connected via USB, from the repo on the PC:
+./scripts/verify_android.sh      # reports any regressed prerequisite
+./scripts/deploy_android.sh      # re-applies everything (idempotent)
+```
+
+If `verify_android.sh` shows all PASS but connections still fail,
+check `~/storage/shared/mvwifi_tasker.log` on the phone — its last
+line records the outcome, and a missing outcome line means the run
+was killed mid-execution.
+
+Notes on what persists across a `-w`-less flash:
+- Battery whitelist, phantom-killer setting, permission grants,
+  and `termux.properties` all live in `/data` → survive
+- The Tasker project (profiles, tasks, your UI edits) lives in
+  Tasker's app data → survives; only re-import the XML if the
+  project file changed
+- Even if the phantom-killer setting resets, the wrapper now
+  re-applies it on every run (via the WRITE_SECURE_SETTINGS grant),
+  so the system is self-healing once granted
 
 **WiFi Near doesn't trigger:**
 - WiFi Near polls periodically (30-60 seconds), not instantly

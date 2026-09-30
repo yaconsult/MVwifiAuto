@@ -442,6 +442,12 @@ The last grant lets the wrapper script re-disable the phantom
 killer itself on every run (self-heal after OS updates). The
 wrapper also holds `termux-wake-lock` during the run.
 
+On rooted phones, `ConnectAndRun` additionally runs a root shell
+action (A7) before the plugin call that re-applies all three
+protections on every trigger — so a regressed setting is repaired
+before it can cause a failure. The action has
+continue-task-after-error set, so unrooted phones skip it safely.
+
 Both settings live in `/data` and survive full-image flashes
 done without the `-w` wipe flag, but verify them after each
 update — or run `./scripts/verify_android.sh` to check the whole

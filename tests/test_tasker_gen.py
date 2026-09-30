@@ -446,6 +446,44 @@ class TestTermuxProject:
         assert CODE_GOTO in codes
         assert CODE_END_IF in codes
 
+    def test_connect_and_run_has_termux_self_heal(self):
+        """ConnectAndRun re-applies Termux protections via root shell."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        actions = connect_task.findall("Action")
+        shell_actions = [a for a in actions if a.find("code").text == str(CODE_RUN_SHELL)]
+        assert len(shell_actions) == 1
+        shell = shell_actions[0]
+        # Must continue on error so unrooted devices keep working
+        assert shell.find("con") is not None and shell.find("con").text == "true"
+        str_args = shell.findall("Str")
+        assert any(
+            "settings_enable_monitor_phantom_procs" in (s.text or "")
+            for s in str_args
+        )
+
+    def test_connect_and_run_goto_targets_self_heal(self):
+        """The already-connected Goto must land on the self-heal action,
+        so both connect paths re-apply protections before the plugin."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        actions = connect_task.findall("Action")
+        # Goto is index 2 (A3); its single Int arg is the target number
+        goto = actions[2]
+        assert goto.find("code").text == str(CODE_GOTO)
+        target = int(goto.find("Int").get("val"))
+        # The target action must be the self-heal Run Shell
+        target_action = actions[target - 1]
+        assert target_action.find("code").text == str(CODE_RUN_SHELL)
+        # And the next action after it must be Perform Task
+        assert actions[target].find("code").text == str(CODE_PERFORM_TASK)
+
     def test_termux_task_builder(self):
         """Test the termux_task action builder."""
         action = termux_task("mvwifi_portal", background=True)
@@ -459,8 +497,11 @@ class TestTermuxProject:
         assert action.args[1].value == "com.termux.tasker"
         # arg2: config activity
         assert action.args[2].value == "com.termux.tasker.EditConfigurationActivity"
-        # arg3: version code
-        assert action.args[3].value == "10"
+        # arg3: plugin action timeout in seconds (the Tasker UI
+        # "Timeout" field reads/writes this arg)
+        assert action.args[3].value == "60"
+        # arg4: emitted by Tasker's normalization
+        assert action.args[4].value == "0"
 
     def test_goto_builder(self):
         """Test the goto_action builder."""

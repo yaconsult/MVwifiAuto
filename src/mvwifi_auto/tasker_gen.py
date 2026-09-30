@@ -439,6 +439,7 @@ def run_shell(
     timeout: int = 10,
     use_root: bool = False,
     output_var: str = "",
+    continue_on_error: bool = False,
 ) -> TaskerAction:
     """Build a Run Shell (code 123) action.
 
@@ -446,6 +447,7 @@ def run_shell(
     """
     return TaskerAction(
         code=CODE_RUN_SHELL,
+        continue_on_error=continue_on_error,
         args=[
             TaskerArg.str_arg(0, command),
             TaskerArg.int_arg(1, timeout),
@@ -475,10 +477,31 @@ def goto_action(action_number: int) -> TaskerAction:
     )
 
 
+def termux_self_heal() -> TaskerAction:
+    """Build a root Run Shell action that re-applies Termux protections.
+
+    Re-adds Termux to the battery whitelist, disables the phantom
+    process killer, and grants WRITE_SECURE_SETTINGS (which lets the
+    mvwifi_portal wrapper self-heal that setting on every run).
+    Idempotent and safe to run on every trigger.  continue_on_error
+    keeps the task working on unrooted phones — the protections
+    simply can't be re-applied without root.
+    """
+    return run_shell(
+        "dumpsys deviceidle whitelist +com.termux; "
+        "settings put global settings_enable_monitor_phantom_procs false; "
+        "pm grant com.termux android.permission.WRITE_SECURE_SETTINGS",
+        timeout=15,
+        use_root=True,
+        continue_on_error=True,
+    )
+
+
 def termux_task(
     executable: str,
     arguments: str = "",
     background: bool = True,
+    timeout: int = 60,
 ) -> TaskerAction:
     """Build a Termux:Tasker plugin action.
 
@@ -488,6 +511,9 @@ def termux_task(
 
     Args:
         executable: Script name in ~/.termux/tasker/ (no path needed).
+        timeout: Seconds Tasker waits for the plugin to respond. If the
+            command takes longer, Tasker reports "plugin did not respond"
+            (error code 2). The script keeps running regardless.
         arguments: Arguments to pass to the script (space-separated).
         background: Run in background (no terminal window).
     """
@@ -534,8 +560,11 @@ def termux_task(
             TaskerArg.str_arg(1, "com.termux.tasker"),
             # arg2: plugin config activity
             TaskerArg.str_arg(2, "com.termux.tasker.EditConfigurationActivity"),
-            # arg3: plugin version code
-            TaskerArg.int_arg(3, 10),
+            # arg3: action timeout in seconds (verified on-device: the
+            # Tasker UI "Timeout" field writes directly to this arg)
+            TaskerArg.int_arg(3, timeout),
+            # arg4: emitted by Tasker when editing the action
+            TaskerArg.int_arg(4, 0),
         ],
     )
 
@@ -750,17 +779,20 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
             variable_set("%CurrentSSID", "%WIFII"),
             # A2: If already on cmvwifi, skip connection
             if_condition("%CurrentSSID", "cmvwifi"),
-            # A3: Goto A6 (Perform Task) — skip connect and wait
-            goto_action(6),
+            # A3: Goto A7 (self-heal) — skip connect and wait
+            goto_action(7),
             # A4: End If
             end_if(),
             # A5: Connect to cmvwifi
             connect_wifi("cmvwifi"),
             # A6: Wait 5 seconds for DHCP
             wait(seconds=5),
-            # A7: Run the portal script
+            # A7: Re-apply Termux protections (root; skipped on
+            # unrooted devices via continue_on_error)
+            termux_self_heal(),
+            # A8: Run the portal script
             perform_task("RunPortalScript", wait_for_finish=True),
-            # A8: Flash completion
+            # A9: Flash completion
             flash("Portal handling complete"),
         ],
     )

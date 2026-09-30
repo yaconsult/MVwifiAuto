@@ -1195,3 +1195,50 @@ protections regress. End-to-end verified: fired via
 successfully via TermuxService intent (confirmed via logcat —
 old phone-side code still deleted the log on success until the
 repo is pulled on-device).
+
+### Plugin Timeout Lives in the XML (arg3)
+
+Inspecting Tasker's `autobackup.xml` on the phone revealed the
+plugin action's `arg3` is the **timeout in seconds** — the UI
+"Timeout" field writes directly to it. Our generator had it
+mislabeled as "plugin version code" and hardcoded to 10, which is
+also the true timeline of yesterday's failure: script started
+10:04:22, was killed ~10:04:34, and Tasker had already given up
+at ~10:04:32 (arg3=10s).
+
+Changes:
+- `termux_task()` gained a `timeout` param (default 60s);
+  arg3 emits it, plus `arg4=0` which Tasker adds on normalization
+- Regenerated `MVwifiAuto-Termux.prj.xml` — requires a one-time
+  re-import on the phone to take effect
+- Setup doc gained an "After an Android system update" section:
+  `verify_android.sh` to detect regressions, `deploy_android.sh`
+  to re-apply — plus notes on what survives a `-w`-less flash
+
+Same lesson as the WiFi Near fix: ground truth is what Tasker
+normalizes/exports on-device, not what the UI field ordering suggests.
+
+### Tasker-Level Self-Heal (root Run Shell)
+
+`ConnectAndRun` gained action A7 — a root Run Shell that re-applies
+all three protections (battery whitelist, phantom killer off,
+WRITE_SECURE_SETTINGS grant) on every trigger, before the plugin
+call. `continue_on_error` is set so unrooted devices skip it
+harmlessly — root stays optional, matching the project's design.
+
+This stacks with the wrapper-level self-heal: Tasker fixes settings
+before invoking Termux; the wrapper re-fixes phantom procs inside
+Termux. Either layer alone repairs a regression.
+
+Flow is now:
+
+```
+ConnectAndRun
+  A1: Variable Set %CurrentSSID
+  A2-4: If already connected -> Goto 7
+  A5: Connect to WiFi cmvwifi
+  A6: Wait 5s (DHCP)
+  A7: Run Shell (root): self-heal protections
+  A8: Perform Task RunPortalScript (plugin, 60s timeout)
+  A9: Flash "Portal handling complete"
+```
