@@ -508,6 +508,11 @@ class TestTermuxProject:
     def test_goto_builder(self):
         """Test the goto_action builder."""
         action = goto_action(6)
+        # Pin to the literal value, not the symbolic constant:
+        # asserting `action.code == CODE_GOTO` can't catch a wrong
+        # constant — CODE_GOTO was once 731 (Take Call) and every
+        # test passed. 135 = Goto per Tasker's action code table.
+        assert action.code == 135
         assert action.code == CODE_GOTO
         # arg0: type selector — 0 = Action Number (an Int arg, not
         # a Str label; Tasker ignores mistyped args)
