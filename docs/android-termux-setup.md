@@ -176,14 +176,17 @@ Settings installation instructions.
 ```bash
 # In Termux:
 pkg install git
+cd ~    # Termux home — where the clone must live
 git clone https://github.com/lpinard/MVwifiAuto.git ~/MVwifiAuto
 cd ~/MVwifiAuto
 pip install -e .
 ```
 
-> The clone lives in Termux's private home (`~/`), not shared
+> The clone must live in Termux's private home (`~/`), not shared
 > storage — `/sdcard` does not support the symlinks and file
-> permissions an editable `pip install -e .` needs.
+> permissions an editable `pip install -e .` needs. The explicit
+> `~/MVwifiAuto` target puts it there regardless of where you run
+> the command, but `cd ~` first keeps `git pull` habits consistent.
 
 ### Option B: Copy Files Manually
 
