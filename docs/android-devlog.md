@@ -1133,3 +1133,65 @@ and `docs/troubleshooting.md`.
   self-heal `settings_enable_monitor_phantom_procs` after flashes
 - Add explicit action timeout to generated XML (currently UI-only,
   lost on re-import)
+
+## Session 24: Fix Confirmed + Hardening (2026-09-30)
+
+### Confirmation
+
+Auto-connect to cmvwifi worked this morning after the battery
+whitelist + phantom killer fixes: phone connected, portal handled,
+no `mvwifi_tasker.log` left behind, `isUsable=true`. The failure
+mode was probabilistic, so a few more clean connects will confirm,
+but the changed protections specifically target the kill mechanism
+observed yesterday.
+
+### Hardening Changes
+
+Three related improvements made the same day:
+
+1. **Log file now kept on every run** (`android.py`): overwritten
+   each run via `mode="w"`; last line records the outcome
+   ("Run completed successfully" / "Run FAILED"). A log ending
+   mid-run with no outcome line = process killed. This replaces
+   the delete-on-success behavior — postmortems of "successful"
+   runs are now inspectable, and a killed run is distinguishable
+   from a failed one.
+
+2. **Deploy script covers all Android settings**
+   (`deploy_android.sh`, step 5): battery whitelist, phantom
+   killer disable, and `WRITE_SECURE_SETTINGS` grant to Termux —
+   the last lets the wrapper self-heal `settings_enable_monitor_
+   phantom_procs` if a future OS update re-enables it (relevant
+   because monthly full-image flashes are the update mechanism).
+
+3. **`scripts/verify_android.sh`** (new): PC-side checklist over
+   adb reporting PASS/FAIL/WARN for every prerequisite — adb,
+   root, app installs, battery whitelist, phantom killer,
+   WRITE_SECURE_SETTINGS, RUN_COMMAND, allow-external-apps,
+   wrapper (incl. wake-lock check), mvwifi-android, Tasker XML.
+   Supports `--json` and `--markdown`; nonzero exit on failures.
+   This is the "what changed" tool when it stops working.
+
+### Wrapper Changes (`mvwifi_portal`)
+
+```
+settings put global settings_enable_monitor_phantom_procs false
+termux-wake-lock
+mvwifi-android --once --verbose --log-file .../mvwifi_tasker.log
+STATUS=$?
+termux-wake-unlock
+exit $STATUS
+```
+
+`termux-wake-lock` holds Termux's foreground-service wake lock
+during execution — defends against mid-run kills even if other
+protections regress. End-to-end verified: fired via
+`service_execute` intent, logcat showed wake-lock → mvwifi-android
+→ wake-unlock sequence.
+
+### Verified On-Device
+
+`verify_android.sh`: 12/12 checks pass. Deployed wrapper executed
+successfully via TermuxService intent (confirmed via logcat —
+old phone-side code still deleted the log on success until the
+repo is pulled on-device).

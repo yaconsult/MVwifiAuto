@@ -58,8 +58,9 @@ three layers:
 4. **The Termux:Tasker plugin uses action code `1256900802`** with a
    specific Bundle format — not code 130, and the Bundle must be child
    elements, not escaped text
-5. **Log files are deleted on success** — if
-   `~/storage/shared/mvwifi_tasker.log` exists, something failed
+5. **The log file is overwritten every run** —
+   `~/storage/shared/mvwifi_tasker.log` always shows the last run;
+   its final line records the outcome
 
 ## Why Termux Over Pure Tasker?
 
@@ -276,11 +277,17 @@ which mvwifi-android
 
 # Create the wrapper script using the full path
 # (Termux:Tasker runs in a minimal environment without PATH)
-# The --log-file flag writes to shared storage; the file is deleted
-# on success, so it only exists if something went wrong.
+# The --log-file flag writes to shared storage; the file is
+# overwritten each run and its last line records the outcome.
+# termux-wake-lock prevents Android killing the run mid-execution.
 cat > ~/.termux/tasker/mvwifi_portal << 'EOF'
 #!/data/data/com.termux/files/usr/bin/sh
-exec /data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi_tasker.log
+/system/bin/settings put global settings_enable_monitor_phantom_procs false 2>/dev/null || true
+/data/data/com.termux/files/usr/bin/termux-wake-lock
+/data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi_tasker.log
+STATUS=$?
+/data/data/com.termux/files/usr/bin/termux-wake-unlock
+exit $STATUS
 EOF
 chmod +x ~/.termux/tasker/mvwifi_portal
 ```
@@ -598,8 +605,10 @@ ConnectAndRun
 **Debugging with logs:**
 
 The wrapper script already includes `--verbose --log-file` by default.
-The log file is written to `~/storage/shared/mvwifi_tasker.log` and
-is **deleted on success** — it only exists if the run failed.
+The log file is written to `~/storage/shared/mvwifi_tasker.log`,
+**overwritten on each run**, and its last line records the outcome
+("Run completed successfully" or "Run FAILED"). A log that ends
+mid-run with no outcome line means the process was killed.
 
 After a failed run, check the log:
 
@@ -656,7 +665,8 @@ RunPortalScript
   ```bash
   ~/.termux/tasker/mvwifi_portal
   ```
-- Check the log file (only exists on failure):
+- Check the log file (overwritten each run; last line shows the
+  outcome, a missing outcome line means the process was killed):
   ```bash
   cat ~/storage/shared/mvwifi_tasker.log
   ```
@@ -667,6 +677,13 @@ RunPortalScript
 - You're already connected to cmvwifi — the If/Goto check in
   `ConnectAndRun` should handle this, but if it still happens, just
   run `RunPortalScript` directly
+
+**It stopped working after working for a while:**
+- Run `./scripts/verify_android.sh` from the PC with the phone
+  connected via USB — it checks every prerequisite (battery
+  exemption, phantom killer, permissions, wrapper, config) and
+  reports which one regressed. OS updates can silently re-enable
+  restrictions.
 
 **WiFi Near doesn't trigger:**
 - WiFi Near polls periodically (30-60 seconds), not instantly
@@ -789,9 +806,10 @@ mvwifi-android --once --verbose --log-file ~/mvwifi.log
 mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi.log
 ```
 
-On success, the log file is **deleted automatically** — it only
-exists if the run failed. This makes it easy to check for problems:
-if the file exists, something went wrong.
+The log file is **overwritten on each run** — its last line records
+the outcome ("Run completed successfully" or "Run FAILED"). If the
+log ends mid-run with no outcome line, the process was killed
+(e.g. Android power management — see the plugin-timeout entry).
 
 Then transfer the log via Google Drive, `adb pull`, or `cat` and
 copy from the Termux screen.

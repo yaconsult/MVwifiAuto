@@ -9,7 +9,8 @@
 #   1. Creates the wrapper script for Termux:Tasker
 #   2. Enables allow-external-apps in termux.properties
 #   3. Installs the Python package if not already installed
-#   4. Prints next steps for Tasker setup
+#   4. Applies Android power-management protections (needs root)
+#   5. Prints next steps for Tasker setup
 
 set -e
 
@@ -22,7 +23,7 @@ echo "=== MVwifiAuto Termux Setup ==="
 echo ""
 
 # --- Step 1: Install Python package ---
-echo "[1/4] Checking mvwifi-android installation..."
+echo "[1/5] Checking mvwifi-android installation..."
 if command -v mvwifi-android >/dev/null 2>&1; then
     echo "  mvwifi-android already installed: $(which mvwifi-android)"
 else
@@ -39,18 +40,27 @@ fi
 echo ""
 
 # --- Step 2: Create wrapper script ---
-echo "[2/4] Creating wrapper script for Termux:Tasker..."
+echo "[2/5] Creating wrapper script for Termux:Tasker..."
 mkdir -p "$TASKER_DIR"
 cat > "$TASKER_DIR/mvwifi_portal" << 'WRAPPER_EOF'
 #!/data/data/com.termux/files/usr/bin/sh
-exec /data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_tasker.log
+# Re-disable the phantom process killer in case a system update
+# re-enabled it (requires WRITE_SECURE_SETTINGS granted to Termux
+# by deploy_android.sh or termux_setup.sh; silently skipped otherwise).
+/system/bin/settings put global settings_enable_monitor_phantom_procs false 2>/dev/null || true
+# Hold Termux wake lock so Android cannot kill the run mid-execution.
+/data/data/com.termux/files/usr/bin/termux-wake-lock
+/data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_tasker.log
+STATUS=$?
+/data/data/com.termux/files/usr/bin/termux-wake-unlock
+exit $STATUS
 WRAPPER_EOF
 chmod 755 "$TASKER_DIR/mvwifi_portal"
 echo "  Created: $TASKER_DIR/mvwifi_portal"
 echo ""
 
 # --- Step 3: Enable allow-external-apps ---
-echo "[3/4] Configuring termux.properties..."
+echo "[3/5] Configuring termux.properties..."
 mkdir -p "$HOME_DIR/.termux"
 if [ -f "$PROPS_FILE" ]; then
     if grep -q "^allow-external-apps" "$PROPS_FILE"; then
@@ -71,14 +81,43 @@ if command -v termux-reload-settings >/dev/null 2>&1; then
 fi
 echo ""
 
-# --- Step 4: Verify ---
-echo "[4/4] Verifying setup..."
+# --- Step 4: Apply Android power-management protections ---
+echo "[4/5] Applying Android power-management protections..."
+# Without these, Android can kill Termux mid-execution and the
+# Termux:Tasker plugin result is lost (Tasker reports error code 2).
+if su -c 'id' >/dev/null 2>&1; then
+    su -c 'dumpsys deviceidle whitelist +com.termux' >/dev/null 2>&1 \
+        && echo "  Termux added to battery optimization whitelist" \
+        || echo "  WARNING: could not modify battery whitelist"
+    su -c 'settings put global settings_enable_monitor_phantom_procs false' \
+        && echo "  Phantom process killer disabled" \
+        || echo "  WARNING: could not disable phantom process killer"
+    # Lets the wrapper re-apply the setting itself after OS updates.
+    su -c 'pm grant com.termux android.permission.WRITE_SECURE_SETTINGS' \
+        && echo "  WRITE_SECURE_SETTINGS granted (wrapper self-heal)" \
+        || echo "  WARNING: could not grant WRITE_SECURE_SETTINGS"
+else
+    echo "  Root not available — apply these manually instead:"
+    echo "    1. Settings -> Apps -> Termux -> Battery -> Unrestricted"
+    echo "    2. From a PC: adb shell settings put global \\"
+    echo "       settings_enable_monitor_phantom_procs false"
+fi
+echo ""
+
+# --- Step 5: Verify ---
+echo "[5/5] Verifying setup..."
 echo "  Wrapper script:"
 # shellcheck disable=SC2012  # ls -la shows permissions/size, intended for user
 ls -la "$TASKER_DIR/mvwifi_portal" 2>&1 | sed 's/^/    /'
 echo "  mvwifi-android:"
 # shellcheck disable=SC2012  # ls -la shows permissions/size, intended for user
 ls -la "$PREFIX/bin/mvwifi-android" 2>&1 | sed 's/^/    /'
+if su -c 'id' >/dev/null 2>&1; then
+    echo "  Termux in battery whitelist:"
+    su -c 'dumpsys deviceidle whitelist' 2>/dev/null | grep -i termux | sed 's/^/    /'
+    echo "  Phantom process killer (want: false):"
+    su -c 'settings get global settings_enable_monitor_phantom_procs' 2>&1 | sed 's/^/    /'
+fi
 echo ""
 echo "=== Setup complete! ==="
 echo ""

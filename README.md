@@ -205,13 +205,15 @@ cellular data enabled.
 The flow: Tasker detects cmvwifi via WiFi Near → connects via Tasker
 Settings → waits for DHCP → triggers `mvwifi-android` via the
 Termux:Tasker plugin → Python binds to wlan0, detects the portal,
-accepts terms, and verifies internet. On success, no log file is
-left; on failure, `~/storage/shared/mvwifi_tasker.log` contains the
-diagnostic output.
+accepts terms, and verifies internet. Each run overwrites
+`~/storage/shared/mvwifi_tasker.log`; its last line records the
+outcome, so it always describes the most recent run.
 
 See [docs/android-termux-setup.md](docs/android-termux-setup.md)
 for setup instructions, or run `scripts/deploy_android.sh` with the
-phone connected via USB for one-command deployment.
+phone connected via USB for one-command deployment. Run
+`scripts/verify_android.sh` to check all Android-side prerequisites
+(battery exemption, permissions, wrapper) if it ever stops working.
 
 ### Tasker (Alternative)
 

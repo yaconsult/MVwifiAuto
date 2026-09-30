@@ -9,7 +9,9 @@
 #   2. Creates the Termux wrapper script via adb
 #   3. Enables allow-external-apps in termux.properties via adb
 #   4. Grants RUN_COMMAND permission to Tasker via adb
-#   5. Verifies the setup
+#   5. Applies Android power-management protections for Termux
+#      (battery whitelist, phantom process killer, self-heal grant)
+#   6. Verifies the setup
 #
 # Requires: adb with the phone connected and USB debugging enabled.
 # Requires: root (Magisk) for accessing Termux's private files.
@@ -47,7 +49,7 @@ echo "Root: OK"
 echo ""
 
 # --- Step 1: Push Tasker XML ---
-echo "[1/5] Pushing Tasker XML..."
+echo "[1/6] Pushing Tasker XML..."
 if [ ! -f "$TASKER_XML" ]; then
     echo "  Tasker XML not found. Generating..."
     cd "$REPO_DIR"
@@ -59,18 +61,27 @@ echo "  Pushed to /sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml"
 echo ""
 
 # --- Step 2: Create wrapper script ---
-echo "[2/5] Creating Termux wrapper script..."
+echo "[2/6] Creating Termux wrapper script..."
 adb shell "su -c 'mkdir -p $TASKER_DIR'"
 adb shell "su -c 'cat > $TASKER_DIR/mvwifi_portal << \"ENDOFSCRIPT\"
 #!/data/data/com.termux/files/usr/bin/sh
-exec /data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_tasker.log
+# Re-disable the phantom process killer in case a system update
+# re-enabled it (requires WRITE_SECURE_SETTINGS granted to Termux
+# by deploy_android.sh; silently skipped otherwise).
+/system/bin/settings put global settings_enable_monitor_phantom_procs false 2>/dev/null || true
+# Hold Termux wake lock so Android cannot kill the run mid-execution.
+/data/data/com.termux/files/usr/bin/termux-wake-lock
+/data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_tasker.log
+STATUS=\$?
+/data/data/com.termux/files/usr/bin/termux-wake-unlock
+exit \$STATUS
 ENDOFSCRIPT'"
 adb shell "su -c 'chmod 755 $TASKER_DIR/mvwifi_portal'"
 echo "  Created: $TASKER_DIR/mvwifi_portal"
 echo ""
 
 # --- Step 3: Enable allow-external-apps ---
-echo "[3/5] Configuring termux.properties..."
+echo "[3/6] Configuring termux.properties..."
 adb shell "su -c 'mkdir -p $TERMUX_HOME/.termux'"
 # Check if already set
 ALREADY_SET=$(adb shell "su -c 'grep -c \"^allow-external-apps\" $PROPS_FILE 2>/dev/null'" 2>/dev/null || echo "0")
@@ -83,7 +94,7 @@ fi
 echo ""
 
 # --- Step 4: Grant RUN_COMMAND permission ---
-echo "[4/5] Granting RUN_COMMAND permission to Tasker..."
+echo "[4/6] Granting RUN_COMMAND permission to Tasker..."
 # Try granting via pm (may fail silently if already granted)
 adb shell "pm grant net.dinglisch.android.taskerm com.termux.permission.RUN_COMMAND" 2>/dev/null || true
 # Verify
@@ -97,8 +108,28 @@ else
 fi
 echo ""
 
-# --- Step 5: Verify ---
-echo "[5/5] Verifying deployment..."
+# --- Step 5: Apply Android power-management protections ---
+echo "[5/6] Applying Android power-management protections..."
+# Without these, Android can kill Termux mid-execution and the
+# Termux:Tasker plugin result is lost (Tasker reports error code 2).
+adb shell "dumpsys deviceidle whitelist +com.termux" >/dev/null 2>&1 \
+    && echo "  Termux added to battery optimization whitelist" \
+    || echo "  WARNING: could not modify battery whitelist"
+adb shell "settings put global settings_enable_monitor_phantom_procs false" \
+    && echo "  Phantom process killer disabled" \
+    || echo "  WARNING: could not disable phantom process killer"
+# Granting WRITE_SECURE_SETTINGS lets the wrapper re-apply the
+# phantom-killer setting itself if a future OS update resets it.
+if adb shell "pm grant com.termux android.permission.WRITE_SECURE_SETTINGS" 2>/dev/null \
+    || adb shell "su -c 'pm grant com.termux android.permission.WRITE_SECURE_SETTINGS'" 2>/dev/null; then
+    echo "  WRITE_SECURE_SETTINGS granted to Termux (wrapper self-heal)"
+else
+    echo "  WARNING: could not grant WRITE_SECURE_SETTINGS (self-heal disabled)"
+fi
+echo ""
+
+# --- Step 6: Verify ---
+echo "[6/6] Verifying deployment..."
 echo "  Wrapper script:"
 adb shell "su -c 'ls -la $TASKER_DIR/mvwifi_portal'" 2>&1 | sed 's/^/    /'
 echo "  Script contents:"
@@ -107,6 +138,10 @@ echo "  mvwifi-android:"
 adb shell "su -c 'ls -la /data/data/com.termux/files/usr/bin/mvwifi-android'" 2>&1 | sed 's/^/    /'
 echo "  Tasker XML on phone:"
 adb shell "ls -la /sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml" 2>&1 | sed 's/^/    /'
+echo "  Termux in battery whitelist:"
+adb shell "dumpsys deviceidle whitelist | grep -i termux" 2>&1 | sed 's/^/    /'
+echo "  Phantom process killer (want: false):"
+adb shell "settings get global settings_enable_monitor_phantom_procs" 2>&1 | sed 's/^/    /'
 echo ""
 
 echo "=== Deployment complete! ==="

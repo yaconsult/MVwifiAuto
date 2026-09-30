@@ -413,31 +413,39 @@ process mid-execution:
   `TermuxShellUtils.setupProcessArgs`), producing the same
   "plugin did not respond" symptom
 
-**How to tell** (check the failure log on the phone):
+**How to tell** (check the log on the phone):
 
 ```bash
 cat ~/storage/shared/mvwifi_tasker.log
 pgrep -af mvwifi    # is the script still alive?
 ```
 
-If the log ends abruptly mid-request (e.g. urllib3
-"Starting new HTTP connection" lines with no responses) and the
-process is gone, the process was killed — not just slow. The
-script's own HTTP timeouts cap its runtime at roughly 2 minutes
-worst case, so a 30s+ plugin timeout with a dead process means
-the plugin result was lost.
+The log is overwritten each run and ends with an outcome line
+("Run completed successfully" / "Run FAILED"). If the log ends
+abruptly mid-request (e.g. urllib3 "Starting new HTTP connection"
+lines with no responses) **with no outcome line** and the process
+is gone, the process was killed — not just slow. The script's own
+HTTP timeouts cap its runtime at roughly 2 minutes worst case, so
+a 30s+ plugin timeout with a dead process means the plugin result
+was lost.
 
-**Fix**: exempt Termux from battery optimization and disable
-the phantom process killer:
+**Fix**: re-run `./scripts/deploy_android.sh` — it applies all of
+the protections below automatically. Or apply them manually:
 
 ```bash
 adb shell dumpsys deviceidle whitelist +com.termux
 adb shell settings put global settings_enable_monitor_phantom_procs false
+adb shell pm grant com.termux android.permission.WRITE_SECURE_SETTINGS
 ```
+
+The last grant lets the wrapper script re-disable the phantom
+killer itself on every run (self-heal after OS updates). The
+wrapper also holds `termux-wake-lock` during the run.
 
 Both settings live in `/data` and survive full-image flashes
 done without the `-w` wipe flag, but verify them after each
-update:
+update — or run `./scripts/verify_android.sh` to check the whole
+Android-side state at once:
 
 ```bash
 adb shell dumpsys deviceidle whitelist | grep termux
@@ -520,9 +528,10 @@ mvwifi-android --once --verbose --log-file ~/mvwifi.log
 mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi.log
 ```
 
-On success, the log file is **deleted automatically** — it only
-exists if the run failed. This makes it easy to check for problems:
-if the file exists, something went wrong.
+The log file is **overwritten on each run** — it always shows the
+most recent run. Its last line records the outcome ("Run completed
+successfully" or "Run FAILED"); a log that ends mid-run with no
+outcome line means the process was killed.
 
 The Tasker wrapper script writes to
 `~/storage/shared/mvwifi_tasker.log` by default.

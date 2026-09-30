@@ -214,7 +214,7 @@ Costco WiFi to fill in the real values.
 | Portal accept | POST to `forms/guest_toued` | Same |
 | Verify | GET `success.txt` | Same |
 | Re-check | Daemon polls every 60s; resume service after suspend | WiFi Near re-fires on each new detection |
-| Logging | `journalctl --user -u mvwifi-auto` | `mvwifi_tasker.log` (kept only on failure) |
+| Logging | `journalctl --user -u mvwifi-auto` | `mvwifi_tasker.log` (overwritten each run) |
 
 The portal-handling code (`captive_portal.py`,
 `wifi_binding.py`) is shared between platforms. The Linux
