@@ -1242,3 +1242,10 @@ ConnectAndRun
   A8: Perform Task RunPortalScript (plugin, 60s timeout)
   A9: Flash "Portal handling complete"
 ```
+
+### Re-import Gotcha Confirmed
+
+Importing a project over an existing one is refused/ignored by
+Tasker — the old project must be deleted first. This was already
+documented for the pure-Tasker path but missing from the Termux
+setup doc and deploy script output; both now carry the warning.

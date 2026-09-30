@@ -252,6 +252,13 @@ adb push android/MVwifiAuto-Termux.prj.xml /sdcard/Tasker/projects/MVwifiAuto-Te
 Then in Tasker: long-press the bottom nav bar → **Import Project**
 → select `MVwifiAuto-Termux`.
 
+> **⚠️ If the project is already imported, delete it first.**
+> Tasker refuses (or silently ignores) an import when a project with
+> the same name exists. In Tasker: long-press the `MVwifiAuto-Termux`
+> project tab → **Delete**, then import again. Tasker stores live
+> project data in internal app storage — pushing a new XML to
+> `/sdcard` never updates the running project by itself.
+
 > **Note**: After import, you still need to create the wrapper script
 > (Step 1) and grant the Termux:Tasker permission (Step 2). The XML
 > only contains the Tasker tasks and profile — it can't create files
@@ -723,7 +730,8 @@ Notes on what persists across a `-w`-less flash:
   and `termux.properties` all live in `/data` → survive
 - The Tasker project (profiles, tasks, your UI edits) lives in
   Tasker's app data → survives; only re-import the XML if the
-  project file changed
+  project file changed — and if you do, **delete the existing
+  project tab first** or the import is refused/ignored
 - Even if the phantom-killer setting resets, the wrapper now
   re-applies it on every run (via the WRITE_SECURE_SETTINGS grant),
   so the system is self-healing once granted
