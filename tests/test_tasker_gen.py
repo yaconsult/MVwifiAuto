@@ -3,6 +3,8 @@
 from xml.dom.minidom import parseString
 from xml.etree.ElementTree import fromstring
 
+import pytest
+
 from mvwifi_auto.tasker_gen import (
     CODE_CONNECT_WIFI,
     CODE_ELSE,
@@ -17,6 +19,7 @@ from mvwifi_auto.tasker_gen import (
     CODE_TERMUX_TASK,
     CODE_VARIABLE_SEARCH_REPLACE,
     CODE_VARIABLE_SET,
+    CODE_VARIABLE_SPLIT,
     CODE_WAIT,
     CODE_WIFI_NEAR_STATE,
     OP_EQUALS,
@@ -41,6 +44,42 @@ from mvwifi_auto.tasker_gen import (
     variable_set,
     wait,
 )
+
+
+class TestActionCodes:
+    """Pin every action/state code to its literal Tasker value.
+
+    Asserting `action.code == CODE_X` is circular — it reads the
+    constant being tested, so a wrong constant still passes (this
+    is how CODE_GOTO = 731/Take Call survived undetected). The
+    literals below are the ground truth from Tasker's action code
+    table and verified real exports:
+    https://github.com/Taskomater/Tasker-XML-Info/blob/master/Tasker_XML_Codes.md
+    """
+
+    @pytest.mark.parametrize(
+        "constant,expected",
+        [
+            (CODE_IF, 37),
+            (CODE_END_IF, 38),
+            (CODE_ELSE, 43),
+            (CODE_WAIT, 30),
+            (CODE_STOP, 137),
+            (CODE_PERFORM_TASK, 130),
+            (CODE_RUN_SHELL, 123),
+            (CODE_VARIABLE_SET, 547),
+            (CODE_FLASH, 548),
+            (CODE_VARIABLE_SPLIT, 590),
+            (CODE_VARIABLE_SEARCH_REPLACE, 598),
+            (CODE_HTTP_REQUEST, 339),
+            (CODE_CONNECT_WIFI, 398),
+            (CODE_WIFI_NEAR_STATE, 170),
+            (CODE_GOTO, 135),
+            (CODE_TERMUX_TASK, 1256900802),
+        ],
+    )
+    def test_code_matches_tasker_table(self, constant, expected):
+        assert constant == expected
 
 
 class TestArgBuilders:

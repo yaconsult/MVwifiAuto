@@ -1296,3 +1296,13 @@ After re-importing the 135-fix, the task showed "Go To" but with
 Corrected `goto_action()` to emit `Int arg0=0, Int arg1=N,
 Str arg2=""` (format verified against real Tasker exports).
 Re-import required again.
+
+### Code Constants Now Pinned to Literals
+
+Added `TestActionCodes` — a parametrized test pinning all 16
+action/state constants to their literal Tasker values, with the
+reference table URL in both the test and the `tasker_gen.py`
+constants block. Guards against the CODE_GOTO=731 class of bug:
+tests that assert `code == CODE_X` are circular and can never
+catch a wrong constant. All 16 values cross-checked against the
+Taskomater code table — every other constant was correct.

@@ -33,7 +33,10 @@ from xml.etree.ElementTree import (
 )
 
 # ---------------------------------------------------------------------------
-# Action codes (from Tasker documentation / empirical exports)
+# Action codes. Reference table (verify against this before adding or
+# changing any code — a wrong constant imports silently as a different
+# action; e.g. 731 was once used here for Goto and rendered as Take Call):
+# https://github.com/Taskomater/Tasker-XML-Info/blob/master/Tasker_XML_Codes.md
 # ---------------------------------------------------------------------------
 CODE_IF = 37
 CODE_END_IF = 38
