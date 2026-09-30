@@ -53,8 +53,8 @@ CODE_WIFI_NEAR_STATE = 170
 # Termux:Tasker plugin action code (from official Termux:Tasker template export)
 CODE_TERMUX_TASK = 1256900802
 
-# Goto action code
-CODE_GOTO = 731
+# Goto action code (135 = Goto; 731 is Take Call — do not confuse)
+CODE_GOTO = 135
 
 # Condition operator: 2 = equals (~ in Tasker UI)
 OP_EQUALS = 2

@@ -73,7 +73,7 @@
 			</ConditionList>
 		</Action>
 		<Action sr="act2" ve="7">
-			<code>731</code>
+			<code>135</code>
 			<Str sr="arg0" ve="3">Action Number</Str>
 			<Int sr="arg1" val="7" />
 		</Action>

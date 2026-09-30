@@ -1265,3 +1265,25 @@ Two gaps in `android-termux-setup.md` closed:
   undocumented
 - Files section updated to list both repo scripts and on-device
   paths
+
+### Goto Serialized as "Take Call" (CODE_GOTO Bug)
+
+User spotted a "Take Call" action inside the imported
+ConnectAndRun task — they had deleted it once before assuming it
+was an accidental UI insert.
+
+**Root cause:** `CODE_GOTO = 731` in `tasker_gen.py`. Tasker
+action code 731 is *Take Call*; the real Goto code is **135**.
+Every generated/imported project rendered the already-connected
+skip branch as `If → Take Call → End If`.
+
+**Impact:** the Goto never worked in imported projects — at
+runtime Take Call fails harmlessly (no call to answer) and
+execution fell through to Connect to WiFi, so the skip logic was
+dead code either way. Deleting it in the UI produced an empty
+If block with the same effect.
+
+**Fix:** `CODE_GOTO = 135`, XML regenerated + pushed. Requires
+delete + re-import in Tasker to take effect. Verified live config
+after re-import should show codes
+547,37,135,38,398,30,123,130,548.
