@@ -173,6 +173,12 @@ bugs by encoding Tasker's action/argument format once.
 - `generate_project_xml()` - Serializes to XML string
 - CLI: `python -m mvwifi_auto.tasker_gen --termux -o android/MVwifiAuto-Termux.prj.xml`
 
+**Action codes** (`CODE_*` constants) follow Tasker's serialized
+action code table:
+https://github.com/Taskomater/Tasker-XML-Info/blob/master/Tasker_XML_Codes.md
+A wrong code imports silently as a different action — `TestActionCodes`
+pins every constant to its literal value to catch transcription errors.
+
 ### `portal_analyzer.py` - Generic Captive Portal Analyzer
 
 A recon tool for capturing the structure of any captive portal — form
