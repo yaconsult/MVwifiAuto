@@ -187,6 +187,14 @@ pip install -e .
 > permissions an editable `pip install -e .` needs. The explicit
 > `~/MVwifiAuto` target puts it there regardless of where you run
 > the command, but `cd ~` first keeps `git pull` habits consistent.
+>
+> Cloning is a **one-time** step. If `~/MVwifiAuto` already exists,
+> `git clone` fails with "already exists and is not an empty
+> directory" — update instead:
+>
+> ```bash
+> cd ~/MVwifiAuto && git pull
+> ```
 
 ### Option B: Copy Files Manually
 
