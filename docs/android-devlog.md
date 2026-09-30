@@ -1054,3 +1054,82 @@ speed.
   `mvwifi_tasker.log` is retained
 - Costco portal capture using `mvwifi-analyze-portal` — runbook:
   `docs/costco-portal-capture.md`
+
+## Session 23: Plugin Timeout — Termux Killed Mid-Run (2026-09-29)
+
+### Symptom
+
+After ~2 weeks of reliable operation, Tasker reported:
+
+```
+termux step 1, task: runportalscript plugin did not respond
+before timing out. error code 2
+```
+
+The error persisted after raising the action timeout to 30s.
+
+### Diagnosis (adb)
+
+`mvwifi_tasker.log` showed the script DID run — but only 12
+seconds, ending mid-request:
+
+```
+10:04:22 - WiFi-bound session on wlan0 (IP 10.65.11.111)
+10:04:25–10:04:34 - 6x "Starting new HTTP connection"
+                     (3 attempts x firefox + 1.1.1.1 probes)
+                     — zero responses logged
+```
+
+Process was gone afterward. Script exits at 10:04:34 but Tasker
+still timed out at 30s → **Termux:Tasker never reported the
+result back**. The problem was not script duration.
+
+System checks on the Pixel 6a (Android 17, flashed 2026-09-22):
+
+| Check | Finding |
+|-------|---------|
+| App updates | None recent (Termux 9/14, Tasker Feb) |
+| Termux battery whitelist | **ABSENT** — Tasker was exempt, Termux was not |
+| `settings_enable_monitor_phantom_procs` | `null` = enabled (Android 12+ default) |
+
+Termux's child processes (bash, python) are tracked as
+**phantom processes** — visible in logcat as
+`PhantomProcessRecord {pid:ppid:bash/u0a594}`. With the killer
+enabled and no battery exemption, Android can reap the execution
+mid-run; the plugin result is then never delivered.
+
+### Fixes Applied
+
+```bash
+adb shell dumpsys deviceidle whitelist +com.termux
+adb shell settings put global settings_enable_monitor_phantom_procs false
+```
+
+Both verified applied. Settings persist in `/data` (survive
+`-w`-less full-image flashes) but should be re-checked after
+each monthly update — see `docs/android-termux-setup.md` §2d
+and `docs/troubleshooting.md`.
+
+### Incidental Findings
+
+- TermuxService functional test via
+  `am startservice -a com.termux.service_execute -d com.termux.execute:<path>`
+  confirmed the execution path works post-fix.
+- A malformed `service_execute` intent (missing/wrong executable
+  key) crashes `TermuxService` with an NPE in
+  `TermuxShellUtils.setupProcessArgs` — same "plugin did not
+  respond" symptom. Not our bug (Tasker sends well-formed
+  intents) but shows the sync plugin path is fragile.
+- `termux.properties` intact (`allow-external-apps = true`),
+  wrapper script correct.
+
+### Follow-up Candidates (not yet implemented)
+
+- `termux-wake-lock`/`termux-wake-unlock` in the `mvwifi_portal`
+  wrapper for in-run protection
+- Async wrapper + result-file polling so a lost plugin response
+  can never hang Tasker again
+- Grant `WRITE_SECURE_SETTINGS` once via adb so the wrapper can
+  self-heal `settings_enable_monitor_phantom_procs` after flashes
+- Add explicit action timeout to generated XML (currently UI-only,
+  lost on re-import)

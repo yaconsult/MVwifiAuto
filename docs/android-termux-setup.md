@@ -366,6 +366,39 @@ Test that Tasker can run a simple Termux command:
 3. Run the task — if it succeeds without error, the integration is
    working. If you get a permission error, go back and check 2a and 2b.
 
+#### 2d: Protect Termux from Android power management
+
+Android aggressively kills background apps. Tasker is usually
+battery-exempt already, but **Termux is not by default** — if Android
+kills Termux while a plugin command runs, Tasker reports
+"plugin did not respond before timing out" (error code 2) even though
+the script may have nearly finished.
+
+Two protections are needed:
+
+1. **Exempt Termux from battery optimization:**
+   - Settings → Apps → Termux → Battery → **Unrestricted**
+   - Or via adb: `adb shell dumpsys deviceidle whitelist +com.termux`
+
+2. **Disable the phantom process killer** (Android 12+):
+   Android kills "phantom" child processes (bash, python) spawned by
+   background apps — exactly what Termux:Tasker executions are.
+   ```bash
+   adb shell settings put global settings_enable_monitor_phantom_procs false
+   ```
+
+Both settings persist in `/data` and survive OS updates that don't
+wipe data, but **re-verify them after each system update**:
+
+```bash
+adb shell dumpsys deviceidle whitelist | grep termux
+adb shell settings get global settings_enable_monitor_phantom_procs   # want: false
+```
+
+> **Symptom this prevents**: WiFi Near fires, the script starts
+> (log file appears), then dies mid-run and Tasker reports the plugin
+> timeout error — even with a generous action timeout.
+
 ### Step 3: Create the Portal Handler Task
 
 This task runs the Python script via the Termux:Tasker plugin:

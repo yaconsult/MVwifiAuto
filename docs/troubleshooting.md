@@ -390,6 +390,63 @@ near the target SSID. You can test at home by creating a WiFi
 Near profile for a visible network (e.g. `dd-wrt`) — it should
 turn green within 60 seconds.
 
+### Termux plugin times out: "plugin did not respond before timing out, error code 2"
+
+**Problem**: Tasker reports `termux step 1, task: runportalscript
+plugin did not respond before timing out. error code 2`, even with
+the action timeout raised to 30 seconds.
+
+**Cause**: This is usually **not** a slow script — it means
+Termux:Tasker never reported the command's completion back to
+Tasker. The most common reason is Android killing the Termux
+process mid-execution:
+
+- **Termux is not battery-exempt** — Tasker is typically
+  whitelisted but Termux is not, so Android can kill Termux
+  while a plugin command is running
+- **Phantom process killer enabled** (Android 12+ default) —
+  Android kills "phantom" child processes spawned by apps in
+  the background. Termux's child processes (bash, python) are
+  tracked as phantom processes
+- A malformed `service_execute` intent can also crash
+  `TermuxService` outright (NullPointerException in
+  `TermuxShellUtils.setupProcessArgs`), producing the same
+  "plugin did not respond" symptom
+
+**How to tell** (check the failure log on the phone):
+
+```bash
+cat ~/storage/shared/mvwifi_tasker.log
+pgrep -af mvwifi    # is the script still alive?
+```
+
+If the log ends abruptly mid-request (e.g. urllib3
+"Starting new HTTP connection" lines with no responses) and the
+process is gone, the process was killed — not just slow. The
+script's own HTTP timeouts cap its runtime at roughly 2 minutes
+worst case, so a 30s+ plugin timeout with a dead process means
+the plugin result was lost.
+
+**Fix**: exempt Termux from battery optimization and disable
+the phantom process killer:
+
+```bash
+adb shell dumpsys deviceidle whitelist +com.termux
+adb shell settings put global settings_enable_monitor_phantom_procs false
+```
+
+Both settings live in `/data` and survive full-image flashes
+done without the `-w` wipe flag, but verify them after each
+update:
+
+```bash
+adb shell dumpsys deviceidle whitelist | grep termux
+adb shell settings get global settings_enable_monitor_phantom_procs   # want: false
+```
+
+Also exempt Termux via the UI as a belt-and-suspenders measure:
+Settings → Apps → Termux → Battery → **Unrestricted**.
+
 ### Delay between "Portal handling complete" and working internet
 
 **Problem**: The "Portal handling complete" toast appears but the
