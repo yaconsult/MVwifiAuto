@@ -463,7 +463,7 @@ def run_shell(
 
 
 def goto_action(action_number: int) -> TaskerAction:
-    """Build a Goto (code 731) action to jump to a specific action number.
+    """Build a Goto (code 135) action to jump to a specific action number.
 
     Args:
         action_number: The 1-based action number to jump to.
