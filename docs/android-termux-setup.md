@@ -428,194 +428,53 @@ adb shell settings get global settings_enable_monitor_phantom_procs   # want: fa
 > (log file appears), then dies mid-run and Tasker reports the plugin
 > timeout error — even with a generous action timeout.
 
-### Step 3: Create the Portal Handler Task
+### Steps 3–6: Tasker Configuration (Manual Fallback)
 
-This task runs the Python script via the Termux:Tasker plugin:
+Importing `MVwifiAuto-Termux.prj.xml` creates everything below
+automatically — the generated XML is the source of truth
+(`uv run python -m mvwifi_auto.tasker_gen --termux` regenerates it).
+Only recreate these by hand if you cannot import the XML.
 
-1. Open **Tasker** → **TASKS** tab
-2. Tap **+** to create a new task
-3. Name: `RunPortalScript`
-4. Tap the checkmark to confirm
+**Task: `RunPortalScript`** — runs the Python script via the
+Termux:Tasker plugin:
 
-Add the action:
+| # | Action | Fields |
+|---|--------|--------|
+| 1 | Plugin → Termux:Task | Executable `mvwifi_portal`; Arguments blank; Background ✓; **Timeout 60s** |
 
-1. Tap **+** to add an action
-2. Select **Plugin**
-3. Select **Termux:Task**
-4. Configure:
-   - **Executable**: `mvwifi_portal`
-   - **Arguments**: (leave blank — the script handles everything)
-   - **Background**: Yes (checked — no terminal window needed)
-5. Tap **back** to save the action
-6. Tap **back** to save the task
+**Task: `ConnectAndRun`** — connects to cmvwifi (unless already on
+it), self-heals Termux protections, runs the portal script:
 
-> **Note**: For Android 10+, if you want foreground execution (with
-> a visible terminal), Termux needs "Draw Over Apps" permission.
-> Background execution (the default) does not require this and is
-> recommended.
+| # | Action | Fields |
+|---|--------|--------|
+| 1 | Variables → Variable Set | `%CurrentSSID` = `%WIFII` |
+| 2 | Task → If | `%CurrentSSID` `~` `cmvwifi` |
+| 3 | Task → Goto | Type **Action Number**, Number **7** |
+| 4 | Task → End If | |
+| 5 | Net → Connect to WiFi | SSID `cmvwifi` |
+| 6 | Task → Wait | 5 seconds — DHCP needs a moment to assign an IP before the script binds to wlan0; raise to 10 if you see binding errors |
+| 7 | Code → Run Shell | self-heal command below; Use Root ✓; Timeout 15s; **Continue Task After Error** ✓ (unrooted phones skip it) |
+| 8 | Task → Perform Task | Name `RunPortalScript` |
+| 9 | Alert → Flash | `Portal handling complete` |
 
-### Step 4: Create the Connection Task
+A7 self-heal command:
 
-This task connects to cmvwifi and then triggers the portal script.
-We need a small wait between connecting and running the script so
-that DHCP has time to assign an IP address.
-
-1. **TASKS** tab → **+**
-2. Name: `ConnectAndRun`
-3. Tap the checkmark
-
-Add the actions in order:
-
-**Action 1: Connect to cmvwifi**
-
-1. Tap **+** to add an action
-2. Select **Net**
-3. Select **Connect to WiFi**
-4. **SSID**: `cmvwifi`
-5. Tap **back** to save
-
-**Action 2: Wait for DHCP**
-
-1. Tap **+** to add an action
-2. Select **Task**
-3. Select **Wait**
-4. **Seconds**: `5`
-5. Tap **back** to save
-
-> **Why 5 seconds?** After connecting to cmvwifi, Android needs a
-> moment to associate with the access point and get a DHCP lease.
-> Without this wait, the Python script may run before wlan0 has an
-> IP address, causing the interface binding to fail. If you still
-> see binding errors, increase to 10 seconds.
-
-**Action 3: Run the portal script**
-
-1. Tap **+** to add an action
-2. Select **Task**
-3. Select **Perform Task**
-4. **Name**: `RunPortalScript`
-5. Tap **back** to save
-
-**Action 4: (Optional) Flash the result**
-
-To see whether the script succeeded during testing:
-
-1. Tap **+** to add an action
-2. Select **Alert**
-3. Select **Flash**
-4. **Text**: `Portal handling complete`
-5. Tap **back** to save
-
-Your `ConnectAndRun` task should now have 4 actions:
-
-```
-ConnectAndRun
-  A1: Net → Connect to WiFi [ SSID:cmvwifi ]
-  A2: Task → Wait [ 5 seconds ]
-  A3: Task → Perform Task [ Name:RunPortalScript ]
-  A4: Alert → Flash [ Portal handling complete ]
+```sh
+dumpsys deviceidle whitelist +com.termux; settings put global settings_enable_monitor_phantom_procs false; pm grant com.termux android.permission.WRITE_SECURE_SETTINGS
 ```
 
-### Step 5: Create the WiFi Near Profile
+> The A2–A4 If/Goto skips Connect+Wait when already on cmvwifi
+> (e.g. walking back into range); A7 runs either way so protections
+> are re-applied every run. **Adjust the Goto number** if you add or
+> remove actions — it targets the Run Shell step by position.
 
-This profile triggers `ConnectAndRun` automatically when cmvwifi
-comes into range.
+**Profile: `cmvwifi Auto Connect`** — triggers `ConnectAndRun` when
+cmvwifi is in range:
 
-1. Tap the **PROFILES** tab
-2. Tap **+** to create a new profile
-3. Select **State** (not Time or Event)
-4. Select **Net**
-5. Select **WiFi Near**
-6. **SSID**: `cmvwifi`
-7. **MAC**: Leave blank
-8. **Toggle**: Make sure it's set to detect when NEAR (not when NOT near)
-9. Tap the **back arrow** to save
-
-After saving, you'll see "Enter Task Name":
-
-1. Select **Existing Task**
-2. Select `ConnectAndRun`
-3. Tap **OK**
-
-Your profile should show:
-
-```
-Profile: cmvwifi Auto Connect
-  State: WiFi Near [ SSID:cmvwifi ]
-Enter Task: ConnectAndRun
-```
-
-### Step 6: Handle the "Already Connected" Case
-
-If you're already connected to cmvwifi (e.g. you walked back into
-range after a brief disconnection), the `Connect to WiFi` action may
-return an error because you're already on that network. Add a check
-at the beginning of `ConnectAndRun`:
-
-**Action 1 (new): Check current SSID**
-
-1. In `ConnectAndRun`, tap **+** at the top of the action list
-2. Select **Variables**
-3. Select **Variable Set**
-4. **Name**: `%CurrentSSID`
-5. **Value**: `%WIFII`
-6. Tap **back** to save
-
-**Action 2 (new): If already on cmvwifi, skip connection**
-
-1. Tap **+** and add an **If** action
-2. **Condition**: `%CurrentSSID` `~` `cmvwifi`
-3. Tap **back** to save
-
-**Action 3 (new): Goto the self-heal step**
-
-1. Tap **+** (inside the If block)
-2. Select **Task**
-3. Select **Goto**
-4. **Type**: `Action Number`
-5. **Number**: `7` (the self-heal Run Shell action — both paths
-   re-apply protections before running the plugin)
-6. **Label**: (leave blank)
-7. Tap **back** to save
-
-**Action 4 (new): End If**
-
-1. Tap **+**
-2. Select **Task**
-3. Select **End If**
-4. Tap **back** to save
-
-**Action 7 (new): Self-heal Termux protections**
-
-1. Tap **+** before the Perform Task action
-2. Select **Code**
-3. Select **Run Shell**
-4. **Command**:
-   `dumpsys deviceidle whitelist +com.termux; settings put global settings_enable_monitor_phantom_procs false; pm grant com.termux android.permission.WRITE_SECURE_SETTINGS`
-5. **Use Root**: ✓ (yes — required for these settings)
-6. **Timeout**: `15` seconds
-7. Enable **Continue Task After Error** (so unrooted phones skip it)
-8. Tap **back** to save
-
-Your updated `ConnectAndRun` task:
-
-```
-ConnectAndRun
-  A1: Variables → Variable Set [ %CurrentSSID = %WIFII ]
-  A2: If [ %CurrentSSID ~ cmvwifi ]
-  A3: Task → Goto [ Action Number 7 ]
-  A4: End If
-  A5: Net → Connect to WiFi [ SSID:cmvwifi ]
-  A6: Task → Wait [ 5 seconds ]
-  A7: Code → Run Shell [ root, continue-on-error ]
-  A8: Task → Perform Task [ Name:RunPortalScript ]
-  A9: Alert → Flash [ Portal handling complete ]
-```
-
-> **Note**: The Goto in A3 jumps to A7 (the self-heal Run Shell),
-> skipping only the Connect/Wait actions when already connected —
-> protections are re-applied on every run either way. Adjust the
-> action number if you add or remove actions.
+- **PROFILES** → **+** → **State** → **Net** → **WiFi Near**
+- SSID `cmvwifi`, MAC blank, Near (not "not near")
+- Enter task: `ConnectAndRun`
+- Requires Location enabled + Tasker Location permission (Android 10+)
 
 ### Step 7: Test the Full Flow
 
@@ -660,34 +519,6 @@ Or transfer it via Google Drive / `adb pull` for easier reading.
 2. The `cmvwifi Auto Connect` profile should have a **green dot**
    next to it (active)
 3. If it's greyed out, tap the profile to toggle it on
-
-### Profile and Task Summary
-
-After completing all steps, you should have:
-
-**Profile:**
-```
-cmvwifi Auto Connect
-  State: WiFi Near [ SSID:cmvwifi ]
-  Enter Task: ConnectAndRun
-```
-
-**Tasks:**
-```
-ConnectAndRun
-  A1: Variable Set [ %CurrentSSID = %WIFII ]
-  A2: If [ %CurrentSSID ~ cmvwifi ]
-  A3: Goto [ Action Number 7 ]
-  A4: End If
-  A5: Connect to WiFi [ SSID:cmvwifi ]
-  A6: Wait [ 5 seconds ]
-  A7: Run Shell [ root, self-heal, continue-on-error ]
-  A8: Perform Task [ RunPortalScript ]
-  A9: Flash [ Portal handling complete ]
-
-RunPortalScript
-  A1: Plugin → Termux:Task [ Executable:mvwifi_portal, Background:Yes ]
-```
 
 ### Troubleshooting Tasker Integration
 

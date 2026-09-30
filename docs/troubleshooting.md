@@ -1,5 +1,26 @@
 # MV WiFi Auto - Troubleshooting Guide
 
+## Symptom Index
+
+**Linux / laptop:**
+- [Service Won't Start](#service-wont-start)
+- [D-Bus Permission Errors](#d-bus-permission-errors)
+- [Not Connecting to cmvwifi](#not-connecting-to-cmvwifi)
+- [Interferes with dd-wrt Connection](#interferes-with-dd-wrt-connection)
+- [Captive Portal Not Accepted](#captive-portal-not-accepted)
+- [Service Stops After Suspend/Resume](#service-stops-after-suspendresume)
+
+**Android / Termux:**
+- [WiFi Near profile never activates](#wifi-near-profile-never-activates)
+- [Termux plugin times out (error code 2)](#termux-plugin-times-out-plugin-did-not-respond-before-timing-out-error-code-2)
+- [Delay between "Portal handling complete" and working internet](#delay-between-portal-handling-complete-and-working-internet)
+- [HTTP requests timing out with cellular ON](#http-requests-timing-out-with-cellular-on)
+- ["Could not determine IPv4 address for interface 'wlan0'"](#could-not-determine-ipv4-address-for-interface-wlan0)
+- [`ip addr` returns "cannot bind netlink socket"](#ip-addr-returns-cannot-bind-netlink-socket-permission-denied)
+- [Debugging on the phone](#debugging-on-the-phone)
+
+**General:** [Debug Mode](#debug-mode) · [Log Analysis](#log-analysis) · [Reporting Issues](#reporting-issues)
+
 ## Common Issues
 
 ### Service Won't Start

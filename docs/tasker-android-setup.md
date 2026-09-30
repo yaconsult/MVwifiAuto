@@ -1,8 +1,13 @@
 # Tasker Android Setup Guide for MVwifiAuto
 
-Complete step-by-step instructions for automating Mountain View WiFi (`cmvwifi`) connection on your rooted Google Pixel using Tasker.
-
-> **See also**: [android-termux-setup.md](android-termux-setup.md) for the recommended Termux + Python approach, which reuses the laptop's working portal code and avoids Android 16's HTTP routing limitations. The Tasker approach below is maintained as an alternative.
+> ⚠️ **Legacy / reference path.** On modern Android (12+, verified
+> broken on 16–17), source-IP binding alone cannot force HTTP
+> requests over WiFi — Android's policy routing sends them over
+> cellular anyway. Use
+> [android-termux-setup.md](android-termux-setup.md) instead: the
+> Termux + Python approach binds with `SO_BINDTODEVICE` and reuses
+> the laptop's working portal code. This document remains for
+> reference and for older devices where pure Tasker still works.
 
 ## Overview
 
