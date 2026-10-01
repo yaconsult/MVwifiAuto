@@ -3,8 +3,9 @@
 > ⚠️ **Legacy / reference path.** On modern Android (12+, verified
 > broken on 16–17), source-IP binding alone cannot force HTTP
 > requests over WiFi — Android's policy routing sends them over
-> cellular anyway. Use
-> [android-termux-setup.md](android-termux-setup.md) instead: the
+> cellular anyway (detailed explanation:
+> [Why Termux Over Pure Tasker?](android-termux-setup.md#why-termux-over-pure-tasker)).
+> Use [android-termux-setup.md](android-termux-setup.md) instead: the
 > Termux + Python approach binds with `SO_BINDTODEVICE` and reuses
 > the laptop's working portal code. This document remains for
 > reference and for older devices where pure Tasker still works.

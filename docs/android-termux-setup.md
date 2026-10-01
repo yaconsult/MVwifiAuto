@@ -64,20 +64,34 @@ three layers:
 
 ## Why Termux Over Pure Tasker?
 
-After 17 sessions of fighting Android 16's platform limitations (see
-[android-devlog.md](android-devlog.md)), the root causes are clear:
+The pure-Tasker implementation is fundamentally broken on modern
+Android — not because of a bug in our XML, but because of how Android
+routes traffic (see [android-devlog.md](android-devlog.md), Sessions
+14–19, for the full investigation):
 
-1. **Tasker HTTP Request has no interface binding** — Android 16 policy
-   routing sends internet-bound traffic over cellular whenever mobile
-   data is on.
-2. **Tasker root shell is blocked on Android 16** — the `curl
-   --interface wlan0` workaround can't be invoked from Tasker.
-3. **Pure Tasker HTTP relies on a race condition** — during initial
-   WiFi association, cmvwifi briefly becomes the only default route.
-   Not reliable.
+1. **Android policy routing prefers cellular.** Whenever mobile data
+   is enabled, internet-bound traffic goes over cellular — no matter
+   what an app intends. The cmvwifi captive portal is only reachable
+   over WiFi, so Tasker's `HTTP Request` actions hung ~40s and never
+   reached the portal.
+2. **Tasker has no interface binding.** `HTTP Request` (code 339)
+   cannot bind a socket to `wlan0` — there is no action option for it.
+   Neither source-IP binding nor `ip route add` help: policy routing
+   ignores the main routing table and source addresses entirely.
+3. **The apparent "it worked once" was a race condition.** During
+   initial association, cmvwifi briefly becomes the only default
+   route before Android re-establishes cellular preference — requests
+   fired in that window succeeded. Timing luck, not reliability.
 
-The Termux approach reuses the tested Python code and binds HTTP to
-wlan0 directly, making it as reliable as the laptop version.
+**The fix requires kernel-level socket binding.** `SO_BINDTODEVICE`
+forces packets onto `wlan0`, bypassing policy routing — what
+`curl --interface` does internally. No Tasker action can set socket
+options, but it works from Termux **without root** (Termux's shell
+user has `CAP_NET_RAW`), via a custom `requests` adapter in
+`wifi_binding.py`. That constraint is what dictates the Termux
+architecture — plus Python gets the dynamic portal-host extraction
+(following the redirect to whichever `10.64.x.x:9997` host serves
+that day) for free, which was clumsy as static Tasker actions anyway.
 
 ## Architecture
 
