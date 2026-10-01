@@ -23,6 +23,7 @@ from mvwifi_auto.tasker_gen import (
     CODE_WAIT,
     CODE_WIFI_CONNECTED_STATE,
     CODE_WIFI_NEAR_STATE,
+    CODE_WRITE_FILE,
     OP_EQUALS,
     TaskerArg,
     TaskerProject,
@@ -44,6 +45,7 @@ from mvwifi_auto.tasker_gen import (
     variable_search_replace,
     variable_set,
     wait,
+    write_file,
 )
 
 
@@ -77,6 +79,7 @@ class TestActionCodes:
             (CODE_WIFI_NEAR_STATE, 170),
             (CODE_WIFI_CONNECTED_STATE, 160),
             (CODE_GOTO, 135),
+            (CODE_WRITE_FILE, 410),
             (CODE_TERMUX_TASK, 1256900802),
         ],
     )
@@ -533,12 +536,14 @@ class TestTermuxProject:
         tasks = root.findall("Task")
         connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
         actions = connect_task.findall("Action")
-        # Goto is index 2 (A3); arg1 (second Int) is the target number
-        goto = actions[2]
+        # Goto is index 3 (A4) — after the history Write File,
+        # Variable Set, and If; arg1 (second Int) is the target number
+        goto = actions[3]
         assert goto.find("code").text == str(CODE_GOTO)
         ints = goto.findall("Int")
         assert ints[0].get("val") == "0"  # type: Action Number
         target = int(ints[1].get("val"))
+        assert target == 8  # A8: the self-heal Run Shell
         # The target action must be the self-heal Run Shell
         target_action = actions[target - 1]
         assert target_action.find("code").text == str(CODE_RUN_SHELL)
@@ -580,3 +585,27 @@ class TestTermuxProject:
         assert action.args[1].value == "6"
         # arg2: label (empty in number mode)
         assert action.args[2].value == ""
+
+    def test_write_file_builder(self):
+        """Test the write_file action builder (append mode)."""
+        action = write_file("Tasker/mvwifi_history.log", "marker")
+        assert action.code == CODE_WRITE_FILE
+        assert action.args[0].value == "Tasker/mvwifi_history.log"
+        assert action.args[1].value == "marker"
+        assert action.args[2].value == "1"  # Append
+        assert action.args[3].value == "1"  # Add Newline
+
+    def test_connect_and_run_starts_with_history_marker(self):
+        """ConnectAndRun must record a Tasker-side marker first, so a
+        missing Termux-side entry can be distinguished from 'profile
+        never fired'."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        connect_task = next(
+            t for t in tasks if t.find("nme").text == "ConnectAndRun"
+        )
+        first = connect_task.findall("Action")[0]
+        assert first.find("code").text == str(CODE_WRITE_FILE)
+        assert "mvwifi_history.log" in first.find("Str").text

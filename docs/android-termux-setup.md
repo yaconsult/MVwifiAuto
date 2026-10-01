@@ -297,20 +297,10 @@ mkdir -p ~/.termux/tasker
 which mvwifi-android
 # Should show: /data/data/com.termux/files/usr/bin/mvwifi-android
 
-# Create the wrapper script using the full path
-# (Termux:Tasker runs in a minimal environment without PATH)
-# The --log-file flag writes to shared storage; the file is
-# overwritten each run and its last line records the outcome.
-# termux-wake-lock prevents Android killing the run mid-execution.
-cat > ~/.termux/tasker/mvwifi_portal << 'EOF'
-#!/data/data/com.termux/files/usr/bin/sh
-/system/bin/settings put global settings_enable_monitor_phantom_procs false 2>/dev/null || true
-/data/data/com.termux/files/usr/bin/termux-wake-lock
-/data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file ~/storage/shared/mvwifi_tasker.log
-STATUS=$?
-/data/data/com.termux/files/usr/bin/termux-wake-unlock
-exit $STATUS
-EOF
+# Install the wrapper (single source of truth: android/mvwifi_portal)
+# Termux:Tasker runs in a minimal environment without PATH, so the
+# wrapper uses full paths throughout.
+cp ~/MVwifiAuto/android/mvwifi_portal ~/.termux/tasker/mvwifi_portal
 chmod +x ~/.termux/tasker/mvwifi_portal
 ```
 
@@ -321,11 +311,14 @@ Test it works:
 echo "Exit code: $?"
 ```
 
-> **Log file behavior**: The `--log-file` flag writes verbose logs to
-> `~/storage/shared/mvwifi_tasker.log`. On success, the log file is
-> **deleted automatically** — it only exists if the run failed. This
-> makes it easy to check for problems: if the file exists, something
-> went wrong and the log will tell you what.
+> **Log files**: the detailed run log goes to
+> `~/storage/shared/mvwifi_tasker.log`, overwritten each run, with
+> the last line recording the outcome ("Run completed successfully"
+> or "Run FAILED"). The wrapper also appends start/exit markers to
+> `~/storage/shared/Tasker/mvwifi_history.log` (kept to the last 200
+> lines) — Tasker writes its own marker there first, so a tasker
+> marker with no termux line means the plugin call never reached
+> Termux.
 
 It should output logging lines showing interface detection and
 portal handling. Exit code 0 means success.
@@ -447,26 +440,28 @@ it), self-heals Termux protections, runs the portal script:
 
 | # | Action | Fields |
 |---|--------|--------|
-| 1 | Variables → Variable Set | `%CurrentSSID` = `%WIFII` |
-| 2 | Task → If | `%CurrentSSID` `~` `cmvwifi` |
-| 3 | Task → Goto | Type **Action Number**, Number **7** |
-| 4 | Task → End If | |
-| 5 | Net → Connect to WiFi | SSID `cmvwifi` |
-| 6 | Task → Wait | 5 seconds — DHCP needs a moment to assign an IP before the script binds to wlan0; raise to 10 if you see binding errors |
-| 7 | Code → Run Shell | self-heal command below; Use Root ✓; Timeout 15s; **Continue Task After Error** ✓ (unrooted phones skip it) |
-| 8 | Task → Perform Task | Name `RunPortalScript` |
-| 9 | Alert → Flash | `Portal handling complete` |
+| 1 | File → Write File | File `Tasker/mvwifi_history.log`, Text `ConnectAndRun fired %TIMES`, Append ✓, Add Newline ✓ — marker proving Tasker fired |
+| 2 | Variables → Variable Set | `%CurrentSSID` = `%WIFII` |
+| 3 | Task → If | `%CurrentSSID` `~` `cmvwifi` |
+| 4 | Task → Goto | Type **Action Number**, Number **8** |
+| 5 | Task → End If | |
+| 6 | Net → Connect to WiFi | SSID `cmvwifi` |
+| 7 | Task → Wait | 5 seconds — DHCP needs a moment to assign an IP before the script binds to wlan0; raise to 10 if you see binding errors |
+| 8 | Code → Run Shell | self-heal command below; Use Root ✓; Timeout 15s; **Continue Task After Error** ✓ (unrooted phones skip it) |
+| 9 | Task → Perform Task | Name `RunPortalScript` |
+| 10 | Alert → Flash | `Portal handling complete` |
 
-A7 self-heal command:
+A8 self-heal command:
 
 ```sh
 dumpsys deviceidle whitelist +com.termux; settings put global settings_enable_monitor_phantom_procs false; pm grant com.termux android.permission.WRITE_SECURE_SETTINGS
 ```
 
-> The A2–A4 If/Goto skips Connect+Wait when already on cmvwifi
-> (e.g. walking back into range); A7 runs either way so protections
-> are re-applied every run. **Adjust the Goto number** if you add or
-> remove actions — it targets the Run Shell step by position.
+> The A3–A5 If/Goto skips Connect+Wait when already on cmvwifi
+> (e.g. walking back into range); the self-heal A8 runs either way
+> so protections are re-applied every run. **Adjust the Goto
+> number** if you add or remove actions — it targets the Run Shell
+> step by position.
 
 **Profile: `cmvwifi Auto Connect`** — triggers `ConnectAndRun` the
 moment the phone associates to cmvwifi:
@@ -517,7 +512,14 @@ After a failed run, check the log:
 cat ~/storage/shared/mvwifi_tasker.log
 ```
 
-Or transfer it via Google Drive / `adb pull` for easier reading.
+For a cross-run timeline, check the history log — it records every
+Tasker trigger and every wrapper start/exit:
+
+```bash
+cat ~/storage/shared/Tasker/mvwifi_history.log
+```
+
+Or transfer either file via Google Drive / `adb pull` for easier reading.
 
 ### Step 8: Verify the Profile is Active
 
@@ -755,6 +757,7 @@ Repo:
 - `src/mvwifi_auto/captive_portal.py` - Shared portal handling
 - `src/mvwifi_auto/tasker_gen.py` - Tasker XML generator (for WiFi Connected profile)
 - `android/MVwifiAuto-Termux.prj.xml` - generated Tasker project
+- `android/mvwifi_portal` - wrapper script (single source of truth)
 - `scripts/termux_setup.sh` - on-device setup (runs in Termux)
 - `scripts/deploy_android.sh` - full adb deployment (wrapper, XML, settings)
 - `scripts/verify_android.sh` - on-device state checklist
@@ -765,4 +768,5 @@ On the phone:
 - `~/.termux/tasker/mvwifi_portal` - wrapper executed by Tasker
 - `~/.termux/termux.properties` - `allow-external-apps = true`
 - `~/storage/shared/mvwifi_tasker.log` - run log (overwritten each run)
+- `~/storage/shared/Tasker/mvwifi_history.log` - trigger/run history (last 200 lines)
 - `/sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml` - XML import source

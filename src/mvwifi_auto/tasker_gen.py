@@ -51,6 +51,7 @@ CODE_VARIABLE_SPLIT = 590
 CODE_VARIABLE_SEARCH_REPLACE = 598
 CODE_HTTP_REQUEST = 339
 CODE_CONNECT_WIFI = 398
+CODE_WRITE_FILE = 410
 CODE_WIFI_NEAR_STATE = 170
 CODE_WIFI_CONNECTED_STATE = 160
 
@@ -357,6 +358,29 @@ def wait(seconds: int = 0, minutes: int = 0) -> TaskerAction:
             TaskerArg.int_arg(2, minutes),
             TaskerArg.int_arg(3, 0),  # hours
             TaskerArg.int_arg(4, 0),
+        ],
+    )
+
+
+def write_file(
+    path: str, text: str, append: bool = True, add_newline: bool = True
+) -> TaskerAction:
+    """Build a Write File (code 410) action.
+
+    Args:
+        path: File path relative to /sdcard (Tasker resolves it).
+        text: Content to write (Tasker variables like %TIMES work).
+        append: Append to the file instead of overwriting.
+        add_newline: Append a newline after the content.
+    """
+    return TaskerAction(
+        code=CODE_WRITE_FILE,
+        args=[
+            TaskerArg.str_arg(0, path),
+            TaskerArg.str_arg(1, text),
+            TaskerArg.int_arg(2, 1 if append else 0),  # Append
+            TaskerArg.int_arg(3, 1 if add_newline else 0),  # Add Newline
+            TaskerArg.int_arg(4, 0),  # emitted by newer Tasker versions
         ],
     )
 
@@ -780,24 +804,31 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
         id=80,
         name="ConnectAndRun",
         actions=[
-            # A1: Store current SSID
+            # A1: History marker — records that Tasker fired, even if
+            # the plugin call later fails or Termux never runs.
+            # Lands at /sdcard/Tasker/mvwifi_history.log.
+            write_file(
+                "Tasker/mvwifi_history.log",
+                "%TIMES | tasker | ConnectAndRun fired",
+            ),
+            # A2: Store current SSID
             variable_set("%CurrentSSID", "%WIFII"),
-            # A2: If already on cmvwifi, skip connection
+            # A3: If already on cmvwifi, skip connection
             if_condition("%CurrentSSID", "cmvwifi"),
-            # A3: Goto A7 (self-heal) — skip connect and wait
-            goto_action(7),
-            # A4: End If
+            # A4: Goto A8 (self-heal) — skip connect and wait
+            goto_action(8),
+            # A5: End If
             end_if(),
-            # A5: Connect to cmvwifi
+            # A6: Connect to cmvwifi
             connect_wifi("cmvwifi"),
-            # A6: Wait 5 seconds for DHCP
+            # A7: Wait 5 seconds for DHCP
             wait(seconds=5),
-            # A7: Re-apply Termux protections (root; skipped on
+            # A8: Re-apply Termux protections (root; skipped on
             # unrooted devices via continue_on_error)
             termux_self_heal(),
-            # A8: Run the portal script
+            # A9: Run the portal script
             perform_task("RunPortalScript", wait_for_finish=True),
-            # A9: Flash completion
+            # A10: Flash completion
             flash("Portal handling complete"),
         ],
     )

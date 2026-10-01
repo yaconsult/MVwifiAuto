@@ -40,21 +40,13 @@ fi
 echo ""
 
 # --- Step 2: Create wrapper script ---
-echo "[2/5] Creating wrapper script for Termux:Tasker..."
+echo "[2/5] Installing wrapper script for Termux:Tasker..."
+WRAPPER_SRC="$(cd "$(dirname "$0")/.." && pwd)/android/mvwifi_portal"
+if [ ! -f "$WRAPPER_SRC" ]; then
+    WRAPPER_SRC="$HOME_DIR/MVwifiAuto/android/mvwifi_portal"
+fi
 mkdir -p "$TASKER_DIR"
-cat > "$TASKER_DIR/mvwifi_portal" << 'WRAPPER_EOF'
-#!/data/data/com.termux/files/usr/bin/sh
-# Re-disable the phantom process killer in case a system update
-# re-enabled it (requires WRITE_SECURE_SETTINGS granted to Termux
-# by deploy_android.sh or termux_setup.sh; silently skipped otherwise).
-/system/bin/settings put global settings_enable_monitor_phantom_procs false 2>/dev/null || true
-# Hold Termux wake lock so Android cannot kill the run mid-execution.
-/data/data/com.termux/files/usr/bin/termux-wake-lock
-/data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_tasker.log
-STATUS=$?
-/data/data/com.termux/files/usr/bin/termux-wake-unlock
-exit $STATUS
-WRAPPER_EOF
+cp "$WRAPPER_SRC" "$TASKER_DIR/mvwifi_portal"
 chmod 755 "$TASKER_DIR/mvwifi_portal"
 echo "  Created: $TASKER_DIR/mvwifi_portal"
 echo ""

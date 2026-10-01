@@ -20,6 +20,7 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TASKER_XML="$REPO_DIR/android/MVwifiAuto-Termux.prj.xml"
+WRAPPER_SRC="$REPO_DIR/android/mvwifi_portal"
 TERMUX_HOME="/data/data/com.termux/files/home"
 TASKER_DIR="$TERMUX_HOME/.termux/tasker"
 PROPS_FILE="$TERMUX_HOME/.termux/termux.properties"
@@ -62,21 +63,8 @@ echo ""
 
 # --- Step 2: Create wrapper script ---
 echo "[2/6] Creating Termux wrapper script..."
-adb shell "su -c 'mkdir -p $TASKER_DIR'"
-adb shell "su -c 'cat > $TASKER_DIR/mvwifi_portal << \"ENDOFSCRIPT\"
-#!/data/data/com.termux/files/usr/bin/sh
-# Re-disable the phantom process killer in case a system update
-# re-enabled it (requires WRITE_SECURE_SETTINGS granted to Termux
-# by deploy_android.sh; silently skipped otherwise).
-/system/bin/settings put global settings_enable_monitor_phantom_procs false 2>/dev/null || true
-# Hold Termux wake lock so Android cannot kill the run mid-execution.
-/data/data/com.termux/files/usr/bin/termux-wake-lock
-/data/data/com.termux/files/usr/bin/mvwifi-android --once --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_tasker.log
-STATUS=\$?
-/data/data/com.termux/files/usr/bin/termux-wake-unlock
-exit \$STATUS
-ENDOFSCRIPT'"
-adb shell "su -c 'chmod 755 $TASKER_DIR/mvwifi_portal'"
+adb push "$WRAPPER_SRC" /sdcard/mvwifi_portal.tmp
+adb shell "su -c 'mkdir -p $TASKER_DIR && cp /sdcard/mvwifi_portal.tmp $TASKER_DIR/mvwifi_portal && chmod 755 $TASKER_DIR/mvwifi_portal && rm /sdcard/mvwifi_portal.tmp'"
 echo "  Created: $TASKER_DIR/mvwifi_portal"
 echo ""
 
@@ -154,4 +142,4 @@ echo "     it first (long-press its tab -> Delete) — Tasker refuses to"
 echo "     import over an existing project. Then: long-press bottom nav"
 echo "     bar -> Import Project -> select MVwifiAuto-Termux"
 echo "  3. Test: run the 'ConnectAndRun' task in Tasker"
-echo "  4. Enable the WiFi Near profile (green dot in PROFILES tab)"
+echo "  4. Enable the 'cmvwifi Auto Connect' profile (green dot in PROFILES tab)"

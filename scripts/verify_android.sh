@@ -123,8 +123,12 @@ if [ "$HAVE_ROOT" -eq 1 ]; then
     fi
 
     if adb_su "test -x $TASKER_DIR/mvwifi_portal"; then
-        if adb_su "grep -q termux-wake-lock $TASKER_DIR/mvwifi_portal"; then
-            record PASS "wrapper script" "present, executable, wake-lock hardened"
+        if adb_su "grep -q mvwifi_history.log $TASKER_DIR/mvwifi_portal"; then
+            record PASS "wrapper script" \
+                "present, executable, hardened + history logging"
+        elif adb_su "grep -q termux-wake-lock $TASKER_DIR/mvwifi_portal"; then
+            record WARN "wrapper script" \
+                "wake-lock version but no history logging; re-run deploy_android.sh"
         else
             record WARN "wrapper script" \
                 "present but old version (no wake lock); re-run deploy_android.sh"

@@ -1335,3 +1335,25 @@ manual-run fallback.
 
 WiFi Near remains correct for the legacy pure-Tasker project, where
 Tasker itself did the connecting.
+
+### Cross-Run History Log
+
+Today's 30-minute delay was diagnosable only via adb + root —
+the per-run log is overwritten, and the Tasker→Termux boundary
+leaves no trace. Added a bounded shared history:
+
+- `ConnectAndRun` A1 now Write File-appends a `%TIMES` marker to
+  `/sdcard/Tasker/mvwifi_history.log` (Tasker-side proof the
+  profile fired)
+- The wrapper appends `start` (with the current phantom-killer
+  setting) and `exit=$STATUS` lines, then trims the file to the
+  last 200 lines
+- Tasker marker with no termux start = plugin call never reached
+  Termux; start with no exit = killed mid-run; exit!=0 = script
+  failure — the three failure classes are now distinguishable
+  from one file without adb
+
+Wrapper moved to `android/mvwifi_portal` as the single source of
+truth (was duplicated heredocs in termux_setup.sh and
+deploy_android.sh — deploy now pushes the file directly).
+verify_android.sh distinguishes the new wrapper version.
