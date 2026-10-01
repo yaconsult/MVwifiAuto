@@ -39,7 +39,23 @@ verification) but the Costco-specific **protocol constants** are TODO:
   and SASE rollout), a guest terms path exists alongside the login,
   or it varies by warehouse. The capture settles it.
 
-The capture fills these in.
+## Known So Far (2026-10-01 update)
+
+- **Portal launches the Costco app** — user-observed when the portal
+  sign-in page opens. The app (`com.costco.app.android`) is installed
+  on the test phone.
+- **App deep-link contract** (from `dumpsys package`, no site visit
+  needed): the app declares a `costco://` custom scheme plus http(s)
+  app-links for `costco.com`, `www.costco.com`, `m.costco.com`,
+  `sameday.*`, `costco.page.link`. App-links are *disabled* in the
+  "open supported links" setting, so an `https://costco.com` URL
+  opens a browser — the portal most likely uses `costco://` (or an
+  `intent://` URI) to force the app open. The probe's logcat capture
+  will show the exact URI.
+- **First-visit capture directory was empty** —
+  `portal_capture_20260917_132511/` ran while the laptop was
+  disconnected (scan only; probes failed with "network unreachable").
+  Always verify the connection *before* capturing.
 
 ## Prerequisites
 
@@ -48,12 +64,14 @@ The capture fills these in.
 
 The capture works on **either** device:
 
-- **Laptop (recommended)** — no extra setup; the repo is already
-  installed.  Bonus: browser dev tools can watch the real POST when
-  you manually accept the portal.
-- **Phone (Termux)** — needs Termux set up per
-  `docs/android-termux-setup.md` and `termux-setup-storage` run
-  previously (for `~/storage/shared/`)
+- **Phone (recommended)** — fully automated via the `Costco WiFi
+  Connected` Tasker profile → `CostcoProbe` task → `costco_probe`
+  Termux wrapper. Just connecting collects everything, including the
+  app-launch intent from logcat. See "Capture on the Phone" below.
+- **Laptop** — the repo is already installed; browser dev tools can
+  watch the real POST when you manually accept the portal. Still
+  useful for the auth *flow*, but cannot see the Android app-launch
+  intent.
 
 ## Capture on the Laptop (easiest)
 
@@ -200,7 +218,50 @@ If you reach a form (checkbox + button, or member-number field):
   skips the login (MAC remembered = long session = manual login
   covers many visits)
 
-## Capture on the Phone (Termux)
+## Capture on the Phone (automated — recommended)
+
+The `MVwifiAuto-Termux` Tasker project includes a **Costco WiFi
+Connected** profile (WiFi Connected state on `Costco Member Wifi`)
+→ `CostcoProbe` task → `costco_probe` wrapper →
+`mvwifi-costco-probe`. Connecting to Costco WiFi runs it
+automatically; no interaction needed for the capture itself.
+
+The probe (in `src/mvwifi_auto/costco_probe.py`) collects:
+
+- Portal redirect chain + portal host (WiFi-bound session)
+- Portal page HTML + linked JS/JSON assets (deep links often live in
+  the JS bundle, not the HTML shell)
+- Deep-link candidates (`costco://`, `intent://`, `android-app://`)
+  extracted from everything fetched
+- An `am start` that opens the portal URL in the system's captive
+  portal sign-in browser — reproducing the app launch automatically
+- A logcat slice of activity `START` records and `costco` mentions —
+  **the decisive datum**: the exact URI/intent the portal fires
+- `dumpsys` snapshots: foreground activity + Costco app intent filters
+- Post-capture connectivity status
+
+Output lands in `~/storage/shared/costco_capture/capture_<ts>/`
+(`summary.json`, `report.md`, `portal.html`, `portal_report.txt`,
+`intents.txt`, `foreground.txt`, `app_filters.txt`, `assets/`).
+
+Manual run (same thing, from Termux):
+
+```bash
+mvwifi-costco-probe --verbose            # or --wait 60, --json
+```
+
+### On-site checklist (in addition to the auto-capture)
+
+1. **Watch the app launch** — does the Costco app open by itself, or
+   via a button on the page? Note which screen it lands on.
+2. **Authenticate** (app or browser) → confirm internet works.
+3. **Persistence test** — WiFi off/on, reconnect: does the portal
+   re-challenge? If not, the device is remembered and "automation"
+   may be unnecessary.
+4. **Re-run the probe** post-auth to compare redirect behavior:
+   `mvwifi-costco-probe --verbose` again.
+
+## Capture on the Phone (Termux analyzer — manual fallback)
 
 Run in Termux while connected to Costco WiFi:
 
@@ -227,9 +288,10 @@ Notes:
 
 - **Laptop**: a `portal_capture_<timestamp>/` directory in the repo
   (listed above)
-- **Phone**: two files in `~/storage/shared/` (pull via `adb pull`,
-  Drive, or `cat`): `costco_portal_report.txt` (parsed structure)
-  and `costco_portal.html` (raw page)
+- **Phone**: `~/storage/shared/costco_capture/capture_<ts>/` with
+  `summary.json`, `report.md`, `portal.html`, `intents.txt`
+  (app-launch intents), `app_filters.txt`, `foreground.txt`, plus
+  downloaded `assets/` (pull via `adb pull` or browse shared storage)
 
 ## What to do with the report
 

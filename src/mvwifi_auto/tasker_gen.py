@@ -860,6 +860,57 @@ def _build_cmvwifi_profile_termux() -> TaskerProfile:
     )
 
 
+def _build_costco_probe_task() -> TaskerTask:
+    """Build the CostcoProbe task (id=90) — Termux capture probe.
+
+    Runs mvwifi-costco-probe via the Termux:Tasker plugin.  The probe
+    captures the portal redirect, HTML/JS, the app-launch intent from
+    logcat, and post-probe connectivity into
+    ~/storage/shared/costco_capture/.  The plugin timeout is 240s —
+    the probe sleeps ~25s waiting for the portal page's deep link.
+    """
+    return TaskerTask(
+        id=90,
+        name="CostcoProbe",
+        actions=[
+            # A1: History marker (same shared log as ConnectAndRun).
+            write_file(
+                "Tasker/mvwifi_history.log",
+                "%TIMES | tasker | CostcoProbe fired",
+            ),
+            # A2: Re-apply Termux protections before the plugin call.
+            termux_self_heal(),
+            # A3: Run the capture probe.
+            termux_task("costco_probe", background=True, timeout=240),
+            # A4: Flash completion.
+            flash("Costco capture complete"),
+        ],
+    )
+
+
+def _build_costco_profile_termux() -> TaskerProfile:
+    """Build the Costco Member Wifi profile (id=3) — Termux approach.
+
+    Fires on association with the Costco SSID and runs CostcoProbe,
+    which captures the portal flow (including the app-launch intent)
+    to ~/storage/shared/costco_capture/.
+    """
+    return TaskerProfile(
+        id=3,
+        name="Costco WiFi Connected",
+        state=TaskerState(
+            code=CODE_WIFI_CONNECTED_STATE,
+            args=[
+                TaskerArg.str_arg(0, "Costco Member Wifi"),  # SSID
+                TaskerArg.str_arg(1),                        # MAC (any)
+                TaskerArg.str_arg(2),                        # IP (any)
+                TaskerArg.int_arg(3, 2),                     # Active
+            ],
+        ),
+        task_id=90,  # CostcoProbe
+    )
+
+
 def build_termux_project() -> TaskerProject:
     """Build the MVwifiAuto Tasker project for the Termux approach.
 
@@ -872,8 +923,10 @@ def build_termux_project() -> TaskerProject:
         - ConnectAndRun: connects to cmvwifi, waits for DHCP, calls
           RunPortalScript
 
-    Profile:
+    Profiles:
         - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
+        - Costco WiFi Connected: WiFi Connected (Costco Member Wifi)
+          → CostcoProbe
 
     Returns:
         A :class:`TaskerProject` ready for XML generation.
@@ -881,8 +934,9 @@ def build_termux_project() -> TaskerProject:
     tasks = [
         _build_run_portal_script_task_termux(),
         _build_connect_and_run_task_termux(),
+        _build_costco_probe_task(),
     ]
-    profiles = [_build_cmvwifi_profile_termux()]
+    profiles = [_build_cmvwifi_profile_termux(), _build_costco_profile_termux()]
     return TaskerProject(
         name="MVwifiAuto-Termux",
         profiles=profiles,

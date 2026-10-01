@@ -39,16 +39,18 @@ else
 fi
 echo ""
 
-# --- Step 2: Create wrapper script ---
-echo "[2/5] Installing wrapper script for Termux:Tasker..."
-WRAPPER_SRC="$(cd "$(dirname "$0")/.." && pwd)/android/mvwifi_portal"
-if [ ! -f "$WRAPPER_SRC" ]; then
-    WRAPPER_SRC="$HOME_DIR/MVwifiAuto/android/mvwifi_portal"
+# --- Step 2: Create wrapper scripts ---
+echo "[2/5] Installing wrapper scripts for Termux:Tasker..."
+ANDROID_SRC="$(cd "$(dirname "$0")/.." && pwd)/android"
+if [ ! -f "$ANDROID_SRC/mvwifi_portal" ]; then
+    ANDROID_SRC="$HOME_DIR/MVwifiAuto/android"
 fi
 mkdir -p "$TASKER_DIR"
-cp "$WRAPPER_SRC" "$TASKER_DIR/mvwifi_portal"
-chmod 755 "$TASKER_DIR/mvwifi_portal"
-echo "  Created: $TASKER_DIR/mvwifi_portal"
+for name in mvwifi_portal costco_probe; do
+    cp "$ANDROID_SRC/$name" "$TASKER_DIR/$name"
+    chmod 755 "$TASKER_DIR/$name"
+    echo "  Created: $TASKER_DIR/$name"
+done
 echo ""
 
 # --- Step 3: Enable allow-external-apps ---

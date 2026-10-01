@@ -20,7 +20,6 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TASKER_XML="$REPO_DIR/android/MVwifiAuto-Termux.prj.xml"
-WRAPPER_SRC="$REPO_DIR/android/mvwifi_portal"
 TERMUX_HOME="/data/data/com.termux/files/home"
 TASKER_DIR="$TERMUX_HOME/.termux/tasker"
 PROPS_FILE="$TERMUX_HOME/.termux/termux.properties"
@@ -61,11 +60,14 @@ adb push "$TASKER_XML" /sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml
 echo "  Pushed to /sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml"
 echo ""
 
-# --- Step 2: Create wrapper script ---
-echo "[2/6] Creating Termux wrapper script..."
-adb push "$WRAPPER_SRC" /sdcard/mvwifi_portal.tmp
-adb shell "su -c 'mkdir -p $TASKER_DIR && cp /sdcard/mvwifi_portal.tmp $TASKER_DIR/mvwifi_portal && chmod 755 $TASKER_DIR/mvwifi_portal && rm /sdcard/mvwifi_portal.tmp'"
-echo "  Created: $TASKER_DIR/mvwifi_portal"
+# --- Step 2: Create wrapper scripts ---
+echo "[2/6] Creating Termux wrapper scripts..."
+adb shell "su -c 'mkdir -p $TASKER_DIR'"
+for name in mvwifi_portal costco_probe; do
+    adb push "$REPO_DIR/android/$name" "/sdcard/$name.tmp"
+    adb shell "su -c 'cp /sdcard/$name.tmp $TASKER_DIR/$name && chmod 755 $TASKER_DIR/$name && rm /sdcard/$name.tmp'"
+    echo "  Created: $TASKER_DIR/$name"
+done
 echo ""
 
 # --- Step 3: Enable allow-external-apps ---
@@ -118,10 +120,8 @@ echo ""
 
 # --- Step 6: Verify ---
 echo "[6/6] Verifying deployment..."
-echo "  Wrapper script:"
-adb shell "su -c 'ls -la $TASKER_DIR/mvwifi_portal'" 2>&1 | sed 's/^/    /'
-echo "  Script contents:"
-adb shell "su -c 'cat $TASKER_DIR/mvwifi_portal'" 2>&1 | sed 's/^/    /'
+echo "  Wrapper scripts:"
+adb shell "su -c 'ls -la $TASKER_DIR/mvwifi_portal $TASKER_DIR/costco_probe'" 2>&1 | sed 's/^/    /'
 echo "  mvwifi-android:"
 adb shell "su -c 'ls -la /data/data/com.termux/files/usr/bin/mvwifi-android'" 2>&1 | sed 's/^/    /'
 echo "  Tasker XML on phone:"

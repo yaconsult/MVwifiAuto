@@ -1,7 +1,7 @@
 """Tests for the Tasker XML generator."""
 
 from xml.dom.minidom import parseString
-from xml.etree.ElementTree import fromstring
+from xml.etree.ElementTree import fromstring, tostring
 
 import pytest
 
@@ -398,27 +398,29 @@ class TestTermuxProject:
         root = fromstring(xml_text)
         assert root.find("Project").find("name").text == "MVwifiAuto-Termux"
 
-    def test_has_two_tasks(self):
-        """Test that the Termux project has 2 tasks."""
+    def test_has_three_tasks(self):
+        """Test that the Termux project has 3 tasks."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        assert len(tasks) == 2
+        assert len(tasks) == 3
         task_names = {t.find("nme").text for t in tasks}
         assert task_names == {
             "RunPortalScript",
             "ConnectAndRun",
+            "CostcoProbe",
         }
 
     def test_profile_links_to_connect_and_run(self):
-        """Test that the WiFi Near profile links to ConnectAndRun (id=80)."""
+        """Test that the cmvwifi profile links to ConnectAndRun (id=80)."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
-        profile = root.find("Profile")
-        assert profile is not None
-        assert profile.find("nme").text == "cmvwifi Auto Connect"
+        profiles = root.findall("Profile")
+        profile = next(
+            p for p in profiles if p.find("nme").text == "cmvwifi Auto Connect"
+        )
         assert profile.find("mid0").text == "80"
 
     def test_profile_uses_wifi_connected_state(self):
@@ -609,3 +611,43 @@ class TestTermuxProject:
         first = connect_task.findall("Action")[0]
         assert first.find("code").text == str(CODE_WRITE_FILE)
         assert "mvwifi_history.log" in first.find("Str").text
+
+    def test_costco_profile(self):
+        """Costco WiFi Connected profile triggers CostcoProbe on the
+        'Costco Member Wifi' SSID."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        profiles = root.findall("Profile")
+        assert len(profiles) == 2
+        costco = next(
+            p for p in profiles if p.find("nme").text == "Costco WiFi Connected"
+        )
+        assert costco.find("mid0").text == "90"  # CostcoProbe
+        state = costco.find("State")
+        assert state.find("code").text == "160"  # WiFi Connected
+        assert state.find("Str").text == "Costco Member Wifi"
+
+    def test_costco_probe_task_runs_wrapper(self):
+        """CostcoProbe calls the costco_probe Termux wrapper with a
+        timeout long enough for the deep-link wait window."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        probe = next(t for t in tasks if t.find("nme").text == "CostcoProbe")
+        actions = probe.findall("Action")
+        # A1: history marker Write File
+        assert actions[0].find("code").text == str(CODE_WRITE_FILE)
+        # A2: root self-heal Run Shell
+        assert actions[1].find("code").text == str(CODE_RUN_SHELL)
+        # A3: Termux plugin invoking costco_probe
+        assert actions[2].find("code").text == str(CODE_TERMUX_TASK)
+        bundle_xml = tostring(
+            actions[2].find("Bundle"), encoding="unicode"
+        )
+        assert "costco_probe" in bundle_xml
+        # arg3: plugin timeout — probe waits ~25s for the deep link
+        ints = actions[2].findall("Int")
+        assert ints[0].get("val") == "240"
+        assert ints[0].get("sr") == "arg3"

@@ -11,6 +11,7 @@ dependencies = [
 mvwifi-auto = "mvwifi_auto.cli:main"
 mvwifi-android = "mvwifi_auto.android:main"
 mvwifi-analyze-portal = "mvwifi_auto.portal_analyzer:main"
+mvwifi-costco-probe = "mvwifi_auto.costco_probe:main"
 
 [dependency-groups]
 dev = [

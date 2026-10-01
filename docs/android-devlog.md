@@ -1357,3 +1357,64 @@ Wrapper moved to `android/mvwifi_portal` as the single source of
 truth (was duplicated heredocs in termux_setup.sh and
 deploy_android.sh — deploy now pushes the file directly).
 verify_android.sh distinguishes the new wrapper version.
+
+## Session 25: Costco Portal — App-Launch Capture Infrastructure (2026-10-01)
+
+### Context
+
+The user observed that Costco's captive portal *opens the Costco
+app* when connecting — consistent with the membership-verification
+flow (app or Costco.com login required before internet works). The
+9/17 laptop capture (`portal_capture_20260917_132511/`) turned out
+to contain only a WiFi scan — it ran while disconnected, so no
+portal data was ever captured.
+
+### Key finding: the app's deep-link contract (no site visit needed)
+
+`dumpsys package com.costco.app.android` reveals the app is
+installed and declares:
+
+- `costco://` custom scheme → MainActivity (BROWSABLE) — resolves
+  to the app unconditionally
+- `costco-dmc-widget://` secondary scheme
+- http(s) app-links for costco.com, www.costco.com, m.costco.com,
+  sameday.*, costco.page.link (several verified) — but the "open
+  supported links" selection state shows all domains **disabled**
+
+Since https app-links are disabled, a `https://costco.com` URL from
+the portal opens a browser — so the app launch almost certainly uses
+the `costco://` scheme or an `intent://` URI. The exact URI is the
+datum the probe's logcat capture records.
+
+### What was built
+
+- `src/mvwifi_auto/costco_probe.py` + `mvwifi-costco-probe` CLI —
+  on-device capture: portal probe via WiFi-bound session, HTML +
+  linked JS/JSON assets, deep-link extraction (`costco://`,
+  `intent://`, `android-app://`), `am start` of the portal URL in
+  the CaptivePortalLogin browser (reproduces the app launch without
+  user interaction), filtered logcat slice of START/costco records,
+  dumpsys snapshots, post-capture connectivity check. Writes to
+  `~/storage/shared/costco_capture/capture_<ts>/`. Root (su) used
+  for logcat/dumpsys; degrades gracefully without it.
+- `android/costco_probe` — second Termux:Tasker wrapper, same
+  history-log + wake-lock pattern as mvwifi_portal.
+- Generated project gains `Costco WiFi Connected` profile (WiFi
+  Connected state, "Costco Member Wifi") → `CostcoProbe` task
+  (history marker → self-heal → plugin, 240s timeout).
+- deploy_android.sh/termux_setup.sh push both wrappers;
+  verify_android.sh checks both.
+- docs/costco-portal-capture.md rewritten around the on-device
+  probe; laptop/browser capture demoted to supplementary (it can't
+  see Android intents anyway).
+
+### Design notes
+
+- The probe opens the portal URL itself rather than waiting for the
+  user to tap the sign-in notification — the intent it fires is the
+  same either way, and automating it means the capture works even if
+  the user is hands-off.
+- 25s default wait between `am start` and logcat dump covers JS
+  render + deep-link dispatch (`--wait` adjustable).
+- Nothing about the auth flow (credentials, OAuth tokens, session
+  cookies) is captured — only URLs, intent URIs, and status codes.

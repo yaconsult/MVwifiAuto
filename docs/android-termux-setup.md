@@ -267,9 +267,12 @@ The repo includes a pre-built Tasker XML for the Termux approach:
 android/MVwifiAuto-Termux.prj.xml
 ```
 
-This contains the `ConnectAndRun`, `RunPortalScript`, `DebugFlash`,
-`DebugOn`, and `DebugOff` tasks, plus the `cmvwifi Auto Connect`
-profile — all pre-configured for the Termux:Tasker plugin.
+This contains the `ConnectAndRun`, `RunPortalScript`, and
+`CostcoProbe` tasks, plus the `cmvwifi Auto Connect` and `Costco
+WiFi Connected` profiles — all pre-configured for the
+Termux:Tasker plugin. The Costco profile only captures portal data
+(see `docs/costco-portal-capture.md`); delete that profile if you
+don't want it.
 
 To import it:
 

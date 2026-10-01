@@ -14,10 +14,24 @@
 			<Int sr="arg3" val="2" />
 		</State>
 	</Profile>
+	<Profile sr="prof3" ve="2">
+		<cdate>1000000000000</cdate>
+		<edate>1000000000000</edate>
+		<id>3</id>
+		<mid0>90</mid0>
+		<nme>Costco WiFi Connected</nme>
+		<State sr="con0" ve="2">
+			<code>160</code>
+			<Str sr="arg0" ve="3">Costco Member Wifi</Str>
+			<Str sr="arg1" ve="3" />
+			<Str sr="arg2" ve="3" />
+			<Int sr="arg3" val="2" />
+		</State>
+	</Profile>
 	<Project sr="proj0" ve="2">
 		<name>MVwifiAuto-Termux</name>
-		<pids>2</pids>
-		<tids>70,80</tids>
+		<pids>2,3</pids>
+		<tids>70,80,90</tids>
 	</Project>
 	<Task sr="task70">
 		<id>70</id>
@@ -133,6 +147,62 @@
 		<Action sr="act9" ve="7">
 			<code>548</code>
 			<Str sr="arg0" ve="3">Portal handling complete</Str>
+			<Int sr="arg1" val="0" />
+		</Action>
+	</Task>
+	<Task sr="task90">
+		<id>90</id>
+		<nme>CostcoProbe</nme>
+		<rty>2</rty>
+		<Action sr="act0" ve="7">
+			<code>410</code>
+			<Str sr="arg0" ve="3">Tasker/mvwifi_history.log</Str>
+			<Str sr="arg1" ve="3">%TIMES | tasker | CostcoProbe fired</Str>
+			<Int sr="arg2" val="1" />
+			<Int sr="arg3" val="1" />
+			<Int sr="arg4" val="0" />
+		</Action>
+		<Action sr="act1" ve="7">
+			<con>true</con>
+			<code>123</code>
+			<Str sr="arg0" ve="3">dumpsys deviceidle whitelist +com.termux; settings put global settings_enable_monitor_phantom_procs false; pm grant com.termux android.permission.WRITE_SECURE_SETTINGS</Str>
+			<Int sr="arg1" val="15" />
+			<Int sr="arg2" val="1" />
+			<Str sr="arg3" ve="3" />
+			<Str sr="arg4" ve="3" />
+			<Str sr="arg5" ve="3" />
+			<Int sr="arg6" val="1" />
+			<Int sr="arg7" val="0" />
+			<Int sr="arg8" val="0" />
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>1256900802</code>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<com.termux.execute.arguments />
+					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
+					<com.termux.tasker.extra.EXECUTABLE>costco_probe</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
+					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
+					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
+					<com.termux.tasker.extra.VERSION_CODE>4</com.termux.tasker.extra.VERSION_CODE>
+					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
+					<com.termux.tasker.extra.WORKDIR />
+					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
+					<com.twofortyfouram.locale.intent.extra.BLURB>costco_probe</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
+					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
+					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">com.termux.tasker</Str>
+			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
+			<Int sr="arg3" val="240" />
+			<Int sr="arg4" val="0" />
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>548</code>
+			<Str sr="arg0" ve="3">Costco capture complete</Str>
 			<Int sr="arg1" val="0" />
 		</Action>
 	</Task>
