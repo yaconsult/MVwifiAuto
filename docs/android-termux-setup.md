@@ -11,7 +11,7 @@ granting internet access. This system automates that process using
 three layers:
 
 **Layer 1 — Tasker (detection & connection)**
-- WiFi Near profile detects when cmvwifi is in range
+- WiFi Connected profile fires the moment the phone associates to cmvwifi
 - `ConnectAndRun` task connects to cmvwifi via Tasker Settings, waits
   5 seconds for DHCP
 - Then triggers `RunPortalScript` via the Termux:Tasker plugin
@@ -82,7 +82,7 @@ wlan0 directly, making it as reliable as the laptop version.
 ## Architecture
 
 ```
-Tasker (WiFi Near profile)
+Tasker (WiFi Connected profile)
     │
     ▼
 Run Shell (non-root): mvwifi-android --once
@@ -424,7 +424,7 @@ adb shell dumpsys deviceidle whitelist | grep termux
 adb shell settings get global settings_enable_monitor_phantom_procs   # want: false
 ```
 
-> **Symptom this prevents**: WiFi Near fires, the script starts
+> **Symptom this prevents**: the profile fires, the script starts
 > (log file appears), then dies mid-run and Tasker reports the plugin
 > timeout error — even with a generous action timeout.
 
@@ -468,13 +468,18 @@ dumpsys deviceidle whitelist +com.termux; settings put global settings_enable_mo
 > are re-applied every run. **Adjust the Goto number** if you add or
 > remove actions — it targets the Run Shell step by position.
 
-**Profile: `cmvwifi Auto Connect`** — triggers `ConnectAndRun` when
-cmvwifi is in range:
+**Profile: `cmvwifi Auto Connect`** — triggers `ConnectAndRun` the
+moment the phone associates to cmvwifi:
 
-- **PROFILES** → **+** → **State** → **Net** → **WiFi Near**
-- SSID `cmvwifi`, MAC blank, Near (not "not near")
+- **PROFILES** → **+** → **State** → **Net** → **WiFi Connected**
+- SSID `cmvwifi`, MAC blank, IP blank, Active: checked
 - Enter task: `ConnectAndRun`
-- Requires Location enabled + Tasker Location permission (Android 10+)
+
+> We deliberately use **WiFi Connected**, not WiFi Near: Android
+> auto-joins cmvwifi itself, and WiFi Near depends on WiFi scans
+> that Android throttles to ~1 per 30 min for background apps —
+> observed as a ~30-minute delay before portal handling. WiFi
+> Connected fires instantly on association.
 
 ### Step 7: Test the Full Flow
 
@@ -492,7 +497,8 @@ cmvwifi is in range:
 **Automatic test:**
 
 1. Walk away from cmvwifi range, then walk back
-2. Wait up to 60 seconds for WiFi Near to detect cmvwifi
+2. Wait a few seconds — the profile fires as soon as the phone
+   associates to cmvwifi (no scan delay)
 3. The profile should trigger `ConnectAndRun` automatically
 4. Check the Tasker run log (three dots menu → **View Run Log**) to
    confirm it executed
@@ -597,17 +603,18 @@ When in doubt, check `git log` for what changed since your last
 update, deploy accordingly, then run `./scripts/verify_android.sh`
 to confirm the on-device state is consistent.
 
-**WiFi Near doesn't trigger:**
-- WiFi Near polls periodically (30-60 seconds), not instantly
-- Make sure Location is enabled on the phone (WiFi scanning requires
-  it on Android 10+)
-- Make sure Tasker has Location permission
-- Check that the profile is active (green dot in PROFILES tab)
-- **If the profile never activates even when the SSID is visible:**
-  the imported profile may have wrong arg order. Re-import the
-  project after regenerating it with `tasker_gen.py` — the correct
-  WiFi Near arg order is SSID, MAC, Capabilities, Min Signal,
-  Channel, Toggle WiFi (see Session 21 of the devlog)
+**Profile doesn't trigger when connecting to cmvwifi:**
+- WiFi Connected fires on association, not scans — it should be
+  instant. Check that the profile is active (green dot in PROFILES
+  tab)
+- Make sure the profile's SSID is exactly `cmvwifi` and Active is
+  checked
+- Tasker needs Location permission for WiFi state contexts on
+  Android 10+
+- **If connecting takes ~30 min to trigger:** you have an old
+  WiFi Near-based import — delete the project and re-import the
+  current XML, which uses WiFi Connected (see Session 24+ of the
+  devlog)
 
 **Script not found:**
 - Verify the wrapper script exists: `ls -la ~/.termux/tasker/mvwifi_portal`
@@ -632,9 +639,9 @@ mvwifi-android --once --max-attempts 5
 
 ### Automatic (via Tasker)
 
-Once the WiFi Near profile is linked to `ConnectAndRun` (see the
-Tasker Integration section above), it will trigger automatically when
-cmvwifi comes into range.
+Once the WiFi Connected profile is linked to `ConnectAndRun` (see the
+Tasker Integration section above), it will trigger automatically the
+moment the phone associates to cmvwifi.
 
 ### Fallback: Run Shell (without Termux:Tasker)
 
@@ -653,7 +660,7 @@ have PATH issues. The Termux:Tasker plugin is recommended.
 
 ## How It Works
 
-1. **Tasker** detects cmvwifi via WiFi Near and triggers `ConnectAndRun`
+1. **Tasker** detects the cmvwifi association via WiFi Connected and triggers `ConnectAndRun`
 2. **ConnectAndRun** checks if already connected; if not, connects to
    cmvwifi via Tasker Settings, then waits 5 seconds for DHCP
 3. **ConnectAndRun** calls `RunPortalScript` via the Termux:Tasker plugin
@@ -746,7 +753,7 @@ Repo:
 - `src/mvwifi_auto/android.py` - Termux entry point
 - `src/mvwifi_auto/wifi_binding.py` - Interface-bound HTTP adapter
 - `src/mvwifi_auto/captive_portal.py` - Shared portal handling
-- `src/mvwifi_auto/tasker_gen.py` - Tasker XML generator (for WiFi Near profile)
+- `src/mvwifi_auto/tasker_gen.py` - Tasker XML generator (for WiFi Connected profile)
 - `android/MVwifiAuto-Termux.prj.xml` - generated Tasker project
 - `scripts/termux_setup.sh` - on-device setup (runs in Termux)
 - `scripts/deploy_android.sh` - full adb deployment (wrapper, XML, settings)

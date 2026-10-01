@@ -202,8 +202,9 @@ traffic bound to the WiFi interface via `SO_BINDTODEVICE` to bypass
 Android's cellular-preferred policy routing. Verified working with
 cellular data enabled.
 
-The flow: Tasker detects cmvwifi via WiFi Near → connects via Tasker
-Settings → waits for DHCP → triggers `mvwifi-android` via the
+The flow: Android auto-joins cmvwifi → Tasker's WiFi Connected
+profile fires instantly on association → `ConnectAndRun` waits for
+DHCP if needed → triggers `mvwifi-android` via the
 Termux:Tasker plugin → Python binds to wlan0, detects the portal,
 accepts terms, and verifies internet. Each run overwrites
 `~/storage/shared/mvwifi_tasker.log`; its last line records the

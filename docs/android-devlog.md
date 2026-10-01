@@ -1306,3 +1306,32 @@ constants block. Guards against the CODE_GOTO=731 class of bug:
 tests that assert `code == CODE_X` are circular and can never
 catch a wrong constant. All 16 values cross-checked against the
 Taskomater code table — every other constant was correct.
+
+### Oct 1: 30-Minute Trigger Delay → WiFi Connected Profile
+
+User reported the flash appeared but no connectivity for ~30 min.
+The persistent log (kept since yesterday) showed a clean ~8s
+successful run at 10:47 — so the script worked; the *trigger* was
+late.
+
+Timeline from WiFi state machine records:
+- 10:17:52 — Android auto-joined cmvwifi (L3 provisioning complete)
+- 10:46:57 — Tasker MonitorService/ExecuteService active
+- 10:47:02 — WiFi Near finally fired ConnectAndRun → success
+
+User confirmed the phone was awake and in use 10:20–10:30, ruling
+out doze. Root cause: WiFi Near polls WiFi *scan results*, and
+Android throttles app-requested scans for background apps to
+roughly one per 30 minutes — matching the observed delay almost
+exactly. Android's own auto-join had connected at 10:17 regardless.
+
+**Fix:** profile trigger switched from WiFi Near (state 170) to
+WiFi Connected (state 160) — fires on the association event, no
+scan dependency. Args verified against real Tasker exports:
+`Str arg0`=SSID, `Str arg1`=MAC, `Str arg2`=IP,
+`Int arg3=2` (Active). The If/Goto already-connected branch now
+becomes the normal path; Connect to WiFi remains only as a
+manual-run fallback.
+
+WiFi Near remains correct for the legacy pure-Tasker project, where
+Tasker itself did the connecting.

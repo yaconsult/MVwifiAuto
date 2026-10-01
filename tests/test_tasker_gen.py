@@ -21,6 +21,7 @@ from mvwifi_auto.tasker_gen import (
     CODE_VARIABLE_SET,
     CODE_VARIABLE_SPLIT,
     CODE_WAIT,
+    CODE_WIFI_CONNECTED_STATE,
     CODE_WIFI_NEAR_STATE,
     OP_EQUALS,
     TaskerArg,
@@ -74,6 +75,7 @@ class TestActionCodes:
             (CODE_HTTP_REQUEST, 339),
             (CODE_CONNECT_WIFI, 398),
             (CODE_WIFI_NEAR_STATE, 170),
+            (CODE_WIFI_CONNECTED_STATE, 160),
             (CODE_GOTO, 135),
             (CODE_TERMUX_TASK, 1256900802),
         ],
@@ -415,6 +417,24 @@ class TestTermuxProject:
         assert profile is not None
         assert profile.find("nme").text == "cmvwifi Auto Connect"
         assert profile.find("mid0").text == "80"
+
+    def test_profile_uses_wifi_connected_state(self):
+        """Termux profile triggers on WiFi Connected, not WiFi Near.
+
+        WiFi Near polls scan results, which Android throttles to
+        roughly one per 30 min for background apps — observed as a
+        ~29-minute delay before portal handling. WiFi Connected
+        (state code 160) fires on the association event itself.
+        """
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        state = root.find("Profile").find("State")
+        assert state.find("code").text == "160"
+        # arg0 = SSID, arg3 = Active (2 = connected)
+        assert state.find("Str").text == "cmvwifi"
+        ints = state.findall("Int")
+        assert ints[0].get("val") == "2"
 
     def test_run_portal_script_has_termux_plugin(self):
         """Test that RunPortalScript uses the Termux:Tasker plugin."""

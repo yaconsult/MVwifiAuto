@@ -52,6 +52,7 @@ CODE_VARIABLE_SEARCH_REPLACE = 598
 CODE_HTTP_REQUEST = 339
 CODE_CONNECT_WIFI = 398
 CODE_WIFI_NEAR_STATE = 170
+CODE_WIFI_CONNECTED_STATE = 160
 
 # Termux:Tasker plugin action code (from official Termux:Tasker template export)
 CODE_TERMUX_TASK = 1256900802
@@ -803,19 +804,25 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
 
 
 def _build_cmvwifi_profile_termux() -> TaskerProfile:
-    """Build the cmvwifi Auto Connect profile (id=2) — Termux approach."""
+    """Build the cmvwifi Auto Connect profile (id=2) — Termux approach.
+
+    Uses WiFi Connected rather than WiFi Near: Android auto-joins
+    cmvwifi itself, and WiFi Connected fires on the association event
+    immediately. WiFi Near depends on WiFi scans, which Android
+    throttles to ~1 per 30 min for background apps — observed as a
+    ~29-minute delay between association and portal handling while
+    the phone was idle.
+    """
     return TaskerProfile(
         id=2,
         name="cmvwifi Auto Connect",
         state=TaskerState(
-            code=CODE_WIFI_NEAR_STATE,
+            code=CODE_WIFI_CONNECTED_STATE,
             args=[
                 TaskerArg.str_arg(0, "cmvwifi"),   # SSID
                 TaskerArg.str_arg(1),              # MAC (empty = any)
-                TaskerArg.str_arg(2),              # Capabilities (empty = any)
-                TaskerArg.int_arg(3, 0),           # Min Activate Signal Level
-                TaskerArg.int_arg(4, 0),           # Channel (0 = any)
-                TaskerArg.int_arg(5, 0),           # Toggle WiFi (0 = off)
+                TaskerArg.str_arg(2),              # IP (empty = any)
+                TaskerArg.int_arg(3, 2),           # Active (2 = connected)
             ],
         ),
         task_id=80,  # ConnectAndRun
@@ -835,7 +842,7 @@ def build_termux_project() -> TaskerProject:
           RunPortalScript
 
     Profile:
-        - cmvwifi Auto Connect: WiFi Near → ConnectAndRun
+        - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
 
     Returns:
         A :class:`TaskerProject` ready for XML generation.

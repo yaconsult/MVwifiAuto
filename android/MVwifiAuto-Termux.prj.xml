@@ -7,13 +7,11 @@
 		<mid0>80</mid0>
 		<nme>cmvwifi Auto Connect</nme>
 		<State sr="con0" ve="2">
-			<code>170</code>
+			<code>160</code>
 			<Str sr="arg0" ve="3">cmvwifi</Str>
 			<Str sr="arg1" ve="3" />
 			<Str sr="arg2" ve="3" />
-			<Int sr="arg3" val="0" />
-			<Int sr="arg4" val="0" />
-			<Int sr="arg5" val="0" />
+			<Int sr="arg3" val="2" />
 		</State>
 	</Profile>
 	<Project sr="proj0" ve="2">
