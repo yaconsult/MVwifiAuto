@@ -11,7 +11,8 @@
 - [Service Stops After Suspend/Resume](#service-stops-after-suspendresume)
 
 **Android / Termux:**
-- [WiFi Near profile never activates](#wifi-near-profile-never-activates)
+- ["cmvwifi Auto Connect" profile doesn't fire](#cmvwifi-auto-connect-profile-doesnt-fire)
+- [Connected to cmvwifi but no internet for a long time](#connected-to-cmvwifi-but-no-internet-for-a-long-time)
 - [Termux plugin times out (error code 2)](#termux-plugin-times-out-plugin-did-not-respond-before-timing-out-error-code-2)
 - [Delay between "Portal handling complete" and working internet](#delay-between-portal-handling-complete-and-working-internet)
 - [HTTP requests timing out with cellular ON](#http-requests-timing-out-with-cellular-on)
@@ -382,20 +383,21 @@ When reporting issues, include:
 
 ## Android/Termux Issues
 
-### WiFi Near profile never activates
+### "cmvwifi Auto Connect" profile doesn't fire
 
-**Problem**: The `cmvwifi Auto Connect` profile is enabled (green
-dot) but never turns green even when cmvwifi is visible in the
-WiFi scan list.
+**Problem**: The profile is enabled (green dot) but never activates
+when the phone is on cmvwifi.
 
-**Cause**: The imported profile may have wrong WiFi Near arg order.
-Tasker normalizes imported args by type, not by index — if an Int
-is sent where a Str is expected, the value ends up in the wrong
-position. In our case, `Int 0` for arg1 became `Str "0"` for the
-MAC field, meaning the profile looked for a network with MAC
-address "0" which never matches.
+**Cause**: Wrong or stale import. The current profile uses **WiFi
+Connected** (fires instantly when Android associates to cmvwifi).
+An older import may still be a WiFi Near profile, which polls scan
+results — throttled by Android to roughly once per 30 minutes for
+background apps — or may have broken args from an old generator bug
+(an Int sent where a Str was expected became `MAC="0"`).
 
-**Fix**: Regenerate and re-import the Tasker XML:
+**Fix**: Delete the `MVwifiAuto-Termux` project in Tasker and
+re-import the current XML. In the imported profile, verify it says
+**WiFi Connected** with SSID `cmvwifi` — not WiFi Near.
 
 ```bash
 cd ~/DevinProjects/MVwifiAuto
@@ -403,13 +405,27 @@ uv run python -m mvwifi_auto.tasker_gen --termux -o android/MVwifiAuto-Termux.pr
 adb push android/MVwifiAuto-Termux.prj.xml /sdcard/Tasker/projects/
 ```
 
-Then import the project in Tasker (long-press bottom nav bar →
-Import Project → `MVwifiAuto-Termux`).
+**Verify**: Toggle WiFi off/on while connected via adb, or check
+`~/storage/shared/Tasker/mvwifi_history.log` — every trigger appends
+a `tasker | ConnectAndRun fired` marker.
 
-**Verify**: After importing, the profile should activate when
-near the target SSID. You can test at home by creating a WiFi
-Near profile for a visible network (e.g. `dd-wrt`) — it should
-turn green within 60 seconds.
+### Connected to cmvwifi but no internet for a long time
+
+**Problem**: The phone shows it is connected to cmvwifi, but apps
+report no internet for many minutes after arriving.
+
+**Cause**: The captive portal wasn't accepted yet — the trigger
+ran late. With an old WiFi Near profile, Android's scan throttling
+can delay Tasker ~30 min after the actual association. With WiFi
+Connected this can't happen; it fires at association.
+
+**Diagnose**: Check `~/storage/shared/Tasker/mvwifi_history.log`
+and compare the `tasker | ConnectAndRun fired` timestamp with when
+the phone actually connected (Settings → WiFi, or logcat). A large
+gap means a stale WiFi Near import.
+
+**Fix**: Same as above — re-import the current XML so the profile
+is WiFi Connected.
 
 ### Termux plugin times out: "plugin did not respond before timing out, error code 2"
 
