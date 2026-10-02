@@ -48,6 +48,13 @@ fi
 echo "Root: OK"
 echo ""
 
+# Termux app uid — files pushed via su must be owned by it or Termux
+# can't modify them later (read/exec is fine either way, but keep
+# ownership consistent with what Termux itself would create).
+TERMUX_UID=$(adb shell "su -c 'stat -c %u $TERMUX_HOME'" 2>/dev/null | tr -d ' \r')
+echo "Termux uid: $TERMUX_UID"
+echo ""
+
 # --- Step 1: Push Tasker XML ---
 echo "[1/6] Pushing Tasker XML..."
 if [ ! -f "$TASKER_XML" ]; then
@@ -65,7 +72,7 @@ echo "[2/6] Creating Termux wrapper scripts..."
 adb shell "su -c 'mkdir -p $TASKER_DIR'"
 for name in mvwifi_portal costco_portal costco_probe cmvwifi_nudge; do
     adb push "$REPO_DIR/android/$name" "/sdcard/$name.tmp"
-    adb shell "su -c 'cp /sdcard/$name.tmp $TASKER_DIR/$name && chmod 755 $TASKER_DIR/$name && rm /sdcard/$name.tmp'"
+    adb shell "su -c 'cp /sdcard/$name.tmp $TASKER_DIR/$name && chmod 755 $TASKER_DIR/$name && chown $TERMUX_UID:$TERMUX_UID $TASKER_DIR/$name && rm /sdcard/$name.tmp'"
     echo "  Created: $TASKER_DIR/$name"
 done
 echo ""
