@@ -409,7 +409,7 @@ class TestTermuxProject:
         assert task_names == {
             "RunPortalScript",
             "ConnectAndRun",
-            "CostcoProbe",
+            "CostcoConnect",
         }
 
     def test_profile_links_to_connect_and_run(self):
@@ -613,7 +613,7 @@ class TestTermuxProject:
         assert "mvwifi_history.log" in first.find("Str").text
 
     def test_costco_profile(self):
-        """Costco WiFi Connected profile triggers CostcoProbe on the
+        """Costco WiFi Connected profile triggers CostcoConnect on the
         'Costco Member Wifi' SSID."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
@@ -623,31 +623,26 @@ class TestTermuxProject:
         costco = next(
             p for p in profiles if p.find("nme").text == "Costco WiFi Connected"
         )
-        assert costco.find("mid0").text == "90"  # CostcoProbe
+        assert costco.find("mid0").text == "90"  # CostcoConnect
         state = costco.find("State")
         assert state.find("code").text == "160"  # WiFi Connected
         assert state.find("Str").text == "Costco Member Wifi"
 
-    def test_costco_probe_task_runs_wrapper(self):
-        """CostcoProbe calls the costco_probe Termux wrapper with a
-        timeout long enough for the deep-link wait window."""
+    def test_costco_connect_task_runs_wrapper(self):
+        """CostcoConnect calls the costco_portal Termux wrapper."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        probe = next(t for t in tasks if t.find("nme").text == "CostcoProbe")
-        actions = probe.findall("Action")
+        task = next(t for t in tasks if t.find("nme").text == "CostcoConnect")
+        actions = task.findall("Action")
         # A1: history marker Write File
         assert actions[0].find("code").text == str(CODE_WRITE_FILE)
         # A2: root self-heal Run Shell
         assert actions[1].find("code").text == str(CODE_RUN_SHELL)
-        # A3: Termux plugin invoking costco_probe
+        # A3: Termux plugin invoking costco_portal
         assert actions[2].find("code").text == str(CODE_TERMUX_TASK)
         bundle_xml = tostring(
             actions[2].find("Bundle"), encoding="unicode"
         )
-        assert "costco_probe" in bundle_xml
-        # arg3: plugin timeout — probe waits ~25s for the deep link
-        ints = actions[2].findall("Int")
-        assert ints[0].get("val") == "240"
-        assert ints[0].get("sr") == "arg3"
+        assert "costco_portal" in bundle_xml

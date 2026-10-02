@@ -1418,3 +1418,63 @@ datum the probe's logcat capture records.
   render + deep-link dispatch (`--wait` adjustable).
 - Nothing about the auth flow (credentials, OAuth tokens, session
   cookies) is captured — only URLs, intent URIs, and status codes.
+
+## Session 26: Costco Protocol Captured — App Launch Is Not Auth (2026-10-01)
+
+### The field capture worked end-to-end
+
+`CostcoProbe` fired on association at 14:28:37, opened the portal
+URL in Chrome via `am start`, and recorded the full intent trail —
+the first real data on the Costco flow (the 9/17 laptop capture had
+run while disconnected and held only a WiFi scan).
+
+### Findings
+
+- Portal vendor is **Juniper Mist** (`portal.gc1.mist.com`) — a real
+  internet host reachable pre-auth through the walled garden. The
+  redirect carries `ap_mac`, `wlan_id`, `client_mac`, `url` params.
+- The page is a real HTML form (not blank-to-curl as believed —
+  `portal.html` is 38KB). Three auth forms present: SMS code, email
+  code (both hidden), and the visible `singleAuthForm` — a plain
+  TOS-accept: `tos=true` checkbox + `auth_method=passphrase` submit
+  + hidden session fields. **No membership check, no credentials.**
+- The Costco app launch is cosmetic: the POST success redirect goes
+  to `https://www.costco.com/`, which Android app-links into the
+  installed app (`VIEW ... dat=https://www.costco.com/
+  cmp=com.costco.app.android/.ui.main.MainActivity` at 14:28:55).
+  The app just loaded its homepage — ads and content calls, nothing
+  auth-related.
+- `internet_ok=true` at probe exit (14:29:09). User-perceived "not
+  connected" was Android's async re-validation lag — pressing the
+  WiFi tile forced the re-check.
+- So earlier reports of app/fingerprint login were either a
+  different warehouse config or a since-changed flow.
+
+### Implementation
+
+- `costco_portal.py` rewritten: `detect_captive_portal` → GET portal
+  page → `find_tos_form` (prefers `auth_method` submit, falls back to
+  `tos` checkbox) → `build_post_data` (hidden fields with HTML
+  entity unescaping — `&amp;` in `url`/`action` must decode) → POST
+  → verify. Refuses if only access-code forms exist.
+- `portal_analyzer.parse_forms` now captures `<button>` submit
+  elements (previously input[type=submit] only — the Mist form's
+  submit is a `<button>`, which input[type=submit] missed entirely).
+- Tasker project: `Costco WiFi Connected` profile → renamed
+  `CostcoConnect` task → `costco_portal` wrapper
+  (`python -m mvwifi_auto.costco_portal`, logs to
+  `~/storage/shared/costco_portal.log`). `costco_probe` wrapper kept
+  deployed for on-site debugging of variant warehouses.
+- Verbose logging throughout until the flow is confirmed live:
+  every step logged (detection, page fetch, form selection, POST
+  fields/response, verification), plus `--debug-dir` failure
+  artifacts — the raw portal HTML is saved to
+  `~/storage/shared/costco_debug/` whenever no TOS form is found or
+  the POST is rejected, so a variant warehouse is diagnosable
+  without a re-visit.
+- 222 tests pass; live verification pending next Costco visit.
+
+### Watch items
+
+- Other warehouses may enable the SMS/email access-code variants.
+- Hidden fields are per-session — always parsed, never hardcoded.

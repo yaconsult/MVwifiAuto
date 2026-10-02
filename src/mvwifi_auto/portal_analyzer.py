@@ -45,6 +45,11 @@ _ACTION_PATTERN = re.compile(r'action=["\']([^"\']+)["\']', re.IGNORECASE)
 _METHOD_PATTERN = re.compile(r'method=["\']([^"\']+)["\']', re.IGNORECASE)
 _CHECKBOX_PATTERN = re.compile(r'<input[^>]*type=["\']checkbox["\'][^>]*>', re.IGNORECASE)
 _SUBMIT_PATTERN = re.compile(r'<input[^>]*type=["\']submit["\'][^>]*>', re.IGNORECASE)
+# <button> elements act as submit buttons unless type="button"/"reset"
+# (the Mist portal uses <button type='submit'> — an input-only pattern
+# would miss it entirely)
+_BUTTON_PATTERN = re.compile(r"<button[^>]*>", re.IGNORECASE)
+_BUTTON_NONSUBMIT_PATTERN = re.compile(r'type=["\'](?:button|reset)["\']', re.IGNORECASE)
 _HIDDEN_PATTERN = re.compile(r'<input[^>]*type=["\']hidden["\'][^>]*>', re.IGNORECASE)
 _NAME_PATTERN = re.compile(r'name=["\']([^"\']+)["\']', re.IGNORECASE)
 _VALUE_PATTERN = re.compile(r'value=["\']([^"\']*)["\']', re.IGNORECASE)
@@ -186,7 +191,13 @@ def parse_forms(html: str) -> list[PortalForm]:
                 )
             )
 
-        for sb_tag in _SUBMIT_PATTERN.findall(inner_html):
+        submit_tags = _SUBMIT_PATTERN.findall(inner_html)
+        submit_tags += [
+            tag
+            for tag in _BUTTON_PATTERN.findall(inner_html)
+            if not _BUTTON_NONSUBMIT_PATTERN.search(tag)
+        ]
+        for sb_tag in submit_tags:
             form.fields.append(
                 FormField(
                     field_type="submit",

@@ -137,12 +137,14 @@ if [ "$HAVE_ROOT" -eq 1 ]; then
         record FAIL "wrapper script" "missing or not executable at $TASKER_DIR/mvwifi_portal"
     fi
 
-    if adb_su "test -x $TASKER_DIR/costco_probe"; then
-        record PASS "costco_probe wrapper" "present and executable"
-    else
-        record WARN "costco_probe wrapper" \
-            "missing; Costco capture profile won't work; re-run deploy_android.sh"
-    fi
+    for wrapper in costco_portal costco_probe; do
+        if adb_su "test -x $TASKER_DIR/$wrapper"; then
+            record PASS "$wrapper wrapper" "present and executable"
+        else
+            record WARN "$wrapper wrapper" \
+                "missing; Costco profile won't work; re-run deploy_android.sh"
+        fi
+    done
 
     if adb_su "test -f /data/data/com.termux/files/usr/bin/mvwifi-android"; then
         record PASS "mvwifi-android installed" "in Termux bin"
@@ -150,12 +152,14 @@ if [ "$HAVE_ROOT" -eq 1 ]; then
         record FAIL "mvwifi-android installed" "not in Termux bin; run termux_setup.sh"
     fi
 
-    if adb_su "test -f $TERMUX_HOME/MVwifiAuto/src/mvwifi_auto/costco_probe.py"; then
-        record PASS "costco_probe module" "in ~/MVwifiAuto clone"
-    else
-        record WARN "costco_probe module" \
-            "not in ~/MVwifiAuto clone; run 'git pull' in Termux"
-    fi
+    for module in costco_portal costco_probe; do
+        if adb_su "test -f $TERMUX_HOME/MVwifiAuto/src/mvwifi_auto/$module.py"; then
+            record PASS "$module module" "in ~/MVwifiAuto clone"
+        else
+            record WARN "$module module" \
+                "not in ~/MVwifiAuto clone; run 'git pull' in Termux"
+        fi
+    done
 fi
 
 if adb_sh "test -f /sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml"; then

@@ -268,11 +268,12 @@ android/MVwifiAuto-Termux.prj.xml
 ```
 
 This contains the `ConnectAndRun`, `RunPortalScript`, and
-`CostcoProbe` tasks, plus the `cmvwifi Auto Connect` and `Costco
+`CostcoConnect` tasks, plus the `cmvwifi Auto Connect` and `Costco
 WiFi Connected` profiles — all pre-configured for the
-Termux:Tasker plugin. The Costco profile only captures portal data
-(see `docs/costco-portal-capture.md`); delete that profile if you
-don't want it.
+Termux:Tasker plugin. The Costco profile auto-accepts the Mist
+TOS portal on `Costco Member Wifi` (see
+`docs/costco-portal-capture.md`); delete that profile if you don't
+want it.
 
 To import it:
 

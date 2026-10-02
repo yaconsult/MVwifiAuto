@@ -860,30 +860,28 @@ def _build_cmvwifi_profile_termux() -> TaskerProfile:
     )
 
 
-def _build_costco_probe_task() -> TaskerTask:
-    """Build the CostcoProbe task (id=90) — Termux capture probe.
+def _build_costco_connect_task() -> TaskerTask:
+    """Build the CostcoConnect task (id=90) — Termux portal handler.
 
-    Runs mvwifi-costco-probe via the Termux:Tasker plugin.  The probe
-    captures the portal redirect, HTML/JS, the app-launch intent from
-    logcat, and post-probe connectivity into
-    ~/storage/shared/costco_capture/.  The plugin timeout is 240s —
-    the probe sleeps ~25s waiting for the portal page's deep link.
+    Runs the Costco captive-portal handler via the Termux:Tasker
+    plugin.  The Costco portal is a Juniper Mist TOS-accept page —
+    POST-replayable, no app/login needed (captured 2026-10-01).
     """
     return TaskerTask(
         id=90,
-        name="CostcoProbe",
+        name="CostcoConnect",
         actions=[
             # A1: History marker (same shared log as ConnectAndRun).
             write_file(
                 "Tasker/mvwifi_history.log",
-                "%TIMES | tasker | CostcoProbe fired",
+                "%TIMES | tasker | CostcoConnect fired",
             ),
             # A2: Re-apply Termux protections before the plugin call.
             termux_self_heal(),
-            # A3: Run the capture probe.
-            termux_task("costco_probe", background=True, timeout=240),
+            # A3: Run the Costco portal handler.
+            termux_task("costco_portal", background=True),
             # A4: Flash completion.
-            flash("Costco capture complete"),
+            flash("Costco portal handled"),
         ],
     )
 
@@ -891,9 +889,8 @@ def _build_costco_probe_task() -> TaskerTask:
 def _build_costco_profile_termux() -> TaskerProfile:
     """Build the Costco Member Wifi profile (id=3) — Termux approach.
 
-    Fires on association with the Costco SSID and runs CostcoProbe,
-    which captures the portal flow (including the app-launch intent)
-    to ~/storage/shared/costco_capture/.
+    Fires on association with the Costco SSID and runs CostcoConnect,
+    which POSTs the Mist TOS-accept form and verifies connectivity.
     """
     return TaskerProfile(
         id=3,
@@ -907,7 +904,7 @@ def _build_costco_profile_termux() -> TaskerProfile:
                 TaskerArg.int_arg(3, 2),                     # Active
             ],
         ),
-        task_id=90,  # CostcoProbe
+        task_id=90,  # CostcoConnect
     )
 
 
@@ -926,7 +923,7 @@ def build_termux_project() -> TaskerProject:
     Profiles:
         - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
         - Costco WiFi Connected: WiFi Connected (Costco Member Wifi)
-          → CostcoProbe
+          → CostcoConnect
 
     Returns:
         A :class:`TaskerProject` ready for XML generation.
@@ -934,7 +931,7 @@ def build_termux_project() -> TaskerProject:
     tasks = [
         _build_run_portal_script_task_termux(),
         _build_connect_and_run_task_termux(),
-        _build_costco_probe_task(),
+        _build_costco_connect_task(),
     ]
     profiles = [_build_cmvwifi_profile_termux(), _build_costco_profile_termux()]
     return TaskerProject(

@@ -46,7 +46,7 @@ if [ ! -f "$ANDROID_SRC/mvwifi_portal" ]; then
     ANDROID_SRC="$HOME_DIR/MVwifiAuto/android"
 fi
 mkdir -p "$TASKER_DIR"
-for name in mvwifi_portal costco_probe; do
+for name in mvwifi_portal costco_portal costco_probe; do
     cp "$ANDROID_SRC/$name" "$TASKER_DIR/$name"
     chmod 755 "$TASKER_DIR/$name"
     echo "  Created: $TASKER_DIR/$name"

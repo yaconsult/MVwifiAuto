@@ -63,7 +63,7 @@ echo ""
 # --- Step 2: Create wrapper scripts ---
 echo "[2/6] Creating Termux wrapper scripts..."
 adb shell "su -c 'mkdir -p $TASKER_DIR'"
-for name in mvwifi_portal costco_probe; do
+for name in mvwifi_portal costco_portal costco_probe; do
     adb push "$REPO_DIR/android/$name" "/sdcard/$name.tmp"
     adb shell "su -c 'cp /sdcard/$name.tmp $TASKER_DIR/$name && chmod 755 $TASKER_DIR/$name && rm /sdcard/$name.tmp'"
     echo "  Created: $TASKER_DIR/$name"

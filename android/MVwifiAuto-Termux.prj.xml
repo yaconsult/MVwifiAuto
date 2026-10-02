@@ -152,12 +152,12 @@
 	</Task>
 	<Task sr="task90">
 		<id>90</id>
-		<nme>CostcoProbe</nme>
+		<nme>CostcoConnect</nme>
 		<rty>2</rty>
 		<Action sr="act0" ve="7">
 			<code>410</code>
 			<Str sr="arg0" ve="3">Tasker/mvwifi_history.log</Str>
-			<Str sr="arg1" ve="3">%TIMES | tasker | CostcoProbe fired</Str>
+			<Str sr="arg1" ve="3">%TIMES | tasker | CostcoConnect fired</Str>
 			<Int sr="arg2" val="1" />
 			<Int sr="arg3" val="1" />
 			<Int sr="arg4" val="0" />
@@ -181,7 +181,7 @@
 				<Vals sr="val">
 					<com.termux.execute.arguments />
 					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
-					<com.termux.tasker.extra.EXECUTABLE>costco_probe</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE>costco_portal</com.termux.tasker.extra.EXECUTABLE>
 					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
 					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
 					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
@@ -189,7 +189,7 @@
 					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
 					<com.termux.tasker.extra.WORKDIR />
 					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
-					<com.twofortyfouram.locale.intent.extra.BLURB>costco_probe</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB>costco_portal</com.twofortyfouram.locale.intent.extra.BLURB>
 					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
 					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
 					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
@@ -197,12 +197,12 @@
 			</Bundle>
 			<Str sr="arg1" ve="3">com.termux.tasker</Str>
 			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
-			<Int sr="arg3" val="240" />
+			<Int sr="arg3" val="60" />
 			<Int sr="arg4" val="0" />
 		</Action>
 		<Action sr="act3" ve="7">
 			<code>548</code>
-			<Str sr="arg0" ve="3">Costco capture complete</Str>
+			<Str sr="arg0" ve="3">Costco portal handled</Str>
 			<Int sr="arg1" val="0" />
 		</Action>
 	</Task>

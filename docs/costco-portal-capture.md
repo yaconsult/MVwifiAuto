@@ -1,7 +1,38 @@
-# Costco WiFi Portal Capture
+# Costco WiFi Portal — Protocol & Capture
 
-How to collect the information needed to finish `costco_portal.py`
-and what to do with it afterward.
+The Costco portal protocol was captured on-device 2026-10-01 and is
+now **implemented** in `src/mvwifi_auto/costco_portal.py` (see
+"Captured protocol" below). The rest of this document is the capture
+runbook — kept for re-verification at other warehouses and for any
+future protocol change.
+
+## Captured protocol (Mountain View wh00143, 2026-10-01)
+
+- Vendor: **Juniper Mist** — redirect goes to
+  `https://portal.gc1.mist.com/logon?ap_mac=..&ap_name=..&site_name=..&ssid=..&wlan_id=..&client_mac=..&url=..`
+- The page carries three auth forms; the visible one
+  (`singleAuthForm`) is a **plain TOS-accept**: hidden fields
+  (`ap_mac`, `client_mac`, `wlan_id`, `url`, `direct`) echoed from
+  the redirect URL, checkbox `tos=true`, submit
+  `auth_method=passphrase`. No credentials, no membership check.
+- `POST logon?<params>` → redirect to `https://www.costco.com/` →
+  device authorized. Probe confirmed `internet_ok` within seconds.
+- **The Costco app is not part of auth.** The POST's success redirect
+  targets `www.costco.com`, which Android resolves to the app via its
+  app-links — the app merely opens to its homepage.
+- Caveat: hidden `submitSms`/`submitEmail` forms exist in the same
+  page. If a warehouse ever enables the access-code variant as the
+  primary method, `find_tos_form()` returns None and the handler
+  refuses rather than guessing.
+
+**Logging (until the flow is proven everywhere):** the Tasker
+wrapper runs `mvwifi_auto.costco_portal --verbose` with
+`--log-file ~/storage/shared/costco_portal.log` (per-run detail) and
+`--debug-dir ~/storage/shared/costco_debug/` (failure artifacts —
+the raw portal HTML is saved whenever no replayable form is found,
+plus POST-rejection summaries). Manual run for diagnosis:
+`python -m mvwifi_auto.costco_portal --verbose --debug-dir
+~/storage/shared/costco_debug`.
 
 ## Goal
 
