@@ -398,18 +398,19 @@ class TestTermuxProject:
         root = fromstring(xml_text)
         assert root.find("Project").find("name").text == "MVwifiAuto-Termux"
 
-    def test_has_three_tasks(self):
-        """Test that the Termux project has 3 tasks."""
+    def test_has_four_tasks(self):
+        """Test that the Termux project has 4 tasks."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        assert len(tasks) == 3
+        assert len(tasks) == 4
         task_names = {t.find("nme").text for t in tasks}
         assert task_names == {
             "RunPortalScript",
             "ConnectAndRun",
             "CostcoConnect",
+            "NudgeWifi",
         }
 
     def test_profile_links_to_connect_and_run(self):
@@ -619,7 +620,7 @@ class TestTermuxProject:
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         profiles = root.findall("Profile")
-        assert len(profiles) == 2
+        assert len(profiles) == 3
         costco = next(
             p for p in profiles if p.find("nme").text == "Costco WiFi Connected"
         )
@@ -646,3 +647,52 @@ class TestTermuxProject:
             actions[2].find("Bundle"), encoding="unicode"
         )
         assert "costco_portal" in bundle_xml
+
+    def test_nudge_profile_uses_time_context(self):
+        """cmvwifi Periodic Nudge fires every 15 min via a Time context.
+
+        <Time> serializes as fh/fm/th/tm (-1 = unset, whole day) plus
+        rep/repval for the repeat (unit 2 = minutes) — layout verified
+        against real Tasker exports.  Android's screen-off PNO scans
+        are throttled and its network selector backs off cmvwifi, so
+        a periodic nudge covers the gap WiFi Near/Display On leave.
+        """
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        profile = next(
+            p
+            for p in root.findall("Profile")
+            if p.find("nme").text == "cmvwifi Periodic Nudge"
+        )
+        assert profile.find("mid0").text == "100"  # NudgeWifi
+        assert profile.find("State") is None
+        time = profile.find("Time")
+        assert time is not None
+        assert time.find("fh").text == "-1"
+        assert time.find("fm").text == "-1"
+        assert time.find("th").text == "-1"
+        assert time.find("tm").text == "-1"
+        assert time.find("rep").text == "2"  # repeat unit: minutes
+        assert time.find("repval").text == "15"
+
+    def test_nudge_task_runs_wrapper(self):
+        """NudgeWifi logs a marker then calls the cmvwifi_nudge wrapper."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        task = next(
+            t
+            for t in root.findall("Task")
+            if t.find("nme").text == "NudgeWifi"
+        )
+        actions = task.findall("Action")
+        # A1: history marker Write File
+        assert actions[0].find("code").text == str(CODE_WRITE_FILE)
+        assert "mvwifi_history.log" in actions[0].find("Str").text
+        # A2: Termux plugin invoking cmvwifi_nudge
+        assert actions[1].find("code").text == str(CODE_TERMUX_TASK)
+        bundle_xml = tostring(
+            actions[1].find("Bundle"), encoding="unicode"
+        )
+        assert "cmvwifi_nudge" in bundle_xml

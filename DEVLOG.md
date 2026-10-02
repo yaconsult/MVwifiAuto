@@ -493,6 +493,45 @@ nicely for Android/Termux. Real niche if we go generic.
 
 ---
 
+## 2026-10-02 - Android: cmvwifi Auto-Join Nudge
+
+### Completed
+- [x] Diagnosed the 15-30 min cmvwifi join delay as Android network
+      selector backoff (portal "no internet" verdicts + historical
+      DHCP/association failures + screen-off PNO scan throttling), not
+      Tasker/Termux — handler ran in 9 s once associated
+- [x] `src/mvwifi_auto/root_shell.py` — `find_su`/`run_root` extracted
+      from `costco_probe.py` (shared root discovery)
+- [x] `src/mvwifi_auto/wifi_nudge.py` (`mvwifi-nudge`) — parses
+      `cmd wifi status`/`list-scan-results`, issues
+      `cmd wifi connect-network` only when target visible and not
+      associated; `--dry-run`/`--json`/`--markdown`
+- [x] `android/cmvwifi_nudge` wrapper (wake lock, bounded history log)
+- [x] `tasker_gen.py`: `TaskerTime` context + `NudgeWifi` task (id=100)
+      + `cmvwifi Periodic Nudge` profile (every 15 min); Termux XML
+      regenerated
+- [x] `deploy_android.sh`/`termux_setup.sh`/`verify_android.sh`
+      updated for the new wrapper and modules
+- [x] Docs updated (termux-setup, troubleshooting, android-devlog)
+
+### Technical Decisions
+1. **Periodic Time profile over WiFi Near/Display On** — WiFi Near
+   inherits the same ~30-min background scan throttle; screen-on
+   already triggers Android's own retry (connected within 1 s once
+   the screen lit up). A 15-min timer directly covers the dead zone.
+2. **Never disrupt a working link** — the nudge exits if any WiFi is
+   connected; it only acts when disconnected and a target is visible.
+3. **`python -m` invocation in the wrapper** — editable install picks
+   up new modules on `git pull` without reinstalling entry points.
+
+### Testing
+- 251 tests pass; mypy strict + ruff clean
+- Parsers verified against real `cmd wifi` output captured on-device
+- Field test pending: watch `mvwifi_history.log` for `nudge` →
+  `ConnectAndRun fired` latency
+
+---
+
 ## Template for Future Entries
 
 ### YYYY-MM-DD - Brief Description

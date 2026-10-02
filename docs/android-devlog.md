@@ -1478,3 +1478,97 @@ run while disconnected and held only a WiFi scan).
 
 - Other warehouses may enable the SMS/email access-code variants.
 - Hidden fields are per-session — always parsed, never hardcoded.
+
+## Session 27: cmvwifi Auto-Join Delay — Periodic Nudge (2026-10-02)
+
+### Symptom and diagnosis
+
+The phone eventually connected to cmvwifi the next morning, but only
+after ~15-30 minutes. Costco had worked the day before. The WiFi
+event log showed the delay was entirely in Android's auto-join, not
+our pipeline:
+
+- `10:03:52` — dropped home WiFi, screen off, ~10 min of nothing
+- `10:13:18` — `CMD_START_CONNECT` to cmvwifi the instant `screen=on`
+- `10:13:59` — an app-requested `CMD_CONNECT_NETWORK` (manual tap)
+- `10:14:06` — `ConnectAndRun` fired; portal done in ~9 s
+
+Why Android was reluctant: `cmd wifi list-networks` history showed
+`CMD_UNWANTED_NETWORK` (portal = "no internet" to the validator),
+`numConsecutiveConnectionFailure=2`, DHCP timeouts, an association
+rejection, and one blocklisted BSSID — so the network selector backs
+off, and screen-off PNO scans are throttled on top. "Auto-connect"
+was still enabled; it simply wasn't being tried.
+
+### What was built
+
+A periodic nudge instead of a passive trigger. `tasker_gen.py` gains
+a `TaskerTime` context (`<Time>` element with `fh/fm/th/tm` + `rep=2`
+`repval=15`, format verified against real Tasker exports) generating:
+
+- **`cmvwifi Periodic Nudge` profile** (id=4) — Time context, every
+  15 min, all day. Chosen over WiFi Near (same ~30-min background
+  scan throttle) and Display On (redundant — screen-on already makes
+  Android retry; it connected within 1 s once the screen lit).
+- **`NudgeWifi` task** (id=100) — history marker + Termux plugin call
+  to the new `cmvwifi_nudge` wrapper.
+- **`wifi_nudge.py`** (`mvwifi-nudge`) — checks `cmd wifi status`,
+  scans with `start-scan`/`list-scan-results`, and issues
+  `cmd wifi connect-network <ssid> open` only when a target SSID is
+  visible but unassociated. No-ops when WiFi is off, already on the
+  target, or connected to a *different* SSID (never steals a working
+  link). `--dry-run`, `--json`, `--markdown` supported.
+- **`root_shell.py`** — `find_su`/`run_root` extracted from
+  `costco_probe.py` so the nudge shares root discovery instead of
+  duplicating it.
+- The `cmvwifi_nudge` wrapper mirrors the other wrappers: shared
+  bounded history log (`nudge` stage tag), wake lock, `python -m`
+  invocation.
+
+Exit codes: 0 = clean (including all no-ops), 1 = a `cmd wifi`
+command failed, 2 = no root shell.
+
+### Alternatives considered (and why they lost)
+
+- **WiFi Near profile** — inherits the same ~30-min background scan
+  throttle that caused this bug; a trigger that only sees the network
+  when Android decides to scan solves nothing.
+- **Display On event** — screen-on already makes Android retry (it
+  connected within ~1 s once the screen lit). The dead zone is
+  precisely when the screen stays off, so this adds nothing.
+- **Waiting for reputation rehab** — each successful portal
+  completion flips validation to VALIDATED and should slowly repair
+  the score, but it is passive, and every fresh join re-poisons it
+  with a "no internet" verdict until the POST lands.
+- **Tasker "Connect to WiFi" action on a timer** — routes through
+  the Tasker Settings helper and duplicates ConnectAndRun's own
+  connect path; `cmd wifi connect-network` is a direct system call
+  that also re-adds the open network if auto-join is ever toggled off.
+- **`settings put global captive_portal_mode 0`** — disabling portal
+  validation would stop the "no internet" scoring, but it cripples
+  detection for *every* portal (no more "sign in" prompts anywhere)
+  and removes a useful post-fix signal. Too broad a hammer.
+- **WiFi enable toggle as a kick** — `set-wifi-enabled` off/on forces
+  a rescan+rejoin but would drop any *active* connection; the nudge
+  deliberately no-ops whenever the phone is already associated.
+- **Disabling mobile data** — rejected earlier; cellular must keep
+  working, and `SO_BINDTODEVICE` already solved coexistence.
+- **15-minute interval** — average added latency ~7.5 min worst-case
+  15, at a cost of one scan + an occasional connect request; shorter
+  buys little (association + Tasker + portal is ~15 s once it starts)
+  and longer forfeits the point.
+
+### Verification
+
+- 251 tests pass; parsers were written against verbatim `cmd wifi`
+  output captured from the phone.
+- shellcheck + `bash -n` clean on the new wrapper.
+- Field test pending: watch `mvwifi_history.log` for `nudge` lines
+  followed by `ConnectAndRun fired` and measure nudge→portal latency.
+
+### Watch items
+
+- If the phone is parked in range of *another* saved network, the
+  nudge will not switch it — that is deliberate.
+- If Android ever disables auto-connect on cmvwifi, `connect-network`
+  re-adds/updates the saved open network anyway.

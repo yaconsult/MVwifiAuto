@@ -53,12 +53,12 @@ class TestFindSu:
                 result.stdout = ""
             return result
 
-        with patch("mvwifi_auto.costco_probe.subprocess.run", side_effect=fake_run):
+        with patch("mvwifi_auto.root_shell.subprocess.run", side_effect=fake_run):
             assert find_su() == "su"
 
     def test_returns_none_when_unavailable(self):
         with patch(
-            "mvwifi_auto.costco_probe.subprocess.run", side_effect=OSError("nf")
+            "mvwifi_auto.root_shell.subprocess.run", side_effect=OSError("nf")
         ):
             assert find_su() is None
 

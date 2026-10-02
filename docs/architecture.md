@@ -192,6 +192,29 @@ testable module.
 - `PortalReport` - Dataclass with `to_text()` for human-readable output
 - CLI: `mvwifi-analyze-portal --probe-url http://1.1.1.1/ --save-html --interface wlan0`
 
+### `root_shell.py` - Shared Root Shell Helpers
+
+`find_su()` probes the known `su` locations and `run_root()` executes
+commands under it with timeouts. Extracted from `costco_probe.py` so
+every module needing root shares one discovery path.
+
+### `wifi_nudge.py` - Auto-Join Nudge (Android, root)
+
+Compensates for Android deprioritizing cmvwifi in its network
+selector: captive-portal "no internet" verdicts plus historical
+DHCP/association failures poison the selection score, and screen-off
+PNO scans are throttled — observed as 15-30 minutes before auto-join
+retries. Runs periodically from a Tasker Time profile and issues
+`cmd wifi connect-network` when a target SSID is visible but the phone
+is disconnected. Never acts while connected to any network.
+
+**Key Functions**
+- `parse_wifi_status()` / `parse_scan_results()` - Parsers for
+  `cmd wifi` output (verified against on-device captures)
+- `run_nudge()` - Decision + connect request
+- `main()` - CLI entry point (`mvwifi-nudge`, `--dry-run`/`--json`/
+  `--markdown`)
+
 ### `costco_portal.py` - Costco WiFi Portal Handler (Scaffolded)
 
 Handles the Costco WiFi captive portal.  Protocol constants (endpoint
@@ -214,7 +237,7 @@ Costco WiFi to fill in the real values.
 |--------|----------------|---------------------------|
 | Trigger | systemd daemon polls every 60s | Tasker **WiFi Connected** state (fires on association) |
 | Detection | `decide_action()` scans via NetworkManager/D-Bus | WiFi Connected matches SSID at association |
-| Connect | `nmcli device wifi connect cmvwifi` | Android auto-joins cmvwifi; Tasker "Connect to WiFi" is a manual-run fallback |
+| Connect | `nmcli device wifi connect cmvwifi` | Android auto-joins; **Time profile every 15 min** runs `wifi_nudge` → `cmd wifi connect-network` when visible-but-disconnected |
 | Portal detect | HTTP GET + redirect check | Same `captive_portal.py` logic |
 | HTTP routing | Default route (no binding needed) | `SO_BINDTODEVICE` on wlan0 — required to bypass Android's policy routing when cellular is active |
 | Portal accept | POST to `forms/guest_toued` | Same |
@@ -225,12 +248,17 @@ Costco WiFi to fill in the real values.
 The portal-handling code (`captive_portal.py`,
 `wifi_binding.py`) is shared between platforms. The Linux
 daemon owns detection *and* connection; on Android those
-responsibilities are split — Tasker handles detection and
-association, `mvwifi-android` (Termux) handles only the portal.
+responsibilities are split — Android's own stack associates,
+a periodic nudge (rooted `cmd wifi`) patches over Android's
+auto-join backoff, and `mvwifi-android` (Termux) handles only
+the portal.
 
 ### Android Flow (Tasker + Termux)
 
 ```
+0. cmvwifi Periodic Nudge (Time, every 15 min) → NudgeWifi →
+   ~/.termux/tasker/cmvwifi_nudge → wifi_nudge: if disconnected
+   and cmvwifi in scan results → `cmd wifi connect-network`
 1. Tasker WiFi Connected profile fires on association to "cmvwifi"
 2. ConnectAndRun task runs:
    a. If %WIFII already ~ "cmvwifi" → skip to step c

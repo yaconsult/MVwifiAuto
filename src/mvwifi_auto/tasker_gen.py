@@ -146,12 +146,30 @@ class TaskerState:
 
 
 @dataclass
+class TaskerTime:
+    """A profile time context (serializes as ``<Time>``).
+
+    ``from_*``/``to_*`` of -1 means unset (whole day).  When
+    ``repeat_unit`` is non-zero the context fires as an instant event
+    every ``repeat_value`` units between From and To.  Repeat units in
+    Tasker exports: 1 = hours, 2 = minutes.
+    """
+
+    from_hour: int = -1
+    from_minute: int = -1
+    to_hour: int = -1
+    to_minute: int = -1
+    repeat_unit: int = 0
+    repeat_value: int = 0
+
+
+@dataclass
 class TaskerProfile:
-    """A Tasker profile linking a state trigger to a task."""
+    """A Tasker profile linking a context trigger to a task."""
 
     id: int
     name: str
-    state: TaskerState
+    state: TaskerState | TaskerTime
     task_id: int
 
 
@@ -234,10 +252,20 @@ def _add_profile(root: Element, profile: TaskerProfile) -> None:
     SubElement(prof, "mid0").text = str(profile.task_id)
     SubElement(prof, "nme").text = profile.name
 
-    state = SubElement(prof, "State", {"sr": "con0", "ve": "2"})
-    SubElement(state, "code").text = str(profile.state.code)
-    for arg in profile.state.args:
-        _add_arg(state, arg)
+    if isinstance(profile.state, TaskerTime):
+        ctx = SubElement(prof, "Time", {"sr": "con0", "ve": "2"})
+        SubElement(ctx, "fh").text = str(profile.state.from_hour)
+        SubElement(ctx, "fm").text = str(profile.state.from_minute)
+        if profile.state.repeat_unit:
+            SubElement(ctx, "rep").text = str(profile.state.repeat_unit)
+            SubElement(ctx, "repval").text = str(profile.state.repeat_value)
+        SubElement(ctx, "th").text = str(profile.state.to_hour)
+        SubElement(ctx, "tm").text = str(profile.state.to_minute)
+    else:
+        state = SubElement(prof, "State", {"sr": "con0", "ve": "2"})
+        SubElement(state, "code").text = str(profile.state.code)
+        for arg in profile.state.args:
+            _add_arg(state, arg)
 
 
 def _add_project(root: Element, project: TaskerProject) -> None:
@@ -908,6 +936,48 @@ def _build_costco_profile_termux() -> TaskerProfile:
     )
 
 
+def _build_cmvwifi_nudge_task() -> TaskerTask:
+    """Build the NudgeWifi task (id=100) — periodic auto-join nudge.
+
+    Runs the cmvwifi_nudge wrapper via the Termux:Tasker plugin.  The
+    wrapper calls wifi_nudge, which issues ``cmd wifi connect-network``
+    when a target SSID is visible in scan results but Android has not
+    joined it — bypassing the network selector's auto-join backoff.
+    """
+    return TaskerTask(
+        id=100,
+        name="NudgeWifi",
+        actions=[
+            # A1: History marker (same shared log as ConnectAndRun).
+            write_file(
+                "Tasker/mvwifi_history.log",
+                "%TIMES | tasker | NudgeWifi fired",
+            ),
+            # A2: Run the nudge script.  A short timeout is fine —
+            # background mode keeps the script running regardless.
+            termux_task("cmvwifi_nudge", background=True, timeout=45),
+        ],
+    )
+
+
+def _build_cmvwifi_nudge_profile() -> TaskerProfile:
+    """Build the cmvwifi Periodic Nudge profile (id=4).
+
+    A Time context repeating every 15 minutes, all day.  Android's
+    screen-off PNO scans are throttled and the network selector backs
+    off cmvwifi after portal "no internet" verdicts, so periodic
+    nudging covers the gap that WiFi Near (same throttle) and
+    Display On (only helps when the screen is touched) leave.
+    Battery cost is one scan and an occasional connect request.
+    """
+    return TaskerProfile(
+        id=4,
+        name="cmvwifi Periodic Nudge",
+        state=TaskerTime(repeat_unit=2, repeat_value=15),
+        task_id=100,  # NudgeWifi
+    )
+
+
 def build_termux_project() -> TaskerProject:
     """Build the MVwifiAuto Tasker project for the Termux approach.
 
@@ -919,11 +989,14 @@ def build_termux_project() -> TaskerProject:
         - RunPortalScript: runs mvwifi-android via Termux:Tasker plugin
         - ConnectAndRun: connects to cmvwifi, waits for DHCP, calls
           RunPortalScript
+        - CostcoConnect: runs the Costco Mist portal handler
+        - NudgeWifi: periodic auto-join nudge for cmvwifi
 
     Profiles:
         - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
         - Costco WiFi Connected: WiFi Connected (Costco Member Wifi)
           → CostcoConnect
+        - cmvwifi Periodic Nudge: Time (every 15 min) → NudgeWifi
 
     Returns:
         A :class:`TaskerProject` ready for XML generation.
@@ -932,8 +1005,13 @@ def build_termux_project() -> TaskerProject:
         _build_run_portal_script_task_termux(),
         _build_connect_and_run_task_termux(),
         _build_costco_connect_task(),
+        _build_cmvwifi_nudge_task(),
     ]
-    profiles = [_build_cmvwifi_profile_termux(), _build_costco_profile_termux()]
+    profiles = [
+        _build_cmvwifi_profile_termux(),
+        _build_costco_profile_termux(),
+        _build_cmvwifi_nudge_profile(),
+    ]
     return TaskerProject(
         name="MVwifiAuto-Termux",
         profiles=profiles,

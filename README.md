@@ -210,6 +210,12 @@ accepts terms, and verifies internet. Each run overwrites
 `~/storage/shared/mvwifi_tasker.log`; its last line records the
 outcome, so it always describes the most recent run.
 
+Because Android deprioritizes captive-portal networks in its auto-join
+selector (observed: 15-30 min before it retried cmvwifi), a `cmvwifi
+Periodic Nudge` Time profile runs every 15 min and issues `cmd wifi
+connect-network` when cmvwifi is visible but unassociated — it never
+interrupts an active connection and requires root.
+
 See [docs/android-termux-setup.md](docs/android-termux-setup.md)
 for setup instructions, or run `scripts/deploy_android.sh` with the
 phone connected via USB for one-command deployment. Run

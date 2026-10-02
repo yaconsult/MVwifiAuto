@@ -1,0 +1,31 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# cmvwifi auto-join nudge — executed by the Termux:Tasker plugin from
+# a periodic Tasker Time profile (default: every 15 min).
+#
+# Android deprioritizes cmvwifi in its network selector (captive
+# portal = "no internet", plus historical DHCP/association failures),
+# and screen-off scan throttling delays retries — observed on-device
+# as a 15-30 minute gap between the network being visible and Android
+# auto-joining.  This wrapper runs wifi_nudge, which explicitly asks
+# Android to connect when cmvwifi is in scan results but unassociated.
+#
+# Writes lifecycle events to the same shared history log as
+# mvwifi_portal (distinguished by the "nudge" stage tag).  History is
+# bounded to the last 200 lines.
+HIST=/data/data/com.termux/files/home/storage/shared/Tasker/mvwifi_history.log
+PHANTOM="$(/system/bin/settings get global settings_enable_monitor_phantom_procs 2>/dev/null)"
+echo "$(date '+%F %T') | termux | nudge start | phantom=$PHANTOM" >> "$HIST" 2>/dev/null
+
+/system/bin/settings put global settings_enable_monitor_phantom_procs false 2>/dev/null || true
+
+# python -m rather than the mvwifi-nudge entry point: the editable
+# install exposes new modules on git pull without needing a reinstall
+# (entry-point scripts only appear at install time).
+/data/data/com.termux/files/usr/bin/termux-wake-lock
+/data/data/com.termux/files/usr/bin/python -m mvwifi_auto.wifi_nudge --verbose --log-file /data/data/com.termux/files/home/storage/shared/mvwifi_nudge.log
+STATUS=$?
+/data/data/com.termux/files/usr/bin/termux-wake-unlock
+
+echo "$(date '+%F %T') | termux | nudge exit=$STATUS" >> "$HIST" 2>/dev/null
+tail -n 200 "$HIST" > "$HIST.tmp" 2>/dev/null && mv "$HIST.tmp" "$HIST"
+exit $STATUS

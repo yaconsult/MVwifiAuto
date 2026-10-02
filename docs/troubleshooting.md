@@ -12,6 +12,7 @@
 
 **Android / Termux:**
 - ["cmvwifi Auto Connect" profile doesn't fire](#cmvwifi-auto-connect-profile-doesnt-fire)
+- [Phone takes 15-30 minutes to join cmvwifi](#phone-takes-15-30-minutes-to-join-cmvwifi)
 - [Connected to cmvwifi but no internet for a long time](#connected-to-cmvwifi-but-no-internet-for-a-long-time)
 - [Termux plugin times out (error code 2)](#termux-plugin-times-out-plugin-did-not-respond-before-timing-out-error-code-2)
 - [Delay between "Portal handling complete" and working internet](#delay-between-portal-handling-complete-and-working-internet)
@@ -426,6 +427,38 @@ gap means a stale WiFi Near import.
 
 **Fix**: Same as above — re-import the current XML so the profile
 is WiFi Connected.
+
+### Phone takes 15-30 minutes to join cmvwifi
+
+**Problem**: The phone sits in range of cmvwifi but doesn't
+associate for a long time, even though auto-connect is on. Once it
+does join, portal handling completes in seconds.
+
+**Cause**: Android's network selector, not Tasker/Termux. Every
+cmvwifi join initially fails Android's captive-portal validation
+("no internet"), and historical DHCP/association failures further
+poison its score — check `su -c 'cmd wifi list-networks'` or
+`dumpsys wifi` for `CMD_UNWANTED_NETWORK`,
+`numConsecutiveConnectionFailure`, and BSSID blocklist entries.
+Screen-off PNO scans are throttled on top of that.
+
+**Fix**: The `cmvwifi Periodic Nudge` Time profile (every 15 min,
+requires root) runs `~/.termux/tasker/cmvwifi_nudge`, which issues
+`cmd wifi connect-network cmvwifi open` whenever cmvwifi is in scan
+results but unassociated. Verify it exists and fires:
+
+```bash
+# On the phone (Termux) — history shows 'nudge' lifecycle lines:
+tail ~/storage/shared/Tasker/mvwifi_history.log
+# Detail log:
+cat ~/storage/shared/mvwifi_nudge.log
+# Manual test:
+su -c 'cmd wifi connect-network cmvwifi open'
+```
+
+If the profile is missing, re-import `MVwifiAuto-Termux.prj.xml`.
+On an unrooted phone the nudge exits with "no usable root shell";
+manual joins or screen-on retries are the fallback.
 
 ### Termux plugin times out: "plugin did not respond before timing out, error code 2"
 

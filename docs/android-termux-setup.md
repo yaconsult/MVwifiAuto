@@ -35,6 +35,27 @@ three layers:
 - POSTs to `http://<host>/forms/guest_toued` to accept terms
 - Verifies internet via `detectportal.firefox.com/success.txt` → 200
 
+**Layer 0 — Periodic auto-join nudge (cmvwifi)**
+
+The layers above only run *after* Android associates. Android's
+network selector deprioritizes cmvwifi because every join initially
+fails captive-portal validation ("no internet"), and screen-off scan
+throttling delays retries — observed on-device as a 15-30 minute gap
+with "Auto-connect" enabled. A Tasker **Time** profile (`cmvwifi
+Periodic Nudge`, every 15 min) fires `NudgeWifi`, which runs
+`~/.termux/tasker/cmvwifi_nudge` → `wifi_nudge.py`:
+
+1. If already on any WiFi → exits (never disrupts a working link)
+2. `cmd wifi start-scan` + `list-scan-results` (root) — is cmvwifi
+   visible?
+3. If visible but not associated → `cmd wifi connect-network cmvwifi
+   open`, and the existing WiFi Connected profile handles the portal
+
+Root is required for the `cmd wifi` calls. The nudge is silent when
+it has nothing to do (WiFi off, already connected, or cmvwifi out of
+range); one scan + an occasional connect request is negligible
+battery.
+
 ### Why It's Hard on Android
 - **Android policy routing** prefers cellular data over WiFi, so HTTP
   requests go over cellular even when WiFi is associated — the portal
@@ -125,7 +146,9 @@ mvwifi_auto.android.run_once()
 3. **Termux:Tasker** installed (from F-Droid — optional but recommended for Tasker integration)
 4. **Python 3.11+** in Termux
 5. **Tasker** with **Tasker Settings** helper app (for WiFi connection)
-6. `cmvwifi` network saved in Android WiFi settings — **do not enable auto-connect**
+6. `cmvwifi` network saved in Android WiFi settings with **auto-connect
+   enabled** — Android does the association itself; the periodic nudge
+   (below) compensates when its network selector backs off
 
 ### Install Termux
 
@@ -267,13 +290,15 @@ The repo includes a pre-built Tasker XML for the Termux approach:
 android/MVwifiAuto-Termux.prj.xml
 ```
 
-This contains the `ConnectAndRun`, `RunPortalScript`, and
-`CostcoConnect` tasks, plus the `cmvwifi Auto Connect` and `Costco
-WiFi Connected` profiles — all pre-configured for the
-Termux:Tasker plugin. The Costco profile auto-accepts the Mist
-TOS portal on `Costco Member Wifi` (see
-`docs/costco-portal-capture.md`); delete that profile if you don't
-want it.
+This contains the `ConnectAndRun`, `RunPortalScript`,
+`CostcoConnect`, and `NudgeWifi` tasks, plus the `cmvwifi Auto
+Connect`, `Costco WiFi Connected`, and `cmvwifi Periodic Nudge`
+profiles — all pre-configured for the Termux:Tasker plugin. The
+Costco profile auto-accepts the Mist TOS portal on `Costco Member
+Wifi` (see `docs/costco-portal-capture.md`); delete that profile if
+you don't want it. The Periodic Nudge profile requires root and can
+be deleted on unrooted devices (its wrapper exits cleanly with "no
+root" — nothing else breaks).
 
 To import it:
 
@@ -773,9 +798,12 @@ Repo:
 - `src/mvwifi_auto/android.py` - Termux entry point
 - `src/mvwifi_auto/wifi_binding.py` - Interface-bound HTTP adapter
 - `src/mvwifi_auto/captive_portal.py` - Shared portal handling
+- `src/mvwifi_auto/root_shell.py` - Shared `su` discovery/execution
+- `src/mvwifi_auto/wifi_nudge.py` - Auto-join nudge (`cmd wifi` client)
 - `src/mvwifi_auto/tasker_gen.py` - Tasker XML generator (for WiFi Connected profile)
 - `android/MVwifiAuto-Termux.prj.xml` - generated Tasker project
 - `android/mvwifi_portal` - wrapper script (single source of truth)
+- `android/cmvwifi_nudge` - periodic-nudge wrapper executed by Tasker
 - `scripts/termux_setup.sh` - on-device setup (runs in Termux)
 - `scripts/deploy_android.sh` - full adb deployment (wrapper, XML, settings)
 - `scripts/verify_android.sh` - on-device state checklist
@@ -784,7 +812,9 @@ On the phone:
 
 - `~/MVwifiAuto/` - repo clone (editable install target)
 - `~/.termux/tasker/mvwifi_portal` - wrapper executed by Tasker
+- `~/.termux/tasker/cmvwifi_nudge` - nudge wrapper (Periodic Nudge profile)
 - `~/.termux/termux.properties` - `allow-external-apps = true`
 - `~/storage/shared/mvwifi_tasker.log` - run log (overwritten each run)
+- `~/storage/shared/mvwifi_nudge.log` - nudge detail log
 - `~/storage/shared/Tasker/mvwifi_history.log` - trigger/run history (last 200 lines)
 - `/sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml` - XML import source

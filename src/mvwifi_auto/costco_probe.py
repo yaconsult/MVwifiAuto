@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING
 
 from mvwifi_auto.captive_portal import verify_internet_connectivity
 from mvwifi_auto.portal_analyzer import analyze_portal
+from mvwifi_auto.root_shell import find_su, run_root
 from mvwifi_auto.wifi_binding import InterfaceBindingError, create_wifi_session
 
 if TYPE_CHECKING:
@@ -77,10 +78,6 @@ _LOGCAT_KEEP_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Candidate locations for a root shell (Magisk hides su in different
-# places depending on the install).
-_SU_CANDIDATES = ["su", "/system/bin/su", "/system/xbin/su", "/sbin/su", "/su/bin/su"]
-
 # Package-qualified VIEW intent for the system captive portal browser.
 # Binding the portal URL to CaptivePortalLogin makes Android render it
 # over WiFi — the same path a user's "Sign in to network" tap takes.
@@ -88,53 +85,6 @@ _CAPTIVE_PORTAL_PACKAGE = "com.android.captiveportallogin"
 
 _MAX_ASSETS = 20
 _MAX_ASSET_BYTES = 2_000_000
-
-
-def find_su() -> str | None:
-    """Locate a usable root shell binary.
-
-    Returns:
-        Path/name of a working ``su``, or None if unavailable.
-    """
-    for candidate in _SU_CANDIDATES:
-        try:
-            result = subprocess.run(
-                [candidate, "-c", "id -u"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            continue
-        if result.returncode == 0 and result.stdout.strip() == "0":
-            logger.info("Using root shell: %s", candidate)
-            return candidate
-    return None
-
-
-def run_root(su: str, command: str, timeout: int = 30) -> tuple[int, str]:
-    """Run *command* under ``su`` and return (exit code, stdout).
-
-    Args:
-        su: Root shell path from :func:`find_su`.
-        command: Shell command to execute as root.
-        timeout: Subprocess timeout in seconds.
-
-    Returns:
-        Tuple of (return code, combined stdout+stderr text).
-    """
-    try:
-        result = subprocess.run(
-            [su, "-c", command],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-        return result.returncode, result.stdout + result.stderr
-    except (OSError, subprocess.TimeoutExpired) as e:
-        return 127, str(e)
 
 
 def extract_deep_links(text: str) -> list[str]:
