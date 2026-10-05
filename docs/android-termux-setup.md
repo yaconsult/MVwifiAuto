@@ -310,6 +310,13 @@ adb push android/MVwifiAuto-Termux.prj.xml /sdcard/Tasker/projects/MVwifiAuto-Te
 Then in Tasker: long-press the bottom nav bar → **Import Project**
 → select `MVwifiAuto-Termux`.
 
+> **⚠️ After importing, open Tasker once.** Imported profiles appear
+> enabled but their contexts are not registered with Tasker's running
+> monitor until the app is opened — observed on-device as *three days*
+> of silence after a delete+reimport (no WiFi Connected or Time fires)
+> that resolved the moment Tasker was opened. Tasks still run manually
+> without this; contexts do not.
+
 > **⚠️ If the project is already imported, delete it first.**
 > Tasker refuses (or silently ignores) an import when a project with
 > the same name exists. In Tasker: long-press the `MVwifiAuto-Termux`

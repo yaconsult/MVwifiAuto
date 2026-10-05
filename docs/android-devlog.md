@@ -1572,3 +1572,43 @@ command failed, 2 = no root shell.
   nudge will not switch it — that is deliberate.
 - If Android ever disables auto-connect on cmvwifi, `connect-network`
   re-adds/updates the saved open network anyway.
+
+## Session 28: Dead Weekend — Import Leaves Profiles Dormant (2026-10-05)
+
+### What happened
+
+Three days after deploying the Periodic Nudge, the user reported
+cmvwifi "didn't work" at a location. Forensics:
+
+- `mvwifi_history.log`: zero entries from Oct 2 11:21 → Oct 5 11:12.
+  No `NudgeWifi`, no `ConnectAndRun` — not even on the 10:11
+  association that Android made on its own (which then failed
+  validation and blocklisted the BSSID 10:11-10:16, unhandled).
+- Tasker process uptime: 12+ days. Battery whitelist: present.
+  `tEnable` (Tasker enabled): true. The Oct-2 re-import clearly
+  took — the `NudgeWifi` task existed and ran manually.
+- All three profiles showed **enabled** in the UI, but their contexts
+  had never been registered with the monitor.
+
+**Resolution**: opening the Tasker app registered the contexts —
+`ConnectAndRun` fired on the next association (11:12, portal done in
+8 s) and `NudgeWifi` fired at 11:15 on schedule (alarm dump showed
+Tasker's `ALARUM` RTC_WAKEUP pending at 11:16).
+
+### Root cause
+
+Tasker does not always activate imported profile contexts in the
+running monitor — the profile data imports (tasks run fine
+manually), but context registration happens on app open / monitor
+reload. Dormant until touched. Now documented in setup +
+troubleshooting + deploy script next-steps.
+
+### Xfinity sidebar (from the same event dump)
+
+The weekend's `Xfinity Mobile` attempts are logged:
+`mEapMethod=6` (TTLS) / phase2 PAP, `level2FailureReason=
+AUTH_FAILURE_EAP_FAILURE` at -77 dBm, then `ASSOCIATION_REJECTION`s.
+**The Xfinity ID was rejected** — the secure SSID is gated to
+Xfinity Mobile lines, not internet-only accounts. EAP shortcut is
+dead; open `xfinitywifi` portal automation remains the only route
+(deferred per the generic-engine note).

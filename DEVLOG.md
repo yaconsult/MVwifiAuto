@@ -476,6 +476,13 @@ probably a form-fill POST like the others but with real user
 data. Defer until the generic engine exists; would need secure
 credential storage (not plaintext config).
 
+Update 2026-10-05: the secure alternative is dead too — the
+`Xfinity Mobile` SSID (WPA2-EAP + Passpoint) rejected an
+internet-only Xfinity ID (`AUTH_FAILURE_EAP_FAILURE` followed by
+`ASSOCIATION_REJECTION`, observed on-device). EAP is gated to
+Xfinity Mobile lines; the open `xfinitywifi` portal is the only
+route for this account type.
+
 ### Prior Art
 
 OpenWrt `travelmate` and GL.iNet travel routers already do
@@ -529,6 +536,24 @@ nicely for Android/Termux. Real niche if we go generic.
 - Parsers verified against real `cmd wifi` output captured on-device
 - Field test pending: watch `mvwifi_history.log` for `nudge` →
   `ConnectAndRun fired` latency
+
+---
+
+## 2026-10-05 - Field Failure: Imported Profiles Dormant Until Tasker Opened
+
+### Finding
+Three days of silence after the Oct-2 re-import — neither the Time
+profile nor WiFi Connected fired, despite being enabled, whitelisted,
+and Tasker's process running 12 days. Opening Tasker registered the
+contexts: `ConnectAndRun` fired on the next association (8s portal),
+`NudgeWifi` on schedule at 11:15. Documented in setup/troubleshooting
+and the deploy script now tells users to open Tasker after import.
+
+### Also resolved
+- `Xfinity Mobile` EAP rejected the internet-only Xfinity ID
+  (`AUTH_FAILURE_EAP_FAILURE`) — secure-SSID shortcut dead; open
+  `xfinitywifi` portal automation is the only route for that network
+  (still deferred pending the generic engine).
 
 ---
 

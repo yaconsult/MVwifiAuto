@@ -12,6 +12,7 @@
 
 **Android / Termux:**
 - ["cmvwifi Auto Connect" profile doesn't fire](#cmvwifi-auto-connect-profile-doesnt-fire)
+- [Profiles enabled but never fire (after re-import)](#profiles-enabled-but-never-fire-after-re-import)
 - [Phone takes 15-30 minutes to join cmvwifi](#phone-takes-15-30-minutes-to-join-cmvwifi)
 - [Connected to cmvwifi but no internet for a long time](#connected-to-cmvwifi-but-no-internet-for-a-long-time)
 - [Termux plugin times out (error code 2)](#termux-plugin-times-out-plugin-did-not-respond-before-timing-out-error-code-2)
@@ -409,6 +410,22 @@ adb push android/MVwifiAuto-Termux.prj.xml /sdcard/Tasker/projects/
 **Verify**: Toggle WiFi off/on while connected via adb, or check
 `~/storage/shared/Tasker/mvwifi_history.log` — every trigger appends
 a `tasker | ConnectAndRun fired` marker.
+
+### Profiles enabled but never fire (after re-import)
+
+**Problem**: All profiles show as enabled in Tasker, but nothing
+fires — no `tasker` markers in `mvwifi_history.log`, and a manual
+task run works fine.
+
+**Cause**: Tasker quirk — after importing a project, the running
+monitor does not register the new profile contexts until the Tasker
+app is opened once. Observed as 3 days of silence across both a WiFi
+Connected profile and a Time profile after a delete+reimport;
+everything started the moment Tasker was opened.
+
+**Fix**: Open Tasker after every import. If it still doesn't fire,
+toggle the profile off/on, and check that Tasker has **Alarms &
+reminders** permission (needed for Time contexts).
 
 ### Connected to cmvwifi but no internet for a long time
 
