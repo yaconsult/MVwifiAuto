@@ -595,8 +595,15 @@ re-import (remember: open Tasker once afterward to activate contexts).
 ### Decisions
 - Fallback joined only while fully disconnected; promotion moves the
   phone to a preferred network when one appears
-- `-d` instead of forget/re-add churn
-- Per-network Tasker profiles as the toggle UI (not a flag file)
+- Promotion path differs by destination: cmvwifi via nudge code
+  (open SSID, poisoned score); dd-wrt/Costco via Android's native
+  selector (autojoin on, higher score). Nudge can't promote onto
+  secured networks — `connect-network` requires the passphrase,
+  which is deliberately not stored
+- `-d` instead of forget/re-add churn (verified on-device:
+  `allowAutojoin=false` on saved netId 10)
+- Per-network Tasker profiles as the toggle UI (not a flag file);
+  disabling xfinity gates joining only — promotion away still works
 
 ---
 

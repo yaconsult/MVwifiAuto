@@ -1659,3 +1659,22 @@ in a shared tick, the cmvwifi run's promotion corrects it.
   `-d` keeps the saved config but disables self-join.
 - *Single profile, flag file for the toggle*: rejected — a Tasker
   profile toggle is the UI affordance the user asked for.
+
+### Precedence model (detail)
+
+Who promotes off xfinitywifi depends on the destination:
+
+- **cmvwifi** — nudge promotion (it's an open SSID; the only way to
+  defeat its poisoned selector score).
+- **dd-wrt / dd-wrt_5G / Costco Member Wifi** — Android's native
+  selector. They're saved with autojoin on and outscore the `-d`
+  fallback; no code needed. Nudge promotion to them is *impossible*
+  anyway: `connect-network` requires the passphrase for secured
+  networks, and passwords are deliberately not stored in Termux.
+- Toggle asymmetry: disabling the xfinity profile gates *joining*
+  only — promotion away still works, so "off" never strands the
+  phone on a fallback.
+
+Saved-config fix applied on-device: `forget-network 9` +
+`add-network xfinitywifi open -d` → netId 10 with
+`allowAutojoin=false` (verified in `dumpsys wifi`).

@@ -62,6 +62,32 @@ network exists. **Disabling this profile in the Tasker UI removes
 xfinitywifi from circulation entirely** — cmvwifi nudging and
 promotion-away-from-xfinity are unaffected.
 
+#### Network precedence
+
+Networks are in three tiers, and each tier is governed by a different
+mechanism:
+
+| Network | Tier | Joins via | Promoted off xfinitywifi via |
+|---|---|---|---|
+| dd-wrt / dd-wrt_5G | home (saved, autojoin on) | Android selector | Android selector |
+| cmvwifi | preferred (open, portal) | nudge `connect-network` | nudge promotion |
+| Costco Member Wifi | preferred (saved, autojoin on) | Android selector | Android selector |
+| xfinitywifi | **fallback** (open, `-d`) | nudge only, when fully disconnected | — |
+
+Promotion semantics:
+
+- **On a fallback + preferred visible** → `wifi_nudge` promotes:
+  `connect-network <preferred>`. Only *open* preferred networks can
+  be nudge-promoted — `connect-network` requires a passphrase for
+  wpa2/owe, which is not stored.
+- **On a fallback + home/Costco appear** → Android promotes natively;
+  saved autojoin-enabled networks always outscore the `-d` fallback.
+- **On any non-fallback connection** → never pulled off, even if a
+  preferred network appears (the never-steal rule is symmetric).
+- **Profile disabled while on xfinitywifi** → only *joining* is
+  gated; the cmvwifi nudge still promotes away. "Off" never strands
+  you on a fallback.
+
 Root is required for the `cmd wifi` calls. The nudge is silent when
 it has nothing to do (WiFi off, already connected, or cmvwifi out of
 range); one scan + an occasional connect request is negligible

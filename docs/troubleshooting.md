@@ -484,6 +484,17 @@ disabled (`-d`), and managed by the separate `xfinitywifi Periodic
 Nudge` profile — disable that profile in Tasker to exclude
 xfinitywifi entirely.
 
+**Phone stays on xfinitywifi even though a better network is in
+range**: promotion off a fallback works two ways — the cmvwifi nudge
+explicitly promotes onto cmvwifi when it appears, while saved home /
+Costco networks are handled by Android's own selector (autojoin on +
+higher score wins). If neither happens within ~15 min: confirm
+`cmvwifi Periodic Nudge` is enabled and firing (history log), and
+check the saved configs — `su -c 'dumpsys wifi'` should show
+`allowAutojoin=false` for xfinitywifi and `true` for the preferred
+ones. The nudge can only promote onto *open* networks — promotion
+onto dd-wrt/Costco is Android's job (it needs no passphrase).
+
 If the profile is missing, re-import `MVwifiAuto-Termux.prj.xml`.
 On an unrooted phone the nudge exits with "no usable root shell";
 manual joins or screen-on retries are the fallback.
