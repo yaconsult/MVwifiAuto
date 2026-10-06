@@ -260,11 +260,14 @@ the portal.
 
 ```
 0. Periodic nudges (Time, every 15 min) → wifi_nudge:
-   - cmvwifi Periodic Nudge: disconnected + cmvwifi visible →
-     `connect-network`; on xfinitywifi + cmvwifi visible → promote
-   - xfinitywifi Periodic Nudge: disconnected + xfinitywifi visible →
-     `connect-network -d` (autojoin off — fallback only)
+   - cmvwifi Periodic Nudge: disconnected + cmvwifi/MVwifi visible →
+     `connect-network`; on xfinitywifi + preferred visible → promote
+   - xfinitywifi Periodic Nudge: disconnected + xfinitywifi visible +
+     NO preferred SSID visible (`--defer-to` cmvwifi, MVwifi, dd-wrt,
+     dd-wrt_5G) → `connect-network -d` (autojoin off — fallback only;
+     defer prevents racing connect requests in a shared tick)
 1. Tasker WiFi Connected profile fires on association to "cmvwifi"
+   or "MVwifi" (same municipal network, alternate SSID)
 2. ConnectAndRun task runs:
    a. If %WIFII already ~ "cmvwifi" → skip to step c
    b. Else Connect to WiFi "cmvwifi" (Tasker Settings app)

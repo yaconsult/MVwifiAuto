@@ -1727,3 +1727,47 @@ history log alone, or one tap in Tasker.
 00:15 tick: `NudgeXfinity fired [gen bf90e2]` + `NudgeWifi fired
 [gen bf90e2]`, both followed by direct `nudge start`/`exit=0` — no
 shim tag. First fully-verified scheduled run of the new project.
+
+## Session 31: MVwifi Alternate SSID + Nudge Deferral (2026-10-06)
+
+### Field observation
+
+Morning commute logs showed the design working — xfinitywifi fallback
+joined at 08:30 while disconnected, cmvwifi association + portal at
+08:39 and again at 09:22 — plus two findings:
+
+- **The phone associated to `MVwifi` at 09:30** — a different SSID
+  for what is almost certainly the same municipal network. It was
+  unmanaged: no WiFi Connected profile, no nudge target.
+- **A connect race at 10:15**: disconnected at a shared tick, both
+  nudge tasks issued `connect-network` 34 ms apart (cmvwifi at
+  :04.825, xfinitywifi at :04.859). Android picked cmvwifi, but the
+  xfinity task had no reason to request a join while a preferred
+  network was visible.
+
+### Changes
+
+- `wifi_nudge.py`: new `--defer-to SSID` (repeatable) — while
+  disconnected, if a defer_to SSID is in scan results the run exits
+  as `deferred` instead of connecting; preferred SSIDs can never be
+  raced by a fallback join.
+- `NudgeWifi` args: `--ssid cmvwifi --ssid MVwifi --fallback
+  xfinitywifi` — MVwifi joins the preferred tier.
+- `NudgeXfinity` args: `--ssid xfinitywifi --autojoin-disabled
+  --defer-to cmvwifi --defer-to MVwifi --defer-to dd-wrt
+  --defer-to dd-wrt_5G`. `Costco Member Wifi` is deliberately absent:
+  Termux's Arguments field is a single space-separated string and a
+  multi-word SSID would tokenize incorrectly.
+- New `MVwifi Auto Connect` profile (WiFi Connected, SSID `MVwifi`)
+  → `ConnectAndRun`, which now skips re-connecting when %WIFII is
+  either cmvwifi or MVwifi (the second If/Goto pair, both targeting
+  the self-heal action).
+- New action value `deferred` in the nudge report/log vocabulary.
+
+### Tests
+
+273 pass. New coverage: defer on preferred-visible, connect when no
+defer target visible, defer doesn't block promotion, CLI wiring;
+MVwifi profile linkage, ConnectAndRun dual-If structure and both
+Goto targets landing on self-heal, NudgeWifi/NudgeXfinity argument
+assertions.

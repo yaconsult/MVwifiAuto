@@ -631,6 +631,26 @@ re-import (remember: open Tasker once afterward to activate contexts).
   A stale/merged import is now identifiable from the history log or
   one tap — no adb, no logcat needed.
 
+## 2026-10-06 - Android: MVwifi Alternate SSID + Nudge Deferral
+
+### Field observations
+- Phone associated to `MVwifi` — an alternate SSID for the same
+  municipal network — which was completely unmanaged.
+- Connect race at a shared 15-min tick: both nudge tasks issued
+  `connect-network` ~34 ms apart while disconnected (Android picked
+  cmvwifi; could have been the fallback).
+
+### Changes
+- `wifi_nudge.py --defer-to SSID`: a disconnected run exits as
+  `deferred` when a preferred SSID is visible — fallback can't race
+  preferred joins.
+- `MVwifi` added as a preferred nudge target + `MVwifi Auto Connect`
+  profile; `ConnectAndRun` accepts either municipal SSID.
+- `NudgeXfinity` defers to cmvwifi/MVwifi/dd-wrt/dd-wrt_5G. `Costco
+  Member Wifi` excluded — multi-word SSIDs can't survive Termux's
+  space-separated Arguments field.
+- New action value: `deferred`.
+
 ---
 
 ## Template for Future Entries

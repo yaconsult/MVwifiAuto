@@ -501,9 +501,11 @@ su -c 'cmd wifi connect-network cmvwifi open'
 
 **Nudge action values** (in `mvwifi_nudge.log` "nudge result"
 lines): `already_connected` / `connected_elsewhere` / `wifi_disabled`
-/ `target_absent` are no-ops; `connect_requested` joined a target;
-`promoted` moved the phone off a fallback SSID (xfinitywifi) onto a
-visible preferred one; `fallback_stay` means it's on xfinitywifi and
+/ `target_absent` are no-ops; `deferred` means the xfinitywifi run
+saw a preferred SSID in scan results and yielded to it;
+`connect_requested` joined a target; `promoted` moved the phone off
+a fallback SSID (xfinitywifi) onto a visible preferred one;
+`fallback_stay` means it's on xfinitywifi and
 no preferred network was in range. `xfinitywifi` is a **fallback
 tier**: joined only while fully disconnected, saved with auto-join
 disabled (`-d`), and managed by the separate `xfinitywifi Periodic

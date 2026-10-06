@@ -472,6 +472,107 @@ class TestFallbacks:
         assert kwargs["autojoin_disabled"] is True
 
 
+class TestDefer:
+    """--defer-to: a fallback nudge yields when a preferred SSID is
+    visible, so sibling nudge tasks don't race connect requests."""
+
+    def test_defers_when_preferred_visible(self):
+        """Disconnected + target visible + preferred visible ->
+        deferred, no connect issued."""
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_DISCONNECTED)
+            if "list-scan-results" in command:
+                return (0, SCAN_BOTH)  # xfinitywifi + cmvwifi
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su", ["xfinitywifi"], defer_to=["cmvwifi"], settle=0
+            )
+        assert report.action == "deferred"
+        assert report.ok is True
+        assert report.visible_targets == ["cmvwifi"]
+        assert all("connect-network" not in c for c in commands)
+
+    def test_connects_when_no_defer_target_visible(self):
+        """Disconnected + only the fallback visible -> connect."""
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_DISCONNECTED)
+            if "list-scan-results" in command:
+                return (0, SCAN_FALLBACK_ONLY)
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su",
+                ["xfinitywifi"],
+                defer_to=["cmvwifi", "dd-wrt"],
+                autojoin_disabled=True,
+                settle=0,
+            )
+        assert report.action == "connect_requested"
+        assert "cmd wifi connect-network xfinitywifi open -d" in commands
+
+    def test_defer_does_not_block_promotion(self):
+        """On a fallback connection, promotion ignores defer_to — the
+        two flags solve different problems."""
+        with (
+            patch(
+                "mvwifi_auto.wifi_nudge.run_root",
+                side_effect=_fake_run_root(
+                    {
+                        "status": (0, STATUS_FALLBACK),
+                        "list-scan-results": (0, SCAN_BOTH),
+                        "connect-network": (0, ""),
+                    }
+                ),
+            ),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su",
+                ["cmvwifi"],
+                fallbacks=["xfinitywifi"],
+                defer_to=["dd-wrt"],
+                settle=0,
+            )
+        assert report.action == "promoted"
+
+    def test_cli_wires_defer_to(self):
+        """--defer-to reaches run_nudge."""
+        fake_report = NudgeReport(action="deferred", ok=True)
+        with patch(
+            "mvwifi_auto.wifi_nudge.run_nudge",
+            return_value=fake_report,
+        ) as mock_run, patch(
+            "mvwifi_auto.wifi_nudge.find_su", return_value="su"
+        ):
+            rc = main(
+                [
+                    "--ssid", "xfinitywifi",
+                    "--defer-to", "cmvwifi",
+                    "--defer-to", "MVwifi",
+                ]
+            )
+        assert rc == 0
+        _, kwargs = mock_run.call_args
+        assert kwargs["defer_to"] == ["cmvwifi", "MVwifi"]
+
+
 class TestCli:
     """Test exit codes and report output modes."""
 

@@ -43,22 +43,27 @@ fails captive-portal validation ("no internet"), and screen-off scan
 throttling delays retries — observed on-device as a 15-30 minute gap
 with "Auto-connect" enabled. A Tasker **Time** profile (`cmvwifi
 Periodic Nudge`, every 15 min) fires `NudgeWifi`, which runs
-`~/.termux/tasker/wifi_nudge --ssid cmvwifi --fallback xfinitywifi` →
-`wifi_nudge.py`:
+`~/.termux/tasker/wifi_nudge --ssid cmvwifi --ssid MVwifi --fallback
+xfinitywifi` → `wifi_nudge.py`:
 
 1. If already on a preferred WiFi → exits (never disrupts a working
    link); on the `xfinitywifi` fallback → scans, and promotes onto
-   cmvwifi if it is visible
-2. `cmd wifi start-scan` + `list-scan-results` (root) — is cmvwifi
-   visible?
-3. If visible but not associated → `cmd wifi connect-network cmvwifi
+   cmvwifi/MVwifi if one is visible
+2. `cmd wifi start-scan` + `list-scan-results` (root) — is cmvwifi or
+   `MVwifi` (same municipal network, alternate SSID) visible?
+3. If visible but not associated → `cmd wifi connect-network <ssid>
    open`, and the existing WiFi Connected profile handles the portal
 
 A second Time profile (`xfinitywifi Periodic Nudge`) → `NudgeXfinity`
-runs the same wrapper with `--ssid xfinitywifi --autojoin-disabled`:
-it joins open `xfinitywifi` only when fully disconnected, and marks
-the saved config `-d` so Android never self-joins it while a better
-network exists. **Disabling this profile in the Tasker UI removes
+runs the same wrapper with `--ssid xfinitywifi --autojoin-disabled
+--defer-to cmvwifi --defer-to MVwifi --defer-to dd-wrt --defer-to
+dd-wrt_5G`: it joins open `xfinitywifi` only when fully disconnected
+*and* no preferred network is in scan results (the `--defer-to`
+check prevents the two nudge tasks racing connect requests in the
+same tick), and marks the saved config `-d` so Android never
+self-joins it. (`Costco Member Wifi` is absent from the defer list
+because Termux's Arguments field can't safely carry a multi-word
+SSID.) **Disabling this profile in the Tasker UI removes
 xfinitywifi from circulation entirely** — cmvwifi nudging and
 promotion-away-from-xfinity are unaffected.
 
@@ -70,9 +75,9 @@ mechanism:
 | Network | Tier | Joins via | Promoted off xfinitywifi via |
 |---|---|---|---|
 | dd-wrt / dd-wrt_5G | home (saved, autojoin on) | Android selector | Android selector |
-| cmvwifi | preferred (open, portal) | nudge `connect-network` | nudge promotion |
+| cmvwifi / MVwifi | preferred (open, portal) | nudge `connect-network` | nudge promotion |
 | Costco Member Wifi | preferred (saved, autojoin on) | Android selector | Android selector |
-| xfinitywifi | **fallback** (open, `-d`) | nudge only, when fully disconnected | — |
+| xfinitywifi | **fallback** (open, `-d`) | nudge only, when disconnected AND no preferred visible | — |
 
 Promotion semantics:
 
@@ -80,6 +85,10 @@ Promotion semantics:
   `connect-network <preferred>`. Only *open* preferred networks can
   be nudge-promoted — `connect-network` requires a passphrase for
   wpa2/owe, which is not stored.
+- **Disconnected + preferred visible** → `NudgeXfinity` *defers*
+  (`--defer-to`): it does not request xfinitywifi when cmvwifi,
+  MVwifi, dd-wrt, or dd-wrt_5G is in scan results, so the two nudge
+  tasks can't race their connect requests in a shared tick.
 - **On a fallback + home/Costco appear** → Android promotes natively;
   saved autojoin-enabled networks always outscore the `-d` fallback.
 - **On any non-fallback connection** → never pulled off, even if a
@@ -329,8 +338,9 @@ android/MVwifiAuto-Termux.prj.xml
 
 This contains the `ConnectAndRun`, `RunPortalScript`,
 `CostcoConnect`, `NudgeWifi`, `NudgeXfinity`, and `ShowVersion`
-tasks, plus the `cmvwifi Auto Connect`, `Costco WiFi Connected`,
-`cmvwifi Periodic Nudge`, and `xfinitywifi Periodic Nudge` profiles —
+tasks, plus the `cmvwifi Auto Connect`, `MVwifi Auto Connect`,
+`Costco WiFi Connected`, `cmvwifi Periodic Nudge`, and
+`xfinitywifi Periodic Nudge` profiles —
 all pre-configured for the Termux:Tasker plugin.
 
 Every task's history marker carries a generation stamp

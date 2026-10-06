@@ -542,19 +542,54 @@ class TestTermuxProject:
         tasks = root.findall("Task")
         connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
         actions = connect_task.findall("Action")
-        # Goto is index 3 (A4) — after the history Write File,
-        # Variable Set, and If; arg1 (second Int) is the target number
-        goto = actions[3]
-        assert goto.find("code").text == str(CODE_GOTO)
-        ints = goto.findall("Int")
-        assert ints[0].get("val") == "0"  # type: Action Number
-        target = int(ints[1].get("val"))
-        assert target == 8  # A8: the self-heal Run Shell
-        # The target action must be the self-heal Run Shell
-        target_action = actions[target - 1]
+        # Gotos are A4 (index 3) and A7 (index 6) — after the history
+        # Write File, Variable Set, and each If.  Both must target
+        # A11: the self-heal Run Shell.
+        for idx in (3, 6):
+            goto = actions[idx]
+            assert goto.find("code").text == str(CODE_GOTO)
+            ints = goto.findall("Int")
+            assert ints[0].get("val") == "0"  # type: Action Number
+            assert int(ints[1].get("val")) == 11  # A11: self-heal
+        target_action = actions[10]
         assert target_action.find("code").text == str(CODE_RUN_SHELL)
         # And the next action after it must be Perform Task
-        assert actions[target].find("code").text == str(CODE_PERFORM_TASK)
+        assert actions[11].find("code").text == str(CODE_PERFORM_TASK)
+
+    def test_connect_and_run_skips_connect_on_mvwifi(self):
+        """ConnectAndRun treats MVwifi (alternate municipal SSID) as
+        already-connected: an If comparing %CurrentSSID to MVwifi."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        tasks = root.findall("Task")
+        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        if_actions = [
+            a
+            for a in connect_task.findall("Action")
+            if a.find("code").text == str(CODE_IF)
+        ]
+        compared = {
+            a.find("ConditionList/Condition/rhs").text
+            for a in if_actions
+        }
+        assert compared == {"cmvwifi", "MVwifi"}
+
+    def test_mvwifi_profile(self):
+        """MVwifi Auto Connect profile triggers ConnectAndRun on the
+        'MVwifi' SSID (same municipal network, alternate SSID)."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        profile = next(
+            p
+            for p in root.findall("Profile")
+            if p.find("nme").text == "MVwifi Auto Connect"
+        )
+        assert profile.find("mid0").text == "80"  # ConnectAndRun
+        state = profile.find("State")
+        assert state.find("code").text == "160"  # WiFi Connected
+        assert state.find("Str").text == "MVwifi"
 
     def test_termux_task_builder(self):
         """Test the termux_task action builder."""
@@ -623,7 +658,7 @@ class TestTermuxProject:
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         profiles = root.findall("Profile")
-        assert len(profiles) == 4
+        assert len(profiles) == 5
         costco = next(
             p for p in profiles if p.find("nme").text == "Costco WiFi Connected"
         )
@@ -701,6 +736,7 @@ class TestTermuxProject:
         )
         assert "wifi_nudge" in bundle_xml
         assert "--ssid cmvwifi" in bundle_xml
+        assert "--ssid MVwifi" in bundle_xml
         assert "--fallback xfinitywifi" in bundle_xml
 
     def test_xfinity_nudge_task(self):
@@ -720,6 +756,10 @@ class TestTermuxProject:
         assert "wifi_nudge" in bundle_xml
         assert "--ssid xfinitywifi" in bundle_xml
         assert "--autojoin-disabled" in bundle_xml
+        assert "--defer-to cmvwifi" in bundle_xml
+        assert "--defer-to MVwifi" in bundle_xml
+        assert "--defer-to dd-wrt" in bundle_xml
+        assert "--defer-to dd-wrt_5G" in bundle_xml
 
     def test_xfinity_nudge_profile(self):
         """xfinitywifi Periodic Nudge: Time context every 15 min ->

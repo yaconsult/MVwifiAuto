@@ -883,26 +883,36 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
             variable_set("%CurrentSSID", "%WIFII"),
             # A3: If already on cmvwifi, skip connection
             if_condition("%CurrentSSID", "cmvwifi"),
-            # A4: Goto A8 (self-heal) — skip connect and wait
-            goto_action(8),
+            # A4: Goto A11 (self-heal) — skip connect and wait
+            goto_action(11),
             # A5: End If
             end_if(),
-            # A6: Connect to cmvwifi
+            # A6: If already on MVwifi — same municipal network under
+            # its alternate SSID — skip connection too
+            _lbl(
+                if_condition("%CurrentSSID", "MVwifi"),
+                "MVwifi = same municipal network, alternate SSID",
+            ),
+            # A7: Goto A11 (self-heal)
+            goto_action(11),
+            # A8: End If
+            end_if(),
+            # A9: Connect to cmvwifi
             connect_wifi("cmvwifi"),
-            # A7: Wait 5 seconds for DHCP
+            # A10: Wait 5 seconds for DHCP
             _lbl(wait(seconds=5), "Let DHCP settle"),
-            # A8: Re-apply Termux protections (root; skipped on
+            # A11: Re-apply Termux protections (root; skipped on
             # unrooted devices via continue_on_error)
             _lbl(
                 termux_self_heal(),
                 "Re-apply Termux protections (root; no-op unrooted)",
             ),
-            # A9: Run the portal script
+            # A12: Run the portal script
             _lbl(
                 perform_task("RunPortalScript", wait_for_finish=True),
                 "Portal handler via Termux:Tasker",
             ),
-            # A10: Flash completion
+            # A13: Flash completion
             flash("Portal handling complete"),
         ],
     )
@@ -925,6 +935,31 @@ def _build_cmvwifi_profile_termux() -> TaskerProfile:
             code=CODE_WIFI_CONNECTED_STATE,
             args=[
                 TaskerArg.str_arg(0, "cmvwifi"),   # SSID
+                TaskerArg.str_arg(1),              # MAC (empty = any)
+                TaskerArg.str_arg(2),              # IP (empty = any)
+                TaskerArg.int_arg(3, 2),           # Active (2 = connected)
+            ],
+        ),
+        task_id=80,  # ConnectAndRun
+    )
+
+
+def _build_mvwifi_profile_termux() -> TaskerProfile:
+    """Build the MVwifi Auto Connect profile (id=6) — Termux approach.
+
+    `MVwifi` is the same municipal network broadcasting under an
+    alternate SSID — observed on-device (09:30 association during a
+    field session).  Fires ConnectAndRun exactly like the cmvwifi
+    profile; the task skips re-connecting when %WIFII already names
+    either SSID, so the portal handler just runs.
+    """
+    return TaskerProfile(
+        id=6,
+        name="MVwifi Auto Connect",
+        state=TaskerState(
+            code=CODE_WIFI_CONNECTED_STATE,
+            args=[
+                TaskerArg.str_arg(0, "MVwifi"),   # SSID
                 TaskerArg.str_arg(1),              # MAC (empty = any)
                 TaskerArg.str_arg(2),              # IP (empty = any)
                 TaskerArg.int_arg(3, 2),           # Active (2 = connected)
@@ -995,10 +1030,11 @@ def _build_cmvwifi_nudge_task() -> TaskerTask:
     """Build the NudgeWifi task (id=100) — periodic auto-join nudge.
 
     Runs the wifi_nudge wrapper via the Termux:Tasker plugin with
-    ``--ssid cmvwifi --fallback xfinitywifi``: joins cmvwifi when it is
-    visible but unassociated (bypassing the network selector's
-    auto-join backoff), and promotes the device off xfinitywifi onto
-    cmvwifi when both are in range.
+    ``--ssid cmvwifi --ssid MVwifi --fallback xfinitywifi``: joins
+    cmvwifi (or its alternate MVwifi SSID — the same municipal
+    network) when visible but unassociated, bypassing the network
+    selector's auto-join backoff, and promotes the device off
+    xfinitywifi onto either preferred SSID when one is in range.
     """
     return TaskerTask(
         id=100,
@@ -1017,11 +1053,14 @@ def _build_cmvwifi_nudge_task() -> TaskerTask:
             _lbl(
                 termux_task(
                     "wifi_nudge",
-                    arguments="--ssid cmvwifi --fallback xfinitywifi",
+                    arguments=(
+                        "--ssid cmvwifi --ssid MVwifi "
+                        "--fallback xfinitywifi"
+                    ),
                     background=True,
                     timeout=45,
                 ),
-                "cmvwifi nudge + xfinity promotion (root) — "
+                "cmvwifi/MVwifi nudge + xfinity promotion (root) — "
                 "runs ~/.termux/tasker/wifi_nudge",
             ),
         ],
@@ -1049,12 +1088,20 @@ def _build_cmvwifi_nudge_profile() -> TaskerProfile:
 def _build_xfinity_nudge_task() -> TaskerTask:
     """Build the NudgeXfinity task (id=110) — fallback-only join.
 
-    Runs wifi_nudge with ``--ssid xfinitywifi --autojoin-disabled``:
-    joins open xfinitywifi only when fully disconnected, and marks
-    the saved config autojoin-disabled (-d) so Android never hops
-    onto it while a better network is around.  Disabling the
-    profile in Tasker excludes xfinitywifi entirely — cmvwifi
-    handling (and promotion away from xfinitywifi) is unaffected.
+    Runs wifi_nudge with ``--ssid xfinitywifi --autojoin-disabled``
+    plus a ``--defer-to`` list of the preferred SSIDs: joins open
+    xfinitywifi only when fully disconnected *and* no preferred
+    network is visible (prevents the two nudge tasks racing connect
+    requests in the same tick — observed 10:15 when both issued
+    ``connect-network`` back to back), and marks the saved config
+    autojoin-disabled (-d) so Android never hops onto it while a
+    better network is around.  Disabling the profile in Tasker
+    excludes xfinitywifi entirely — cmvwifi handling (and promotion
+    away from xfinitywifi) is unaffected.
+
+    ``Costco Member Wifi`` is absent from the defer list: Termux's
+    Arguments field is a single space-separated string, so a
+    multi-word SSID would tokenize incorrectly there.
     """
     return TaskerTask(
         id=110,
@@ -1070,12 +1117,16 @@ def _build_xfinity_nudge_task() -> TaskerTask:
             _lbl(
                 termux_task(
                     "wifi_nudge",
-                    arguments="--ssid xfinitywifi --autojoin-disabled",
+                    arguments=(
+                        "--ssid xfinitywifi --autojoin-disabled "
+                        "--defer-to cmvwifi --defer-to MVwifi "
+                        "--defer-to dd-wrt --defer-to dd-wrt_5G"
+                    ),
                     background=True,
                     timeout=45,
                 ),
-                "xfinitywifi fallback join, autojoin off (root) — "
-                "runs ~/.termux/tasker/wifi_nudge",
+                "xfinitywifi fallback join, autojoin off, defers to "
+                "preferred SSIDs (root) — runs ~/.termux/tasker/wifi_nudge",
             ),
         ],
     )
@@ -1128,8 +1179,8 @@ def build_termux_project() -> TaskerProject:
 
     Tasks:
         - RunPortalScript: runs mvwifi-android via Termux:Tasker plugin
-        - ConnectAndRun: connects to cmvwifi, waits for DHCP, calls
-          RunPortalScript
+        - ConnectAndRun: connects to cmvwifi (or skips when already on
+          cmvwifi/MVwifi), waits for DHCP, calls RunPortalScript
         - CostcoConnect: runs the Costco Mist portal handler
         - NudgeWifi: periodic auto-join nudge for cmvwifi (+ promotes
           off xfinitywifi when cmvwifi is visible)
@@ -1140,6 +1191,8 @@ def build_termux_project() -> TaskerProject:
 
     Profiles:
         - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
+        - MVwifi Auto Connect: WiFi Connected (MVwifi — same municipal
+          network, alternate SSID) → ConnectAndRun
         - Costco WiFi Connected: WiFi Connected (Costco Member Wifi)
           → CostcoConnect
         - cmvwifi Periodic Nudge: Time (every 15 min) → NudgeWifi
@@ -1159,6 +1212,7 @@ def build_termux_project() -> TaskerProject:
     ]
     profiles = [
         _build_cmvwifi_profile_termux(),
+        _build_mvwifi_profile_termux(),
         _build_costco_profile_termux(),
         _build_cmvwifi_nudge_profile(),
         _build_xfinity_nudge_profile(),

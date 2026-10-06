@@ -27,6 +27,11 @@ Behaviour:
 - WiFi disabled                   -> no-op (the user may have turned
                                      it off deliberately)
 - Target absent from scan         -> no-op
+- Target visible + a ``--defer-to``
+  SSID also visible               -> no-op (``deferred`` — the
+                                     preferred network should win;
+                                     avoids two nudge tasks racing
+                                     connect requests)
 - Target visible, not connected   -> ``cmd wifi connect-network``
 
 Fallback SSIDs are never joined by this run — they only mark
@@ -39,7 +44,8 @@ CLI::
 
     mvwifi-nudge
     mvwifi-nudge --ssid cmvwifi --fallback xfinitywifi
-    mvwifi-nudge --ssid xfinitywifi --autojoin-disabled
+    mvwifi-nudge --ssid xfinitywifi --autojoin-disabled \
+        --defer-to cmvwifi --defer-to MVwifi
     mvwifi-nudge --dry-run --json
 """
 
@@ -106,9 +112,9 @@ class NudgeReport:
 
     action: str
     """Terminal state: already_connected, connected_elsewhere,
-    fallback_stay, wifi_disabled, target_absent, connect_requested,
-    promoted, dry_run, no_root, status_failed, scan_failed, or
-    connect_failed."""
+    fallback_stay, wifi_disabled, target_absent, deferred,
+    connect_requested, promoted, dry_run, no_root, status_failed,
+    scan_failed, or connect_failed."""
 
     ok: bool
     wifi_enabled: bool = False
@@ -218,6 +224,7 @@ def run_nudge(
     su: str,
     targets: list[str],
     fallbacks: list[str] | None = None,
+    defer_to: list[str] | None = None,
     settle: float = 3.0,
     dry_run: bool = False,
     autojoin_disabled: bool = False,
@@ -230,6 +237,11 @@ def run_nudge(
         fallbacks: SSIDs that count as "promotable" connections — when
             connected to one, the nudge scans and moves to a visible
             preferred target.  Never joined by this run.
+        defer_to: SSIDs that outrank this run's targets — while
+            disconnected, if any defer_to SSID is visible alongside a
+            target, no connect is issued (``deferred``) so the
+            preferred nudge / Android selector can take it.  Prevents
+            two sibling nudge tasks from racing connect requests.
         settle: Seconds to wait between ``start-scan`` and reading
             ``list-scan-results``.
         dry_run: Report what would happen without issuing
@@ -242,6 +254,7 @@ def run_nudge(
         A :class:`NudgeReport` describing what was decided and done.
     """
     fallbacks = fallbacks or []
+    defer_to = defer_to or []
     rc, out = run_root(su, "cmd wifi status")
     if rc != 0:
         logger.error("cmd wifi status failed (rc=%s): %s", rc, out.strip())
@@ -275,6 +288,15 @@ def run_nudge(
     else:
         if not hits:
             return _report("target_absent", True, status, targets)
+        defer_hits = [d for d in defer_to if d in visible]
+        if defer_hits:
+            logger.info(
+                "preferred network visible, deferring: %s", defer_hits
+            )
+            return _report(
+                "deferred", True, status, targets,
+                visible_targets=defer_hits,
+            )
         action = "dry_run" if dry_run else "connect_requested"
 
     if dry_run:
@@ -336,6 +358,13 @@ def main(argv: list[str] | None = None) -> int:
         "(repeatable; never joined by this run)",
     )
     parser.add_argument(
+        "--defer-to",
+        action="append",
+        dest="defer_to",
+        help="Preferred SSID to yield to: if visible while disconnected, "
+        "this run does nothing (repeatable)",
+    )
+    parser.add_argument(
         "--autojoin-disabled",
         action="store_true",
         help="Join targets with -d so Android never self-joins them",
@@ -383,6 +412,7 @@ def main(argv: list[str] | None = None) -> int:
             su,
             targets,
             fallbacks=args.fallbacks,
+            defer_to=args.defer_to,
             settle=args.settle,
             dry_run=args.dry_run,
             autojoin_disabled=args.autojoin_disabled,
