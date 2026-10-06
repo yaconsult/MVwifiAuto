@@ -555,6 +555,26 @@ and the deploy script now tells users to open Tasker after import.
   `xfinitywifi` portal automation is the only route for that network
   (still deferred pending the generic engine).
 
+## 2026-10-05 - Android: Action Labels in Generated Tasker XML
+
+### Completed
+- `TaskerAction` gained a `label` field, serialized as `<label>` —
+  Tasker has no comment syntax; action labels are the closest
+  equivalent, shown next to each action in the editor.
+- Labeled the opaque actions in all four Termux tasks: Termux plugin
+  calls (code 1256900802 renders unintelligibly in the UI), history
+  markers, the self-heal shell command, and the DHCP wait. End If /
+  Flash etc. left unlabeled (self-describing).
+- Regenerated both project XMLs; new `TestActionLabels` class covers
+  emission, omission, and that every Termux plugin action is labeled.
+- Field verification the same day: nudge forced a cmvwifi join at
+  17:30 (`connect-network` rc=0 while disconnected), cmvwifi portal
+  handled in 4s at 17:17, Costco Mist TOS-accept at 18:15 (~16s).
+
+### Note
+XML change only — takes effect on the phone at the next project
+re-import (remember: open Tasker once afterward to activate contexts).
+
 ---
 
 ## Template for Future Entries

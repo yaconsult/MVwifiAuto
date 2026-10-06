@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from xml.etree.ElementTree import (
     Element,
     SubElement,
@@ -119,12 +119,19 @@ class TaskerCondition:
 
 @dataclass
 class TaskerAction:
-    """A Tasker action within a task."""
+    """A Tasker action within a task.
+
+    ``label`` is the free-text label shown next to the action in the
+    Tasker UI — the closest thing Tasker has to an inline comment.
+    Use it on opaque actions (plugin calls, regexes, markers) so the
+    task reads clearly when browsed inside Tasker.
+    """
 
     code: int
     args: list[TaskerArg] = field(default_factory=list)
     conditions: list[TaskerCondition] | None = None
     continue_on_error: bool = False
+    label: str = ""
 
 
 @dataclass
@@ -220,6 +227,8 @@ def _add_action(task_elem: Element, index: int, action: TaskerAction) -> None:
     if action.continue_on_error:
         SubElement(act, "con").text = "true"
     SubElement(act, "code").text = str(action.code)
+    if action.label:
+        SubElement(act, "label").text = action.label
 
     if action.conditions:
         cond_list = SubElement(act, "ConditionList", {"sr": "if"})
@@ -307,6 +316,14 @@ def generate_project_xml(project: TaskerProject) -> str:
 
 # ---------------------------------------------------------------------------
 # Action builder helpers
+def _lbl(action: TaskerAction, label: str) -> TaskerAction:
+    """Return a copy of *action* with a Tasker UI label attached.
+
+    Tasker has no real comment syntax; an action label is the closest
+    equivalent — free text shown next to the action in the editor and
+    in XML exports (``<label>`` child of ``<Action>``).
+    """
+    return replace(action, label=label)
 # ---------------------------------------------------------------------------
 def perform_task(
     name: str,
@@ -817,7 +834,10 @@ def _build_run_portal_script_task_termux() -> TaskerTask:
         name="RunPortalScript",
         actions=[
             # A1: Run the portal handler via Termux:Tasker plugin
-            termux_task("mvwifi_portal", background=True),
+            _lbl(
+                termux_task("mvwifi_portal", background=True),
+                "cmvwifi portal handler — runs ~/.termux/tasker/mvwifi_portal",
+            ),
         ],
     )
 
@@ -835,9 +855,12 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
             # A1: History marker — records that Tasker fired, even if
             # the plugin call later fails or Termux never runs.
             # Lands at /sdcard/Tasker/mvwifi_history.log.
-            write_file(
-                "Tasker/mvwifi_history.log",
-                "%TIMES | tasker | ConnectAndRun fired",
+            _lbl(
+                write_file(
+                    "Tasker/mvwifi_history.log",
+                    "%TIMES | tasker | ConnectAndRun fired",
+                ),
+                "History marker — proves Tasker fired even if Termux fails",
             ),
             # A2: Store current SSID
             variable_set("%CurrentSSID", "%WIFII"),
@@ -850,12 +873,18 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
             # A6: Connect to cmvwifi
             connect_wifi("cmvwifi"),
             # A7: Wait 5 seconds for DHCP
-            wait(seconds=5),
+            _lbl(wait(seconds=5), "Let DHCP settle"),
             # A8: Re-apply Termux protections (root; skipped on
             # unrooted devices via continue_on_error)
-            termux_self_heal(),
+            _lbl(
+                termux_self_heal(),
+                "Re-apply Termux protections (root; no-op unrooted)",
+            ),
             # A9: Run the portal script
-            perform_task("RunPortalScript", wait_for_finish=True),
+            _lbl(
+                perform_task("RunPortalScript", wait_for_finish=True),
+                "Portal handler via Termux:Tasker",
+            ),
             # A10: Flash completion
             flash("Portal handling complete"),
         ],
@@ -900,14 +929,23 @@ def _build_costco_connect_task() -> TaskerTask:
         name="CostcoConnect",
         actions=[
             # A1: History marker (same shared log as ConnectAndRun).
-            write_file(
-                "Tasker/mvwifi_history.log",
-                "%TIMES | tasker | CostcoConnect fired",
+            _lbl(
+                write_file(
+                    "Tasker/mvwifi_history.log",
+                    "%TIMES | tasker | CostcoConnect fired",
+                ),
+                "History marker — proves Tasker fired even if Termux fails",
             ),
             # A2: Re-apply Termux protections before the plugin call.
-            termux_self_heal(),
+            _lbl(
+                termux_self_heal(),
+                "Re-apply Termux protections (root; no-op unrooted)",
+            ),
             # A3: Run the Costco portal handler.
-            termux_task("costco_portal", background=True),
+            _lbl(
+                termux_task("costco_portal", background=True),
+                "Mist TOS-accept handler — runs ~/.termux/tasker/costco_portal",
+            ),
             # A4: Flash completion.
             flash("Costco portal handled"),
         ],
@@ -949,13 +987,19 @@ def _build_cmvwifi_nudge_task() -> TaskerTask:
         name="NudgeWifi",
         actions=[
             # A1: History marker (same shared log as ConnectAndRun).
-            write_file(
-                "Tasker/mvwifi_history.log",
-                "%TIMES | tasker | NudgeWifi fired",
+            _lbl(
+                write_file(
+                    "Tasker/mvwifi_history.log",
+                    "%TIMES | tasker | NudgeWifi fired",
+                ),
+                "History marker — proves Tasker fired even if Termux fails",
             ),
             # A2: Run the nudge script.  A short timeout is fine —
             # background mode keeps the script running regardless.
-            termux_task("cmvwifi_nudge", background=True, timeout=45),
+            _lbl(
+                termux_task("cmvwifi_nudge", background=True, timeout=45),
+                "Auto-join nudge (root) — runs ~/.termux/tasker/cmvwifi_nudge",
+            ),
         ],
     )
 

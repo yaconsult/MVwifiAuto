@@ -25,6 +25,7 @@ from mvwifi_auto.tasker_gen import (
     CODE_WIFI_NEAR_STATE,
     CODE_WRITE_FILE,
     OP_EQUALS,
+    TaskerAction,
     TaskerArg,
     TaskerProject,
     TaskerTask,
@@ -696,3 +697,51 @@ class TestTermuxProject:
             actions[1].find("Bundle"), encoding="unicode"
         )
         assert "cmvwifi_nudge" in bundle_xml
+
+
+class TestActionLabels:
+    """Action labels — Tasker's closest equivalent to inline comments."""
+
+    def test_label_serializes(self):
+        """A labeled action emits a <label> child inside <Action>."""
+        project = TaskerProject(
+            name="T",
+            profiles=[],
+            tasks=[
+                TaskerTask(
+                    id=1,
+                    name="t",
+                    actions=[TaskerAction(code=CODE_STOP, label="stop here")],
+                )
+            ],
+        )
+        root = fromstring(generate_project_xml(project))
+        action = root.find("Task/Action")
+        assert action.find("label").text == "stop here"
+
+    def test_unlabeled_action_has_no_label(self):
+        """Actions without a label emit no <label> element."""
+        project = TaskerProject(
+            name="T",
+            profiles=[],
+            tasks=[
+                TaskerTask(
+                    id=1,
+                    name="t",
+                    actions=[TaskerAction(code=CODE_STOP)],
+                )
+            ],
+        )
+        root = fromstring(generate_project_xml(project))
+        assert root.find("Task/Action/label") is None
+
+    def test_termux_plugin_actions_are_labeled(self):
+        """Every Termux:Tasker plugin call in the project has a label —
+        the plugin action code (1256900802) is opaque in the Tasker UI."""
+        root = fromstring(generate_project_xml(build_termux_project()))
+        for task in root.findall("Task"):
+            for action in task.findall("Action"):
+                if action.find("code").text == str(CODE_TERMUX_TASK):
+                    label = action.find("label")
+                    assert label is not None and label.text
+                    assert ".termux/tasker/" in label.text
