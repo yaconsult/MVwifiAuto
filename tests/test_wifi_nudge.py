@@ -290,6 +290,188 @@ class TestRunNudge:
         assert report.connect_rc == 1
 
 
+# `cmd wifi status` while connected to the xfinitywifi fallback.
+STATUS_FALLBACK = STATUS_CONNECTED.replace("cmvwifi", "xfinitywifi")
+
+# Scan variants: both SSIDs visible / fallback only.
+SCAN_BOTH = SCAN_RESULTS.replace("CSA_Staff_Secure", "xfinitywifi")
+SCAN_FALLBACK_ONLY = SCAN_RESULTS.replace("cmvwifi", "xfinitywifi")
+
+
+class TestFallbacks:
+    """Fallback networks: promote away when a preferred target is
+    visible, stay put when not; fallback SSIDs are never joined by a
+    run that only knows them as fallbacks."""
+
+    def test_promotes_to_visible_preferred(self):
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_FALLBACK)
+            if "list-scan-results" in command:
+                return (0, SCAN_BOTH)
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su", ["cmvwifi"], fallbacks=["xfinitywifi"], settle=0
+            )
+        assert report.action == "promoted"
+        assert report.ok is True
+        # Preferred targets keep normal auto-join — no -d flag.
+        assert "cmd wifi connect-network cmvwifi open" in commands
+
+    def test_stays_on_fallback_when_no_preferred_visible(self):
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_FALLBACK)
+            if "list-scan-results" in command:
+                return (0, SCAN_FALLBACK_ONLY)
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su", ["cmvwifi"], fallbacks=["xfinitywifi"], settle=0
+            )
+        assert report.action == "fallback_stay"
+        assert report.ok is True
+        assert all("connect-network" not in c for c in commands)
+
+    def test_fallback_never_joined_by_this_run(self):
+        """Disconnected + only the fallback visible -> target_absent.
+
+        Joining a fallback is a different invocation's job
+        (--ssid xfinitywifi), so disabling the fallback's Tasker
+        profile removes it from circulation entirely."""
+        with (
+            patch(
+                "mvwifi_auto.wifi_nudge.run_root",
+                side_effect=_fake_run_root(
+                    {
+                        "status": (0, STATUS_DISCONNECTED),
+                        "list-scan-results": (0, SCAN_FALLBACK_ONLY),
+                    }
+                ),
+            ),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su", ["cmvwifi"], fallbacks=["xfinitywifi"], settle=0
+            )
+        assert report.action == "target_absent"
+
+    def test_autojoin_disabled_connect(self):
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_DISCONNECTED)
+            if "list-scan-results" in command:
+                return (0, SCAN_FALLBACK_ONLY)
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su",
+                ["xfinitywifi"],
+                settle=0,
+                autojoin_disabled=True,
+            )
+        assert report.action == "connect_requested"
+        assert "cmd wifi connect-network xfinitywifi open -d" in commands
+
+    def test_promotion_never_uses_autojoin_disabled(self):
+        """Promoting onto a preferred network must not carry -d —
+        preferred SSIDs keep normal auto-join even if the run was
+        configured --autojoin-disabled."""
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_FALLBACK)
+            if "list-scan-results" in command:
+                return (0, SCAN_BOTH)
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su",
+                ["cmvwifi"],
+                fallbacks=["xfinitywifi"],
+                settle=0,
+                autojoin_disabled=True,
+            )
+        assert report.action == "promoted"
+        connect = [c for c in commands if "connect-network" in c]
+        assert connect == ["cmd wifi connect-network cmvwifi open"]
+
+    def test_fallback_dry_run_reports_without_connecting(self):
+        commands: list[str] = []
+
+        def tracked(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_FALLBACK)
+            if "list-scan-results" in command:
+                return (0, SCAN_BOTH)
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=tracked),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su",
+                ["cmvwifi"],
+                fallbacks=["xfinitywifi"],
+                settle=0,
+                dry_run=True,
+            )
+        assert report.action == "dry_run"
+        assert report.visible_targets == ["cmvwifi"]
+        assert all("connect-network" not in c for c in commands)
+
+    def test_cli_wires_fallback_and_autojoin_flags(self):
+        """--fallback/--autojoin-disabled reach run_nudge."""
+        fake_report = NudgeReport(action="connect_requested", ok=True)
+        with patch(
+            "mvwifi_auto.wifi_nudge.run_nudge",
+            return_value=fake_report,
+        ) as mock_run, patch(
+            "mvwifi_auto.wifi_nudge.find_su", return_value="su"
+        ):
+            rc = main(
+                [
+                    "--ssid", "xfinitywifi",
+                    "--fallback", "cmvwifi",
+                    "--autojoin-disabled",
+                ]
+            )
+        assert rc == 0
+        _, kwargs = mock_run.call_args
+        assert kwargs["fallbacks"] == ["cmvwifi"]
+        assert kwargs["autojoin_disabled"] is True
+
+
 class TestCli:
     """Test exit codes and report output modes."""
 

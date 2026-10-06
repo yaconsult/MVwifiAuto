@@ -399,19 +399,20 @@ class TestTermuxProject:
         root = fromstring(xml_text)
         assert root.find("Project").find("name").text == "MVwifiAuto-Termux"
 
-    def test_has_four_tasks(self):
-        """Test that the Termux project has 4 tasks."""
+    def test_has_five_tasks(self):
+        """Test that the Termux project has 5 tasks."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        assert len(tasks) == 4
+        assert len(tasks) == 5
         task_names = {t.find("nme").text for t in tasks}
         assert task_names == {
             "RunPortalScript",
             "ConnectAndRun",
             "CostcoConnect",
             "NudgeWifi",
+            "NudgeXfinity",
         }
 
     def test_profile_links_to_connect_and_run(self):
@@ -621,7 +622,7 @@ class TestTermuxProject:
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         profiles = root.findall("Profile")
-        assert len(profiles) == 3
+        assert len(profiles) == 4
         costco = next(
             p for p in profiles if p.find("nme").text == "Costco WiFi Connected"
         )
@@ -678,7 +679,8 @@ class TestTermuxProject:
         assert time.find("repval").text == "15"
 
     def test_nudge_task_runs_wrapper(self):
-        """NudgeWifi logs a marker then calls the cmvwifi_nudge wrapper."""
+        """NudgeWifi logs a marker, then calls wifi_nudge with the
+        cmvwifi preferred + xfinitywifi fallback arguments."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
@@ -691,12 +693,49 @@ class TestTermuxProject:
         # A1: history marker Write File
         assert actions[0].find("code").text == str(CODE_WRITE_FILE)
         assert "mvwifi_history.log" in actions[0].find("Str").text
-        # A2: Termux plugin invoking cmvwifi_nudge
+        # A2: Termux plugin invoking wifi_nudge
         assert actions[1].find("code").text == str(CODE_TERMUX_TASK)
         bundle_xml = tostring(
             actions[1].find("Bundle"), encoding="unicode"
         )
-        assert "cmvwifi_nudge" in bundle_xml
+        assert "wifi_nudge" in bundle_xml
+        assert "--ssid cmvwifi" in bundle_xml
+        assert "--fallback xfinitywifi" in bundle_xml
+
+    def test_xfinity_nudge_task(self):
+        """NudgeXfinity calls wifi_nudge with xfinitywifi + -d."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        task = next(
+            t for t in root.findall("Task") if t.find("nme").text == "NudgeXfinity"
+        )
+        actions = task.findall("Action")
+        assert actions[0].find("code").text == str(CODE_WRITE_FILE)
+        assert actions[1].find("code").text == str(CODE_TERMUX_TASK)
+        bundle_xml = tostring(
+            actions[1].find("Bundle"), encoding="unicode"
+        )
+        assert "wifi_nudge" in bundle_xml
+        assert "--ssid xfinitywifi" in bundle_xml
+        assert "--autojoin-disabled" in bundle_xml
+
+    def test_xfinity_nudge_profile(self):
+        """xfinitywifi Periodic Nudge: Time context every 15 min ->
+        NudgeXfinity (id=110), toggleable to exclude xfinitywifi."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        profile = next(
+            p
+            for p in root.findall("Profile")
+            if p.find("nme").text == "xfinitywifi Periodic Nudge"
+        )
+        assert profile.find("mid0").text == "110"
+        time = profile.find("Time")
+        assert time is not None
+        assert time.find("rep").text == "2"
+        assert time.find("repval").text == "15"
 
 
 class TestActionLabels:

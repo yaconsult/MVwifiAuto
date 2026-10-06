@@ -43,10 +43,25 @@
 			<tm>-1</tm>
 		</Time>
 	</Profile>
+	<Profile sr="prof5" ve="2">
+		<cdate>1000000000000</cdate>
+		<edate>1000000000000</edate>
+		<id>5</id>
+		<mid0>110</mid0>
+		<nme>xfinitywifi Periodic Nudge</nme>
+		<Time sr="con0" ve="2">
+			<fh>-1</fh>
+			<fm>-1</fm>
+			<rep>2</rep>
+			<repval>15</repval>
+			<th>-1</th>
+			<tm>-1</tm>
+		</Time>
+	</Profile>
 	<Project sr="proj0" ve="2">
 		<name>MVwifiAuto-Termux</name>
-		<pids>2,3,4</pids>
-		<tids>70,80,90,100</tids>
+		<pids>2,3,4,5</pids>
+		<tids>70,80,90,100,110</tids>
 	</Project>
 	<Task sr="task70">
 		<id>70</id>
@@ -244,12 +259,12 @@
 		</Action>
 		<Action sr="act1" ve="7">
 			<code>1256900802</code>
-			<label>Auto-join nudge (root) — runs ~/.termux/tasker/cmvwifi_nudge</label>
+			<label>cmvwifi nudge + xfinity promotion (root) — runs ~/.termux/tasker/wifi_nudge</label>
 			<Bundle sr="arg0">
 				<Vals sr="val">
-					<com.termux.execute.arguments />
+					<com.termux.execute.arguments>--ssid cmvwifi --fallback xfinitywifi</com.termux.execute.arguments>
 					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
-					<com.termux.tasker.extra.EXECUTABLE>cmvwifi_nudge</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE>wifi_nudge</com.termux.tasker.extra.EXECUTABLE>
 					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
 					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
 					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
@@ -257,7 +272,47 @@
 					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
 					<com.termux.tasker.extra.WORKDIR />
 					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
-					<com.twofortyfouram.locale.intent.extra.BLURB>cmvwifi_nudge</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB>wifi_nudge --ssid cmvwifi --fallback xfinitywifi</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
+					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
+					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">com.termux.tasker</Str>
+			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
+			<Int sr="arg3" val="45" />
+			<Int sr="arg4" val="0" />
+		</Action>
+	</Task>
+	<Task sr="task110">
+		<id>110</id>
+		<nme>NudgeXfinity</nme>
+		<rty>2</rty>
+		<Action sr="act0" ve="7">
+			<code>410</code>
+			<label>History marker — proves Tasker fired even if Termux fails</label>
+			<Str sr="arg0" ve="3">Tasker/mvwifi_history.log</Str>
+			<Str sr="arg1" ve="3">%TIMES | tasker | NudgeXfinity fired</Str>
+			<Int sr="arg2" val="1" />
+			<Int sr="arg3" val="1" />
+			<Int sr="arg4" val="0" />
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>1256900802</code>
+			<label>xfinitywifi fallback join, autojoin off (root) — runs ~/.termux/tasker/wifi_nudge</label>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<com.termux.execute.arguments>--ssid xfinitywifi --autojoin-disabled</com.termux.execute.arguments>
+					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
+					<com.termux.tasker.extra.EXECUTABLE>wifi_nudge</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
+					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
+					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
+					<com.termux.tasker.extra.VERSION_CODE>4</com.termux.tasker.extra.VERSION_CODE>
+					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
+					<com.termux.tasker.extra.WORKDIR />
+					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
+					<com.twofortyfouram.locale.intent.extra.BLURB>wifi_nudge --ssid xfinitywifi --autojoin-disabled</com.twofortyfouram.locale.intent.extra.BLURB>
 					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
 					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
 					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>

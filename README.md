@@ -216,6 +216,14 @@ Periodic Nudge` Time profile runs every 15 min and issues `cmd wifi
 connect-network` when cmvwifi is visible but unassociated — it never
 interrupts an active connection and requires root.
 
+A sibling `xfinitywifi Periodic Nudge` profile handles Comcast's
+open (portal-free) `xfinitywifi` hotspots as a fallback: it joins
+only when fully disconnected, marks the saved config autojoin-off
+(`connect-network -d`) so Android never self-joins it, and the
+cmvwifi nudge promotes the phone off it whenever a preferred network
+appears. Disable that profile in the Tasker UI to exclude xfinitywifi
+entirely.
+
 See [docs/android-termux-setup.md](docs/android-termux-setup.md)
 for setup instructions, or run `scripts/deploy_android.sh` with the
 phone connected via USB for one-command deployment. Run

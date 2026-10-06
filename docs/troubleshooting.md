@@ -460,7 +460,7 @@ poison its score — check `su -c 'cmd wifi list-networks'` or
 Screen-off PNO scans are throttled on top of that.
 
 **Fix**: The `cmvwifi Periodic Nudge` Time profile (every 15 min,
-requires root) runs `~/.termux/tasker/cmvwifi_nudge`, which issues
+requires root) runs `~/.termux/tasker/wifi_nudge`, which issues
 `cmd wifi connect-network cmvwifi open` whenever cmvwifi is in scan
 results but unassociated. Verify it exists and fires:
 
@@ -472,6 +472,17 @@ cat ~/storage/shared/mvwifi_nudge.log
 # Manual test:
 su -c 'cmd wifi connect-network cmvwifi open'
 ```
+
+**Nudge action values** (in `mvwifi_nudge.log` "nudge result"
+lines): `already_connected` / `connected_elsewhere` / `wifi_disabled`
+/ `target_absent` are no-ops; `connect_requested` joined a target;
+`promoted` moved the phone off a fallback SSID (xfinitywifi) onto a
+visible preferred one; `fallback_stay` means it's on xfinitywifi and
+no preferred network was in range. `xfinitywifi` is a **fallback
+tier**: joined only while fully disconnected, saved with auto-join
+disabled (`-d`), and managed by the separate `xfinitywifi Periodic
+Nudge` profile — disable that profile in Tasker to exclude
+xfinitywifi entirely.
 
 If the profile is missing, re-import `MVwifiAuto-Termux.prj.xml`.
 On an unrooted phone the nudge exits with "no usable root shell";

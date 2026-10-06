@@ -575,6 +575,29 @@ and the deploy script now tells users to open Tasker after import.
 XML change only — takes effect on the phone at the next project
 re-import (remember: open Tasker once afterward to activate contexts).
 
+## 2026-10-05 - Android: xfinitywifi Fallback Tier + Promotion
+
+### Discovery
+- `xfinitywifi` serves real internet with **no portal** on
+  home-gateway hotspots (verified live: HTTPS 200 over wlan0, Comcast
+  egress IP). The deferred "login portal" feature is unnecessary.
+
+### Completed
+- `wifi_nudge.py`: `--fallback` (demotable connections — promote onto
+  a visible preferred SSID) + `--autojoin-disabled` (`-d` on
+  connect-network: saved but never self-joined by Android)
+- Wrapper generalized: `cmvwifi_nudge` → `wifi_nudge`, forwards "$@";
+  SSID sets now live in the Tasker tasks' Arguments field
+- Tasker: new `NudgeXfinity` task + `xfinitywifi Periodic Nudge`
+  profile; `NudgeWifi` args `--ssid cmvwifi --fallback xfinitywifi`.
+  Profile toggle = user-facing on/off for the xfinity tier
+
+### Decisions
+- Fallback joined only while fully disconnected; promotion moves the
+  phone to a preferred network when one appears
+- `-d` instead of forget/re-add churn
+- Per-network Tasker profiles as the toggle UI (not a flag file)
+
 ---
 
 ## Template for Future Entries

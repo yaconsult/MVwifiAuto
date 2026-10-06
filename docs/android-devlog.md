@@ -1612,3 +1612,50 @@ AUTH_FAILURE_EAP_FAILURE` at -77 dBm, then `ASSOCIATION_REJECTION`s.
 Xfinity Mobile lines, not internet-only accounts. EAP shortcut is
 dead; open `xfinitywifi` portal automation remains the only route
 (deferred per the generic-engine note).
+
+---
+
+## Session 29: xfinitywifi Is Portal-Free — Fallback Tier + Promotion (2026-10-05)
+
+### Finding
+
+The deferred "xfinitywifi login portal" feature turned out
+unnecessary. From the user's desk, `cmd wifi connect-network
+xfinitywifi open` associated to a neighbor's hotspot (-68 dBm,
+~30 xfinity BSSIDs in range) and delivered **real internet with no
+portal**: HTTP/HTTPS verified over wlan0 (dhcp 172.20.20.20/24,
+egress IP 73.15.153.128 = Comcast residential). Comcast deprecated
+the sign-in on home-gateway hotspots; the earlier assumption of a
+login-required portal was wrong for this deployment class.
+
+### Design: fallback tier, promotion, GUI toggle
+
+xfinitywifi is useful but strictly worse than the managed networks,
+so it was wired as a **fallback tier** rather than a peer:
+
+- `wifi_nudge.py` gained `--fallback SSID` (a demotable connection
+  class — if connected to a fallback and a preferred SSID is
+  visible, the run *promotes* onto it via `connect-network`) and
+  `--autojoin-disabled` (appends `-d` to connect-network, so the
+  saved config keeps auto-join off — Android never self-joins it).
+- One wrapper (`android/wifi_nudge`, renamed from `cmvwifi_nudge`)
+  forwards `"$@"`; Tasker tasks carry the network-class arguments.
+- New `NudgeXfinity` task + `xfinitywifi Periodic Nudge` profile
+  (15-min Time): `--ssid xfinitywifi --autojoin-disabled`.
+- `NudgeWifi` task args: `--ssid cmvwifi --fallback xfinitywifi`.
+
+The per-network Tasker profile *is* the enable/disable switch the
+user asked for: toggling `xfinitywifi Periodic Nudge` off in the UI
+removes xfinitywifi from circulation without touching cmvwifi.
+Convergence is order-independent — if the xfinity run joins first
+in a shared tick, the cmvwifi run's promotion corrects it.
+
+### Alternatives considered
+
+- *Auto-join enabled, rely on Android's selector*: rejected — Android
+  would hop onto xfinitywifi whenever home WiFi blips, and the
+  never-steal rule would then keep it there all day.
+- *Forget the network after each use*: rejected — fragile churn;
+  `-d` keeps the saved config but disables self-join.
+- *Single profile, flag file for the toggle*: rejected — a Tasker
+  profile toggle is the UI affordance the user asked for.

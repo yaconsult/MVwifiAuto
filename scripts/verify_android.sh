@@ -137,7 +137,7 @@ if [ "$HAVE_ROOT" -eq 1 ]; then
         record FAIL "wrapper script" "missing or not executable at $TASKER_DIR/mvwifi_portal"
     fi
 
-    for wrapper in costco_portal costco_probe cmvwifi_nudge; do
+    for wrapper in costco_portal costco_probe wifi_nudge; do
         if adb_su "test -x $TASKER_DIR/$wrapper"; then
             record PASS "$wrapper wrapper" "present and executable"
         else

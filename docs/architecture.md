@@ -256,9 +256,11 @@ the portal.
 ### Android Flow (Tasker + Termux)
 
 ```
-0. cmvwifi Periodic Nudge (Time, every 15 min) → NudgeWifi →
-   ~/.termux/tasker/cmvwifi_nudge → wifi_nudge: if disconnected
-   and cmvwifi in scan results → `cmd wifi connect-network`
+0. Periodic nudges (Time, every 15 min) → wifi_nudge:
+   - cmvwifi Periodic Nudge: disconnected + cmvwifi visible →
+     `connect-network`; on xfinitywifi + cmvwifi visible → promote
+   - xfinitywifi Periodic Nudge: disconnected + xfinitywifi visible →
+     `connect-network -d` (autojoin off — fallback only)
 1. Tasker WiFi Connected profile fires on association to "cmvwifi"
 2. ConnectAndRun task runs:
    a. If %WIFII already ~ "cmvwifi" → skip to step c

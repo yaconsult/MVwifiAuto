@@ -977,10 +977,11 @@ def _build_costco_profile_termux() -> TaskerProfile:
 def _build_cmvwifi_nudge_task() -> TaskerTask:
     """Build the NudgeWifi task (id=100) — periodic auto-join nudge.
 
-    Runs the cmvwifi_nudge wrapper via the Termux:Tasker plugin.  The
-    wrapper calls wifi_nudge, which issues ``cmd wifi connect-network``
-    when a target SSID is visible in scan results but Android has not
-    joined it — bypassing the network selector's auto-join backoff.
+    Runs the wifi_nudge wrapper via the Termux:Tasker plugin with
+    ``--ssid cmvwifi --fallback xfinitywifi``: joins cmvwifi when it is
+    visible but unassociated (bypassing the network selector's
+    auto-join backoff), and promotes the device off xfinitywifi onto
+    cmvwifi when both are in range.
     """
     return TaskerTask(
         id=100,
@@ -997,8 +998,14 @@ def _build_cmvwifi_nudge_task() -> TaskerTask:
             # A2: Run the nudge script.  A short timeout is fine —
             # background mode keeps the script running regardless.
             _lbl(
-                termux_task("cmvwifi_nudge", background=True, timeout=45),
-                "Auto-join nudge (root) — runs ~/.termux/tasker/cmvwifi_nudge",
+                termux_task(
+                    "wifi_nudge",
+                    arguments="--ssid cmvwifi --fallback xfinitywifi",
+                    background=True,
+                    timeout=45,
+                ),
+                "cmvwifi nudge + xfinity promotion (root) — "
+                "runs ~/.termux/tasker/wifi_nudge",
             ),
         ],
     )
@@ -1022,6 +1029,58 @@ def _build_cmvwifi_nudge_profile() -> TaskerProfile:
     )
 
 
+def _build_xfinity_nudge_task() -> TaskerTask:
+    """Build the NudgeXfinity task (id=110) — fallback-only join.
+
+    Runs wifi_nudge with ``--ssid xfinitywifi --autojoin-disabled``:
+    joins open xfinitywifi only when fully disconnected, and marks
+    the saved config autojoin-disabled (-d) so Android never hops
+    onto it while a better network is around.  Disabling the
+    profile in Tasker excludes xfinitywifi entirely — cmvwifi
+    handling (and promotion away from xfinitywifi) is unaffected.
+    """
+    return TaskerTask(
+        id=110,
+        name="NudgeXfinity",
+        actions=[
+            _lbl(
+                write_file(
+                    "Tasker/mvwifi_history.log",
+                    "%TIMES | tasker | NudgeXfinity fired",
+                ),
+                "History marker — proves Tasker fired even if Termux fails",
+            ),
+            _lbl(
+                termux_task(
+                    "wifi_nudge",
+                    arguments="--ssid xfinitywifi --autojoin-disabled",
+                    background=True,
+                    timeout=45,
+                ),
+                "xfinitywifi fallback join, autojoin off (root) — "
+                "runs ~/.termux/tasker/wifi_nudge",
+            ),
+        ],
+    )
+
+
+def _build_xfinity_nudge_profile() -> TaskerProfile:
+    """Build the xfinitywifi Periodic Nudge profile (id=5).
+
+    Same 15-minute Time context as the cmvwifi nudge.  xfinitywifi
+    is a fallback network: the nudge only joins it when nothing else
+    is connected, and its saved config is autojoin-disabled so
+    Android itself never picks it.  Toggle this profile off in
+    Tasker to stop all xfinitywifi use.
+    """
+    return TaskerProfile(
+        id=5,
+        name="xfinitywifi Periodic Nudge",
+        state=TaskerTime(repeat_unit=2, repeat_value=15),
+        task_id=110,  # NudgeXfinity
+    )
+
+
 def build_termux_project() -> TaskerProject:
     """Build the MVwifiAuto Tasker project for the Termux approach.
 
@@ -1034,13 +1093,18 @@ def build_termux_project() -> TaskerProject:
         - ConnectAndRun: connects to cmvwifi, waits for DHCP, calls
           RunPortalScript
         - CostcoConnect: runs the Costco Mist portal handler
-        - NudgeWifi: periodic auto-join nudge for cmvwifi
+        - NudgeWifi: periodic auto-join nudge for cmvwifi (+ promotes
+          off xfinitywifi when cmvwifi is visible)
+        - NudgeXfinity: periodic fallback nudge for xfinitywifi,
+          joined with autojoin disabled (-d)
 
     Profiles:
         - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
         - Costco WiFi Connected: WiFi Connected (Costco Member Wifi)
           → CostcoConnect
         - cmvwifi Periodic Nudge: Time (every 15 min) → NudgeWifi
+        - xfinitywifi Periodic Nudge: Time (every 15 min) →
+          NudgeXfinity
 
     Returns:
         A :class:`TaskerProject` ready for XML generation.
@@ -1050,11 +1114,13 @@ def build_termux_project() -> TaskerProject:
         _build_connect_and_run_task_termux(),
         _build_costco_connect_task(),
         _build_cmvwifi_nudge_task(),
+        _build_xfinity_nudge_task(),
     ]
     profiles = [
         _build_cmvwifi_profile_termux(),
         _build_costco_profile_termux(),
         _build_cmvwifi_nudge_profile(),
+        _build_xfinity_nudge_profile(),
     ]
     return TaskerProject(
         name="MVwifiAuto-Termux",

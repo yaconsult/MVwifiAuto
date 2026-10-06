@@ -43,13 +43,24 @@ fails captive-portal validation ("no internet"), and screen-off scan
 throttling delays retries — observed on-device as a 15-30 minute gap
 with "Auto-connect" enabled. A Tasker **Time** profile (`cmvwifi
 Periodic Nudge`, every 15 min) fires `NudgeWifi`, which runs
-`~/.termux/tasker/cmvwifi_nudge` → `wifi_nudge.py`:
+`~/.termux/tasker/wifi_nudge --ssid cmvwifi --fallback xfinitywifi` →
+`wifi_nudge.py`:
 
-1. If already on any WiFi → exits (never disrupts a working link)
+1. If already on a preferred WiFi → exits (never disrupts a working
+   link); on the `xfinitywifi` fallback → scans, and promotes onto
+   cmvwifi if it is visible
 2. `cmd wifi start-scan` + `list-scan-results` (root) — is cmvwifi
    visible?
 3. If visible but not associated → `cmd wifi connect-network cmvwifi
    open`, and the existing WiFi Connected profile handles the portal
+
+A second Time profile (`xfinitywifi Periodic Nudge`) → `NudgeXfinity`
+runs the same wrapper with `--ssid xfinitywifi --autojoin-disabled`:
+it joins open `xfinitywifi` only when fully disconnected, and marks
+the saved config `-d` so Android never self-joins it while a better
+network exists. **Disabling this profile in the Tasker UI removes
+xfinitywifi from circulation entirely** — cmvwifi nudging and
+promotion-away-from-xfinity are unaffected.
 
 Root is required for the `cmd wifi` calls. The nudge is silent when
 it has nothing to do (WiFi off, already connected, or cmvwifi out of
@@ -291,12 +302,13 @@ android/MVwifiAuto-Termux.prj.xml
 ```
 
 This contains the `ConnectAndRun`, `RunPortalScript`,
-`CostcoConnect`, and `NudgeWifi` tasks, plus the `cmvwifi Auto
-Connect`, `Costco WiFi Connected`, and `cmvwifi Periodic Nudge`
-profiles — all pre-configured for the Termux:Tasker plugin. The
-Costco profile auto-accepts the Mist TOS portal on `Costco Member
-Wifi` (see `docs/costco-portal-capture.md`); delete that profile if
-you don't want it. The Periodic Nudge profile requires root and can
+`CostcoConnect`, `NudgeWifi`, and `NudgeXfinity` tasks, plus the
+`cmvwifi Auto Connect`, `Costco WiFi Connected`, `cmvwifi Periodic
+Nudge`, and `xfinitywifi Periodic Nudge` profiles — all
+pre-configured for the Termux:Tasker plugin. The Costco profile
+auto-accepts the Mist TOS portal on `Costco Member Wifi` (see
+`docs/costco-portal-capture.md`); delete that profile if you don't
+want it. The Periodic Nudge profiles require root and can
 be deleted on unrooted devices (its wrapper exits cleanly with "no
 root" — nothing else breaks).
 
@@ -810,7 +822,7 @@ Repo:
 - `src/mvwifi_auto/tasker_gen.py` - Tasker XML generator (for WiFi Connected profile)
 - `android/MVwifiAuto-Termux.prj.xml` - generated Tasker project
 - `android/mvwifi_portal` - wrapper script (single source of truth)
-- `android/cmvwifi_nudge` - periodic-nudge wrapper executed by Tasker
+- `android/wifi_nudge` - periodic-nudge wrapper executed by Tasker (SSIDs via args)
 - `scripts/termux_setup.sh` - on-device setup (runs in Termux)
 - `scripts/deploy_android.sh` - full adb deployment (wrapper, XML, settings)
 - `scripts/verify_android.sh` - on-device state checklist
@@ -819,7 +831,7 @@ On the phone:
 
 - `~/MVwifiAuto/` - repo clone (editable install target)
 - `~/.termux/tasker/mvwifi_portal` - wrapper executed by Tasker
-- `~/.termux/tasker/cmvwifi_nudge` - nudge wrapper (Periodic Nudge profile)
+- `~/.termux/tasker/wifi_nudge` - nudge wrapper (Periodic Nudge profiles)
 - `~/.termux/termux.properties` - `allow-external-apps = true`
 - `~/storage/shared/mvwifi_tasker.log` - run log (overwritten each run)
 - `~/storage/shared/mvwifi_nudge.log` - nudge detail log

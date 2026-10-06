@@ -18,6 +18,10 @@ captive portal as usual.
 Behaviour:
 
 - Already on a target SSID        -> no-op
+- Connected to a fallback SSID    -> scan; if a preferred target is
+                                     visible, promote onto it
+                                     (``connect-network``); otherwise
+                                     no-op and stay
 - Connected to a different SSID   -> no-op (never disrupts a working
                                      connection)
 - WiFi disabled                   -> no-op (the user may have turned
@@ -25,10 +29,17 @@ Behaviour:
 - Target absent from scan         -> no-op
 - Target visible, not connected   -> ``cmd wifi connect-network``
 
+Fallback SSIDs are never joined by this run — they only mark
+connections the nudge may promote away from.  Joining a fallback is
+a separate invocation's job (``--ssid <fallback> --autojoin-disabled``),
+so an entire fallback class can be toggled in Tasker by disabling its
+profile without affecting preferred-network handling.
+
 CLI::
 
     mvwifi-nudge
-    mvwifi-nudge --ssid cmvwifi --ssid "Costco Member Wifi"
+    mvwifi-nudge --ssid cmvwifi --fallback xfinitywifi
+    mvwifi-nudge --ssid xfinitywifi --autojoin-disabled
     mvwifi-nudge --dry-run --json
 """
 
@@ -95,8 +106,9 @@ class NudgeReport:
 
     action: str
     """Terminal state: already_connected, connected_elsewhere,
-    wifi_disabled, target_absent, connect_requested, dry_run,
-    no_root, status_failed, scan_failed, or connect_failed."""
+    fallback_stay, wifi_disabled, target_absent, connect_requested,
+    promoted, dry_run, no_root, status_failed, scan_failed, or
+    connect_failed."""
 
     ok: bool
     wifi_enabled: bool = False
@@ -178,25 +190,58 @@ def _report(
     )
 
 
+def _scan(su: str, settle: float) -> tuple[int, str]:
+    """Trigger a scan and return ``list-scan-results`` output."""
+    rc, out = run_root(su, "cmd wifi start-scan")
+    if rc != 0:
+        logger.warning("start-scan failed (rc=%s): %s", rc, out.strip())
+    time.sleep(settle)
+    return run_root(su, "cmd wifi list-scan-results")
+
+
+def _connect(su: str, ssid: str, autojoin_disabled: bool) -> int:
+    """Issue ``cmd wifi connect-network`` for *ssid*; returns the rc.
+
+    ``autojoin_disabled`` adds ``-d``: the network joins now but the
+    saved config is marked so Android never self-joins it later —
+    the nudge stays the only path onto the network.
+    """
+    flag = " -d" if autojoin_disabled else ""
+    rc, out = run_root(
+        su, f"cmd wifi connect-network {shlex.quote(ssid)} open{flag}"
+    )
+    logger.info("connect-network %s -> rc=%s %s", ssid, rc, out.strip())
+    return rc
+
+
 def run_nudge(
     su: str,
     targets: list[str],
+    fallbacks: list[str] | None = None,
     settle: float = 3.0,
     dry_run: bool = False,
+    autojoin_disabled: bool = False,
 ) -> NudgeReport:
     """Check WiFi state and request a join if a target SSID is visible.
 
     Args:
         su: Root shell path from :func:`find_su`.
-        targets: SSIDs worth nudging (first visible one wins).
+        targets: Preferred SSIDs worth nudging (first visible one wins).
+        fallbacks: SSIDs that count as "promotable" connections — when
+            connected to one, the nudge scans and moves to a visible
+            preferred target.  Never joined by this run.
         settle: Seconds to wait between ``start-scan`` and reading
             ``list-scan-results``.
         dry_run: Report what would happen without issuing
             ``connect-network``.
+        autojoin_disabled: Pass ``-d`` to ``connect-network`` so the
+            joined network's saved config keeps auto-join off —
+            Android cannot spontaneously hop onto it later.
 
     Returns:
         A :class:`NudgeReport` describing what was decided and done.
     """
+    fallbacks = fallbacks or []
     rc, out = run_root(su, "cmd wifi status")
     if rc != 0:
         logger.error("cmd wifi status failed (rc=%s): %s", rc, out.strip())
@@ -210,15 +255,12 @@ def run_nudge(
         return _report("wifi_disabled", True, status, targets)
     if status.connected_ssid in targets:
         return _report("already_connected", True, status, targets)
-    if status.connected_ssid is not None:
+    on_fallback = status.connected_ssid in fallbacks
+    if status.connected_ssid is not None and not on_fallback:
         # Never pull the device off a working connection.
         return _report("connected_elsewhere", True, status, targets)
 
-    rc, out = run_root(su, "cmd wifi start-scan")
-    if rc != 0:
-        logger.warning("start-scan failed (rc=%s): %s", rc, out.strip())
-    time.sleep(settle)
-    rc, out = run_root(su, "cmd wifi list-scan-results")
+    rc, out = _scan(su, settle)
     if rc != 0:
         logger.error("list-scan-results failed (rc=%s): %s", rc, out.strip())
         return _report("scan_failed", False, status, targets)
@@ -226,26 +268,26 @@ def run_nudge(
     visible = {r.ssid for r in parse_scan_results(out)}
     hits = [t for t in targets if t in visible]
     logger.info("scan: %d targets visible: %s", len(hits), hits or "none")
-    if not hits:
-        return _report("target_absent", True, status, targets)
+    if on_fallback:
+        if not hits:
+            return _report("fallback_stay", True, status, targets)
+        action = "dry_run" if dry_run else "promoted"
+    else:
+        if not hits:
+            return _report("target_absent", True, status, targets)
+        action = "dry_run" if dry_run else "connect_requested"
 
     if dry_run:
-        return _report(
-            "dry_run", True, status, targets, visible_targets=hits
-        )
+        return _report("dry_run", True, status, targets, visible_targets=hits)
 
-    target = hits[0]
-    rc, out = run_root(
-        su, f"cmd wifi connect-network {shlex.quote(target)} open"
-    )
-    logger.info("connect-network %s -> rc=%s %s", target, rc, out.strip())
+    rc = _connect(su, hits[0], autojoin_disabled and not on_fallback)
     if rc != 0:
         return _report(
             "connect_failed", False, status, targets,
             visible_targets=hits, connect_rc=rc,
         )
     return _report(
-        "connect_requested", True, status, targets,
+        action, True, status, targets,
         visible_targets=hits, connect_rc=rc,
     )
 
@@ -284,7 +326,19 @@ def main(argv: list[str] | None = None) -> int:
         "--ssid",
         action="append",
         dest="ssids",
-        help="Target SSID (repeatable; default: cmvwifi)",
+        help="Preferred target SSID (repeatable; default: cmvwifi)",
+    )
+    parser.add_argument(
+        "--fallback",
+        action="append",
+        dest="fallbacks",
+        help="Fallback SSID this run may promote away from "
+        "(repeatable; never joined by this run)",
+    )
+    parser.add_argument(
+        "--autojoin-disabled",
+        action="store_true",
+        help="Join targets with -d so Android never self-joins them",
     )
     parser.add_argument(
         "--settle",
@@ -326,8 +380,17 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("no usable root shell found")
     else:
         report = run_nudge(
-            su, targets, settle=args.settle, dry_run=args.dry_run
+            su,
+            targets,
+            fallbacks=args.fallbacks,
+            settle=args.settle,
+            dry_run=args.dry_run,
+            autojoin_disabled=args.autojoin_disabled,
         )
+
+    # The resolved action lands in the log file too — promoted /
+    # fallback_stay would otherwise be invisible without --json.
+    logger.info("nudge result: action=%s ok=%s", report.action, report.ok)
 
     if args.json:
         print(json.dumps(report.to_dict(), indent=2))
