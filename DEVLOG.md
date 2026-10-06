@@ -605,6 +605,32 @@ re-import (remember: open Tasker once afterward to activate contexts).
 - Per-network Tasker profiles as the toggle UI (not a flag file);
   disabling xfinity gates joining only — promotion away still works
 
+## 2026-10-05 - Field Failure: Project Import Merges, Doesn't Replace
+
+### Finding
+- Re-importing `MVwifiAuto-Termux` over the existing project silently
+  **merged**: old task definitions survived (scheduled `NudgeWifi`
+  kept invoking the renamed `cmvwifi_nudge` wrapper) while only the
+  new elements (`NudgeXfinity`, `xfinitywifi Periodic Nudge`) were
+  added. New profile's Time context never registered — markers absent
+  while the ghost task fired every 15 min.
+- Diagnostics that proved it: logcat `TermuxTasker.FireReceiver`
+  "executable not found" errors for `cmvwifi_nudge`, then a tagged
+  compat shim writing `nudge via shim (stale tasker task)` to the
+  history log — the scheduled runs were arriving via the shim.
+- Fix: **delete the project tab first, then import**, then relaunch
+  Tasker once. Verified at the 23:45 tick: both profiles fired, both
+  wrappers ran directly (no shim tag), correct
+  `action=connected_elsewhere` no-ops on dd-wrt_5G.
+- The `cmvwifi_nudge` shim now permanently tags shim invocations —
+  any future stale-reference regression is visible in the history log
+  instead of failing silently.
+- Added a generation stamp: `generate_project_xml` hashes the
+  serialized XML and injects `[gen xxxxxx]` into every task marker
+  plus a manual `ShowVersion` task (flashes the gen id in the GUI).
+  A stale/merged import is now identifiable from the history log or
+  one tap — no adb, no logcat needed.
+
 ---
 
 ## Template for Future Entries

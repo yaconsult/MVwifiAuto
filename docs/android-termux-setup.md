@@ -328,10 +328,17 @@ android/MVwifiAuto-Termux.prj.xml
 ```
 
 This contains the `ConnectAndRun`, `RunPortalScript`,
-`CostcoConnect`, `NudgeWifi`, and `NudgeXfinity` tasks, plus the
-`cmvwifi Auto Connect`, `Costco WiFi Connected`, `cmvwifi Periodic
-Nudge`, and `xfinitywifi Periodic Nudge` profiles — all
-pre-configured for the Termux:Tasker plugin. The Costco profile
+`CostcoConnect`, `NudgeWifi`, `NudgeXfinity`, and `ShowVersion`
+tasks, plus the `cmvwifi Auto Connect`, `Costco WiFi Connected`,
+`cmvwifi Periodic Nudge`, and `xfinitywifi Periodic Nudge` profiles —
+all pre-configured for the Termux:Tasker plugin.
+
+Every task's history marker carries a generation stamp
+(`[gen xxxxxx]` — a content hash of the XML) so `tail`ing the
+history log reveals exactly which project generation is running; a
+stale merged import shows an old or absent gen id. You can also run
+the `ShowVersion` task manually (▶) to flash the imported project's
+gen id and compare it against the one in the XML on `/sdcard`. The Costco profile
 auto-accepts the Mist TOS portal on `Costco Member Wifi` (see
 `docs/costco-portal-capture.md`); delete that profile if you don't
 want it. The Periodic Nudge profiles require root and can
@@ -356,11 +363,19 @@ Then in Tasker: long-press the bottom nav bar → **Import Project**
 > without this; contexts do not.
 
 > **⚠️ If the project is already imported, delete it first.**
-> Tasker refuses (or silently ignores) an import when a project with
-> the same name exists. In Tasker: long-press the `MVwifiAuto-Termux`
-> project tab → **Delete**, then import again. Tasker stores live
-> project data in internal app storage — pushing a new XML to
-> `/sdcard` never updates the running project by itself.
+> Importing a project whose name already exists **merges** rather
+> than replaces: existing task definitions are kept and only new
+> elements are added — observed on-device as a hybrid project where
+> `NudgeWifi` still invoked the renamed `cmvwifi_nudge` wrapper while
+> the new `xfinitywifi Periodic Nudge` profile appeared alongside it
+> (diagnosed via logcat plugin errors plus a tagged shim). In Tasker:
+> long-press the `MVwifiAuto-Termux` project tab → **Delete**, then
+> import again. Tasker stores live project data in internal app
+> storage — pushing a new XML to `/sdcard` never updates the running
+> project by itself. Verify after import: `NudgeWifi`'s Termux plugin
+> action should reference `wifi_nudge`, not `cmvwifi_nudge`, and the
+> `[gen xxxxxx]` stamp in the next history marker should match the
+> gen id in the XML on `/sdcard` (`grep -o "gen [0-9a-f]*"`).
 
 > **Note**: After import, you still need to create the wrapper script
 > (Step 1) and grant the Termux:Tasker permission (Step 2). The XML

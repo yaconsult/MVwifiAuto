@@ -22,6 +22,7 @@ Or via the CLI::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 from dataclasses import dataclass, field, replace
 from xml.etree.ElementTree import (
@@ -66,6 +67,15 @@ OP_EQUALS = 2
 
 # Tasker version string for the root element
 DEFAULT_TASKER_VERSION = "5.15.14"
+
+# Generation stamp placeholder.  ``generate_project_xml`` replaces every
+# occurrence with a content hash of the generated XML (with the
+# placeholder still in place), so the stamp tracks the exact project
+# content with no manual version bumping.  Embedded in task marker text
+# and the ``ShowVersion`` flash, it lets logs and the Tasker GUI answer
+# "which generation is actually imported?" — a stale merged import is
+# instantly visible as an old/absent gen id.
+GEN_PLACEHOLDER = "@MWGEN@"
 
 # Fixed bundle for HTTP Request (code 339) — Tasker requires this metadata
 _HTTP_BUNDLE_XML = (
@@ -311,7 +321,14 @@ def generate_project_xml(project: TaskerProject) -> str:
     indent(root, space="\t")
 
     xml_bytes = tostring(root, encoding="unicode")
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_bytes + "\n"
+    xml_text = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_bytes + "\n"
+
+    # Stamp the generation id: hash the serialized XML *with* the
+    # placeholder in place (so the stamp can't change its own hash),
+    # then substitute it everywhere.  Any change to tasks, profiles,
+    # or arguments produces a new gen id automatically.
+    gen = hashlib.sha256(xml_text.encode()).hexdigest()[:6]
+    return xml_text.replace(GEN_PLACEHOLDER, gen)
 
 
 # ---------------------------------------------------------------------------
@@ -858,7 +875,7 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | ConnectAndRun fired",
+                    "%TIMES | tasker | ConnectAndRun fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -932,7 +949,7 @@ def _build_costco_connect_task() -> TaskerTask:
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | CostcoConnect fired",
+                    "%TIMES | tasker | CostcoConnect fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -991,7 +1008,7 @@ def _build_cmvwifi_nudge_task() -> TaskerTask:
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | NudgeWifi fired",
+                    "%TIMES | tasker | NudgeWifi fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -1046,7 +1063,7 @@ def _build_xfinity_nudge_task() -> TaskerTask:
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | NudgeXfinity fired",
+                    "%TIMES | tasker | NudgeXfinity fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -1059,6 +1076,27 @@ def _build_xfinity_nudge_task() -> TaskerTask:
                 ),
                 "xfinitywifi fallback join, autojoin off (root) — "
                 "runs ~/.termux/tasker/wifi_nudge",
+            ),
+        ],
+    )
+
+
+def _build_show_version_task() -> TaskerTask:
+    """Build the ShowVersion task (id=120) — manual gen-id check.
+
+    Flashes the generation stamp of the imported project.  Run it by
+    hand in Tasker (▶) to answer "which generation is actually
+    imported?" — compare against the ``gen`` value in the marker
+    lines of a freshly generated XML.  Detects stale/merged imports
+    in one tap, no adb needed.
+    """
+    return TaskerTask(
+        id=120,
+        name="ShowVersion",
+        actions=[
+            _lbl(
+                flash(f"MVwifiAuto-Termux gen {GEN_PLACEHOLDER}"),
+                "Shows the imported project's generation stamp",
             ),
         ],
     )
@@ -1097,6 +1135,8 @@ def build_termux_project() -> TaskerProject:
           off xfinitywifi when cmvwifi is visible)
         - NudgeXfinity: periodic fallback nudge for xfinitywifi,
           joined with autojoin disabled (-d)
+        - ShowVersion: flashes the generation stamp — run manually to
+          verify which project generation is actually imported
 
     Profiles:
         - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
@@ -1115,6 +1155,7 @@ def build_termux_project() -> TaskerProject:
         _build_costco_connect_task(),
         _build_cmvwifi_nudge_task(),
         _build_xfinity_nudge_task(),
+        _build_show_version_task(),
     ]
     profiles = [
         _build_cmvwifi_profile_termux(),

@@ -399,13 +399,13 @@ class TestTermuxProject:
         root = fromstring(xml_text)
         assert root.find("Project").find("name").text == "MVwifiAuto-Termux"
 
-    def test_has_five_tasks(self):
-        """Test that the Termux project has 5 tasks."""
+    def test_has_six_tasks(self):
+        """Test that the Termux project has 6 tasks."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        assert len(tasks) == 5
+        assert len(tasks) == 6
         task_names = {t.find("nme").text for t in tasks}
         assert task_names == {
             "RunPortalScript",
@@ -413,6 +413,7 @@ class TestTermuxProject:
             "CostcoConnect",
             "NudgeWifi",
             "NudgeXfinity",
+            "ShowVersion",
         }
 
     def test_profile_links_to_connect_and_run(self):
@@ -784,3 +785,52 @@ class TestActionLabels:
                     label = action.find("label")
                     assert label is not None and label.text
                     assert ".termux/tasker/" in label.text
+
+
+class TestGenerationStamp:
+    """The gen placeholder is replaced by a content-hash stamp."""
+
+    def test_markers_carry_gen_id(self):
+        """Every task marker line ends with [gen xxxxxx]."""
+        import re
+
+        xml_text = generate_project_xml(build_termux_project())
+        root = fromstring(xml_text)
+        gens = set()
+        for task in root.findall("Task"):
+            for arg in task.iter("Str"):
+                text = arg.get("val") or (arg.text or "")
+                if "| tasker |" in text:
+                    m = re.search(r"\[gen ([0-9a-f]{6})\]$", text)
+                    assert m is not None, text
+                    gens.add(m.group(1))
+        # All markers share one generation id
+        assert len(gens) == 1
+        # Placeholder never survives into the output
+        assert "@MWGEN@" not in xml_text
+
+    def test_gen_is_deterministic(self):
+        """Identical project content produces an identical stamp."""
+        xml1 = generate_project_xml(build_termux_project())
+        xml2 = generate_project_xml(build_termux_project())
+        assert xml1 == xml2
+
+    def test_gen_changes_with_content(self):
+        """Changing project content changes the stamp."""
+        from dataclasses import replace as dc_replace
+
+        p1 = build_termux_project()
+        p2 = build_termux_project()
+        p2.tasks = [
+            dc_replace(t, name=f"{t.name}X") if t.name == "ShowVersion" else t
+            for t in p2.tasks
+        ]
+        assert generate_project_xml(p1) != generate_project_xml(p2)
+
+    def test_show_version_flashes_gen(self):
+        """The ShowVersion task flashes the same gen id."""
+        xml_text = generate_project_xml(build_termux_project())
+        root = fromstring(xml_text)
+        task = next(t for t in root.findall("Task") if t.find("nme").text == "ShowVersion")
+        strs = list(task.iter("Str"))
+        assert any("MVwifiAuto-Termux gen " in (a.get("val") or a.text or "") for a in strs)
