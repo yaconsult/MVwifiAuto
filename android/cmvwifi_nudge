@@ -1,0 +1,6 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# Compatibility shim — the wrapper was renamed to wifi_nudge when it
+# became multi-network.  Stale Tasker tasks (e.g. a project left over
+# after a re-import) may still call this name; forward to wifi_nudge
+# so they degrade to the default cmvwifi nudge instead of failing.
+exec /data/data/com.termux/files/home/.termux/tasker/wifi_nudge "$@"
