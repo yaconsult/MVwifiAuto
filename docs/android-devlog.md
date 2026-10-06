@@ -1678,3 +1678,52 @@ Who promotes off xfinitywifi depends on the destination:
 Saved-config fix applied on-device: `forget-network 9` +
 `add-network xfinitywifi open -d` → netId 10 with
 `allowAutojoin=false` (verified in `dumpsys wifi`).
+
+## Session 30: Import Merges, Doesn't Replace — Ghost Tasks + Gen Stamps (2026-10-05)
+
+### Field failure
+
+After the Session 29 deploy, the re-imported project *looked* right —
+`xfinitywifi Periodic Nudge` existed, `NudgeXfinity` ran manually —
+but the 15-min ticks told a different story: `NudgeWifi` markers
+fired with no Termux run behind them, and `NudgeXfinity` never fired
+at all.
+
+### Diagnosis chain
+
+- logcat showed `TermuxTasker.FireReceiver`: *executable not found*
+  at `~/.termux/tasker/cmvwifi_nudge` — a **stale task** still calling
+  the renamed wrapper was the thing firing on schedule.
+- First mitigation: `cmvwifi_nudge` compat shim (forwards to
+  `wifi_nudge "$@"`) — stale references degrade to a default cmvwifi
+  nudge instead of failing silently. Termux runs resumed at 22:45.
+- But `NudgeXfinity` stayed silent even after a profile toggle —
+  because the firing tasks were still the *old* definitions.
+- Root cause confirmed by tagging the shim with a history-log line
+  (`nudge via shim (stale tasker task)`): the 23:30 tick carried the
+  tag → the scheduled nudge was a ghost task from the pre-import
+  project.
+
+### The actual Tasker behavior
+
+**Importing a project whose name already exists merges, not
+replaces.** Old task definitions survive; only unrecognized elements
+(new tasks/profiles) are added. Result: a hybrid project — old
+`NudgeWifi` (calling `cmvwifi_nudge`) alongside the new xfinity
+profile. Correct procedure: **delete the project tab first**, then
+import, then relaunch Tasker once for context registration.
+
+### Fix: generation stamps
+
+`generate_project_xml` now hashes the serialized XML (placeholder in
+place, then substituted) and injects `[gen xxxxxx]` into every task's
+history-marker text, plus a manual `ShowVersion` task that flashes
+the same id. No manual version bumping — any content change yields a
+new gen automatically. A stale import is now identifiable from the
+history log alone, or one tap in Tasker.
+
+### Verified
+
+00:15 tick: `NudgeXfinity fired [gen bf90e2]` + `NudgeWifi fired
+[gen bf90e2]`, both followed by direct `nudge start`/`exit=0` — no
+shim tag. First fully-verified scheduled run of the new project.

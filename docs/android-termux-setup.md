@@ -848,7 +848,7 @@ copy from the Termux screen.
 | Tasker Settings needed | Yes (for WiFi connection) | Yes |
 | Tasker integration | Termux:Tasker plugin or Run Shell | Native HTTP Request |
 | Code reuse | Full (shares captive_portal.py) | None (reimplemented in XML) |
-| Testability | 163 unit tests | XML generator tests only |
+| Testability | 260+ unit tests | XML generator tests only |
 | Maintenance | Edit Python | Edit Python generator → regenerate XML |
 
 ## Files
@@ -864,6 +864,7 @@ Repo:
 - `android/MVwifiAuto-Termux.prj.xml` - generated Tasker project
 - `android/mvwifi_portal` - wrapper script (single source of truth)
 - `android/wifi_nudge` - periodic-nudge wrapper executed by Tasker (SSIDs via args)
+- `android/cmvwifi_nudge` - compat shim → `wifi_nudge` (rescues stale task references)
 - `scripts/termux_setup.sh` - on-device setup (runs in Termux)
 - `scripts/deploy_android.sh` - full adb deployment (wrapper, XML, settings)
 - `scripts/verify_android.sh` - on-device state checklist
@@ -873,6 +874,7 @@ On the phone:
 - `~/MVwifiAuto/` - repo clone (editable install target)
 - `~/.termux/tasker/mvwifi_portal` - wrapper executed by Tasker
 - `~/.termux/tasker/wifi_nudge` - nudge wrapper (Periodic Nudge profiles)
+- `~/.termux/tasker/cmvwifi_nudge` - compat shim; tags shim invocations in history log
 - `~/.termux/termux.properties` - `allow-external-apps = true`
 - `~/storage/shared/mvwifi_tasker.log` - run log (overwritten each run)
 - `~/storage/shared/mvwifi_nudge.log` - nudge detail log

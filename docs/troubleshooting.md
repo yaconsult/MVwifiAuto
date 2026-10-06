@@ -13,6 +13,7 @@
 **Android / Termux:**
 - ["cmvwifi Auto Connect" profile doesn't fire](#cmvwifi-auto-connect-profile-doesnt-fire)
 - [Profiles enabled but never fire (after re-import)](#profiles-enabled-but-never-fire-after-re-import)
+- [Scheduled tasks run old behavior after re-import](#scheduled-tasks-run-old-behavior-after-re-import)
 - [Phone takes 15-30 minutes to join cmvwifi](#phone-takes-15-30-minutes-to-join-cmvwifi)
 - [Connected to cmvwifi but no internet for a long time](#connected-to-cmvwifi-but-no-internet-for-a-long-time)
 - [Termux plugin times out (error code 2)](#termux-plugin-times-out-plugin-did-not-respond-before-timing-out-error-code-2)
@@ -426,6 +427,31 @@ everything started the moment Tasker was opened.
 **Fix**: Open Tasker after every import. If it still doesn't fire,
 toggle the profile off/on, and check that Tasker has **Alarms &
 reminders** permission (needed for Time contexts).
+
+### Scheduled tasks run old behavior after re-import
+
+**Problem**: After re-importing updated XML, scheduled runs keep
+doing the *old* thing — e.g. markers fire but the plugin errors,
+markers lack the `[gen xxxxxx]` stamp, or `nudge via shim` lines
+appear in `mvwifi_history.log`. Newly-added profiles may exist but
+never fire.
+
+**Cause**: Tasker project import **merges** rather than replaces —
+existing task definitions are kept and only new elements are added.
+Observed on-device: a scheduled `NudgeWifi` kept invoking the renamed
+`cmvwifi_nudge` wrapper (logcat: `TermuxTasker.FireReceiver`
+"executable not found") while the new xfinity profile appeared
+alongside it but never fired.
+
+**Diagnose**: `tail ~/storage/shared/Tasker/mvwifi_history.log` —
+the `[gen xxxxxx]` in each marker must match the gen id in the XML
+on `/sdcard` (`grep -o "gen [0-9a-f]*" .../MVwifiAuto-Termux.prj.xml`),
+and no `via shim` line should appear. Or run the `ShowVersion` task
+in Tasker — it flashes the imported generation.
+
+**Fix**: Long-press the project tab → **Delete**, then Import
+Project, then relaunch Tasker. Verify the marker gen ids match the
+XML on the next scheduled tick.
 
 ### Connected to cmvwifi but no internet for a long time
 

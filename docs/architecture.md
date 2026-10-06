@@ -170,7 +170,10 @@ bugs by encoding Tasker's action/argument format once.
 - `build_mvwifi_project()` - Pure-Tasker project (HTTP Request actions)
 - `build_termux_project()` - Termux approach project (Termux:Tasker
   plugin + Python portal handler) — recommended
-- `generate_project_xml()` - Serializes to XML string
+- `generate_project_xml()` - Serializes to XML string; stamps every
+  task marker and the `ShowVersion` task with a content-hash
+  generation id (`[gen xxxxxx]`) so stale/merged imports are visible
+  in the history log or via one tap in Tasker
 - CLI: `python -m mvwifi_auto.tasker_gen --termux -o android/MVwifiAuto-Termux.prj.xml`
 
 **Action codes** (`CODE_*` constants) follow Tasker's serialized
