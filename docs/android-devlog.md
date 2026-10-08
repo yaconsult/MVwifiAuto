@@ -1890,3 +1890,37 @@ a clean slate.
 Verified end-to-end: after graceful exit, autobackup showed all
 `3937e7` defs with the new args, and the next scheduled tick
 stamped `[gen 3937e7]` for both nudge profiles.
+
+## Session 35: SHGuestNet Capture Probe — `portal_probe` (2026-10-08)
+
+### Request
+
+The user visits a Sutter/PAMF clinic on `SHGuestNet` (observed
+13:15-14:15 on 10-07 — unmanaged, correctly ignored) whose portal
+needs a checkbox + button accept. Goal: automatically capture the
+portal on the next visit (~1 week out) so an auto-accept handler can
+be built — same playbook as the Costco Mist capture.
+
+### Changes
+
+- `costco_probe.py` → renamed `portal_probe.py`, generalized:
+  `--name` (report title, logcat keyword, default capture dir
+  `<name>_capture/`), `--package`/`--no-package` (dumpsys target),
+  deep-link regex now matches *any* non-http(s) URI scheme (with a
+  lookbehind so `http://` can't match mid-URL). `costco_probe.py`
+  remains as a thin shim so the deployed wrapper keeps working.
+- New `android/shguest_probe` wrapper → `python -m
+  mvwifi_auto.portal_probe --name shguestnet --no-package`; locked
+  history rotation like the other wrappers.
+- `SHGuestNet` added to `PREFERRED_SSIDS` + `PREFERRED_OPEN_SSIDS`
+  — the nudge auto-joins it (disconnected or promoting off
+  xfinity), which also makes the capture profile fire.
+- Tasker: new `SHGuestCapture` task (id=130) + `SHGuestNet WiFi
+  Connected` profile (id=7); XML regen → gen `bef8cb`.
+- deploy/verify scripts pick up the new wrapper.
+
+### Tests
+
+285 pass. New: arbitrary-scheme + http-exclusion deep-link cases,
+`--name`/`--no-package` wiring, costco-shim defaults, SHGuest
+profile/task structure.

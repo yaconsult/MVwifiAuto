@@ -82,6 +82,7 @@ mechanism:
 | dd-wrt / dd-wrt_5G | home (saved, autojoin on) | Android selector | Android selector |
 | cmvwifi / MVwifi | preferred (open, portal) | nudge `connect-network` | nudge promotion |
 | Costco Member Wifi | preferred (open, portal) | nudge `connect-network` (`--preferred`) | nudge promotion |
+| SHGuestNet | preferred (open, portal) | nudge `connect-network` (`--preferred`) | nudge promotion |
 | xfinitywifi | **fallback** (open, `-d`) | nudge only, when disconnected AND no preferred visible | — |
 
 Promotion semantics:
@@ -345,11 +346,20 @@ android/MVwifiAuto-Termux.prj.xml
 ```
 
 This contains the `ConnectAndRun`, `RunPortalScript`,
-`CostcoConnect`, `NudgeWifi`, `NudgeXfinity`, and `ShowVersion`
-tasks, plus the `cmvwifi Auto Connect`, `MVwifi Auto Connect`,
-`Costco WiFi Connected`, `cmvwifi Periodic Nudge`, and
-`xfinitywifi Periodic Nudge` profiles —
-all pre-configured for the Termux:Tasker plugin.
+`CostcoConnect`, `NudgeWifi`, `NudgeXfinity`, `ShowVersion`, and
+`SHGuestCapture` tasks, plus the `cmvwifi Auto Connect`, `MVwifi
+Auto Connect`, `Costco WiFi Connected`, `cmvwifi Periodic Nudge`,
+`xfinitywifi Periodic Nudge`, and `SHGuestNet WiFi Connected`
+profiles — all pre-configured for the Termux:Tasker plugin.
+
+The `SHGuestNet WiFi Connected` profile (Sutter Health / PAMF clinic
+guest WiFi) runs a *capture probe*, not an accept handler: on
+association it saves the portal's redirect chain, HTML, form fields,
+JS assets, and any deep-link intents to
+`~/storage/shared/shguestnet_capture/capture_<ts>/` — the evidence
+needed to build an auto-accept handler. `SHGuestNet` is in the
+preferred tier (open), so the nudge also auto-joins it. Delete the
+profile if you don't want captures.
 
 Every task's history marker carries a generation stamp
 (`[gen xxxxxx]` — a content hash of the XML) so `tail`ing the
@@ -900,6 +910,9 @@ Repo:
 - `src/mvwifi_auto/tasker_gen.py` - Tasker XML generator (for WiFi Connected profile)
 - `android/MVwifiAuto-Termux.prj.xml` - generated Tasker project
 - `android/mvwifi_portal` - wrapper script (single source of truth)
+- `android/costco_portal` - Costco Mist TOS-accept wrapper
+- `android/costco_probe` - manual Costco portal capture wrapper
+- `android/shguest_probe` - SHGuestNet portal capture wrapper
 - `android/wifi_nudge` - periodic-nudge wrapper executed by Tasker (SSIDs via args)
 - `android/cmvwifi_nudge` - compat shim → `wifi_nudge` (rescues stale task references)
 - `scripts/termux_setup.sh` - on-device setup (runs in Termux)
@@ -910,10 +923,15 @@ On the phone:
 
 - `~/MVwifiAuto/` - repo clone (editable install target)
 - `~/.termux/tasker/mvwifi_portal` - wrapper executed by Tasker
+- `~/.termux/tasker/costco_portal` - Costco portal handler wrapper
+- `~/.termux/tasker/costco_probe` - manual Costco capture wrapper
+- `~/.termux/tasker/shguest_probe` - SHGuestNet capture wrapper
 - `~/.termux/tasker/wifi_nudge` - nudge wrapper (Periodic Nudge profiles)
 - `~/.termux/tasker/cmvwifi_nudge` - compat shim; tags shim invocations in history log
 - `~/.termux/termux.properties` - `allow-external-apps = true`
 - `~/storage/shared/mvwifi_tasker.log` - run log (overwritten each run)
 - `~/storage/shared/mvwifi_nudge.log` - nudge detail log
+- `~/storage/shared/costco_portal.log` - Costco handler log
+- `~/storage/shared/shguestnet_capture/` - SHGuestNet portal captures
 - `~/storage/shared/Tasker/mvwifi_history.log` - trigger/run history (last 200 lines)
 - `/sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml` - XML import source

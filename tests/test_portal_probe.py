@@ -1,10 +1,10 @@
-"""Tests for the on-device Costco portal capture probe."""
+"""Tests for the on-device captive portal capture probe."""
 
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from mvwifi_auto.costco_probe import (
+from mvwifi_auto.portal_probe import (
     capture_logcat_intents,
     extract_deep_links,
     find_su,
@@ -37,6 +37,22 @@ class TestExtractDeepLinks:
     def test_deduplicates(self):
         html = 'costco://a costco://a costco://b'
         assert extract_deep_links(html) == ["costco://a", "costco://b"]
+
+    def test_finds_arbitrary_scheme(self):
+        """Any custom scheme counts as a deep link, not just costco."""
+        html = '<a href="mychart://open?id=7">app</a>'
+        assert extract_deep_links(html) == ["mychart://open?id=7"]
+
+    def test_excludes_http_links(self):
+        """Plain http(s) URLs are not deep links — including partial
+        matches inside them (a match must not start mid-URL)."""
+        html = '<a href="https://portal.example.com/login">go</a>'
+        assert extract_deep_links(html) == []
+
+    def test_http_exclusion_does_not_hide_inner_scheme(self):
+        """A custom-scheme link nested in an http URL is still found."""
+        html = 'https://x/?next=shgportal://accept'
+        assert extract_deep_links(html) == ["shgportal://accept"]
 
 
 class TestFindSu:
@@ -73,7 +89,7 @@ class TestCaptureLogcatIntents:
             "10-01 12:00:03 D other: more noise\n"
         )
         with patch(
-            "mvwifi_auto.costco_probe.run_root", return_value=(0, logcat)
+            "mvwifi_auto.portal_probe.run_root", return_value=(0, logcat)
         ):
             n = capture_logcat_intents("su", tmp_path)
         assert n == 1
@@ -83,7 +99,7 @@ class TestCaptureLogcatIntents:
 
     def test_failure_returns_zero(self, tmp_path: Path):
         with patch(
-            "mvwifi_auto.costco_probe.run_root", return_value=(1, "")
+            "mvwifi_auto.portal_probe.run_root", return_value=(1, "")
         ):
             assert capture_logcat_intents("su", tmp_path) == 0
 
@@ -106,34 +122,34 @@ class TestRunProbe:
         (tmp_path / "portal.html").write_text(html)
         with (
             patch(
-                "mvwifi_auto.costco_probe.create_wifi_session",
+                "mvwifi_auto.portal_probe.create_wifi_session",
                 return_value=MagicMock(),
             ),
             patch(
-                "mvwifi_auto.costco_probe.analyze_portal",
+                "mvwifi_auto.portal_probe.analyze_portal",
                 return_value=self._portal_report(),
             ),
             patch(
-                "mvwifi_auto.costco_probe.find_su", return_value="su"
+                "mvwifi_auto.portal_probe.find_su", return_value="su"
             ),
             patch(
-                "mvwifi_auto.costco_probe.run_root", return_value=(0, "")
+                "mvwifi_auto.portal_probe.run_root", return_value=(0, "")
             ) as mock_root,
             patch(
-                "mvwifi_auto.costco_probe.launch_portal_page",
+                "mvwifi_auto.portal_probe.launch_portal_page",
                 return_value=["ok"],
             ),
             patch(
-                "mvwifi_auto.costco_probe.capture_logcat_intents",
+                "mvwifi_auto.portal_probe.capture_logcat_intents",
                 return_value=5,
             ),
-            patch("mvwifi_auto.costco_probe.dump_device_state"),
+            patch("mvwifi_auto.portal_probe.dump_device_state"),
             patch(
-                "mvwifi_auto.costco_probe.verify_internet_connectivity",
+                "mvwifi_auto.portal_probe.verify_internet_connectivity",
                 return_value=False,
             ),
-            patch("mvwifi_auto.costco_probe.time.sleep"),
-            patch("mvwifi_auto.costco_probe.fetch_portal_assets", return_value=[]),
+            patch("mvwifi_auto.portal_probe.time.sleep"),
+            patch("mvwifi_auto.portal_probe.fetch_portal_assets", return_value=[]),
         ):
             summary = run_probe(outdir=tmp_path, wait=0)
 
@@ -154,7 +170,7 @@ class TestRunProbe:
         from mvwifi_auto.wifi_binding import InterfaceBindingError
 
         with patch(
-            "mvwifi_auto.costco_probe.create_wifi_session",
+            "mvwifi_auto.portal_probe.create_wifi_session",
             side_effect=InterfaceBindingError("no wlan"),
         ):
             summary = run_probe(outdir=tmp_path)
@@ -166,20 +182,20 @@ class TestRunProbe:
         report.redirect_url = ""
         with (
             patch(
-                "mvwifi_auto.costco_probe.create_wifi_session",
+                "mvwifi_auto.portal_probe.create_wifi_session",
                 return_value=MagicMock(),
             ),
             patch(
-                "mvwifi_auto.costco_probe.analyze_portal", return_value=report
+                "mvwifi_auto.portal_probe.analyze_portal", return_value=report
             ),
             patch(
-                "mvwifi_auto.costco_probe.find_su", return_value="su"
+                "mvwifi_auto.portal_probe.find_su", return_value="su"
             ),
             patch(
-                "mvwifi_auto.costco_probe.launch_portal_page"
+                "mvwifi_auto.portal_probe.launch_portal_page"
             ) as mock_launch,
             patch(
-                "mvwifi_auto.costco_probe.verify_internet_connectivity",
+                "mvwifi_auto.portal_probe.verify_internet_connectivity",
                 return_value=True,
             ),
         ):
@@ -188,29 +204,75 @@ class TestRunProbe:
         assert summary["internet_ok"] is True
         assert "no portal redirect" in summary["note"]
 
-    def test_no_root_skips_logcat(self, tmp_path: Path):
+    def test_name_and_package_flow_through(self, tmp_path: Path):
+        """--name/--package reach the logcat keyword and dumpsys call."""
         with (
             patch(
-                "mvwifi_auto.costco_probe.create_wifi_session",
+                "mvwifi_auto.portal_probe.create_wifi_session",
                 return_value=MagicMock(),
             ),
             patch(
-                "mvwifi_auto.costco_probe.analyze_portal",
+                "mvwifi_auto.portal_probe.analyze_portal",
                 return_value=self._portal_report(),
             ),
-            patch("mvwifi_auto.costco_probe.find_su", return_value=None),
             patch(
-                "mvwifi_auto.costco_probe.launch_portal_page",
+                "mvwifi_auto.portal_probe.find_su", return_value="su"
+            ),
+            patch(
+                "mvwifi_auto.portal_probe.run_root", return_value=(0, "")
+            ),
+            patch(
+                "mvwifi_auto.portal_probe.launch_portal_page",
                 return_value=["ok"],
             ),
             patch(
-                "mvwifi_auto.costco_probe.capture_logcat_intents"
+                "mvwifi_auto.portal_probe.capture_logcat_intents",
+                return_value=0,
             ) as mock_logcat,
             patch(
-                "mvwifi_auto.costco_probe.verify_internet_connectivity",
+                "mvwifi_auto.portal_probe.dump_device_state"
+            ) as mock_dump,
+            patch(
+                "mvwifi_auto.portal_probe.verify_internet_connectivity",
                 return_value=False,
             ),
-            patch("mvwifi_auto.costco_probe.time.sleep"),
+            patch("mvwifi_auto.portal_probe.time.sleep"),
+        ):
+            summary = run_probe(
+                outdir=tmp_path, wait=0, name="shguestnet", package=""
+            )
+        assert summary["name"] == "shguestnet"
+        assert "shguestnet Portal Capture" in (
+            tmp_path / "report.md"
+        ).read_text()
+        mock_logcat.assert_called_once_with(
+            "su", tmp_path, keyword="shguestnet"
+        )
+        mock_dump.assert_called_once_with("su", tmp_path, package="")
+
+    def test_no_root_skips_logcat(self, tmp_path: Path):
+        with (
+            patch(
+                "mvwifi_auto.portal_probe.create_wifi_session",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "mvwifi_auto.portal_probe.analyze_portal",
+                return_value=self._portal_report(),
+            ),
+            patch("mvwifi_auto.portal_probe.find_su", return_value=None),
+            patch(
+                "mvwifi_auto.portal_probe.launch_portal_page",
+                return_value=["ok"],
+            ),
+            patch(
+                "mvwifi_auto.portal_probe.capture_logcat_intents"
+            ) as mock_logcat,
+            patch(
+                "mvwifi_auto.portal_probe.verify_internet_connectivity",
+                return_value=False,
+            ),
+            patch("mvwifi_auto.portal_probe.time.sleep"),
         ):
             summary = run_probe(outdir=tmp_path, wait=0)
         mock_logcat.assert_not_called()
@@ -223,7 +285,7 @@ class TestMain:
 
     def test_returns_error_code_on_failure(self, tmp_path: Path):
         with patch(
-            "mvwifi_auto.costco_probe.run_probe",
+            "mvwifi_auto.portal_probe.run_probe",
             return_value={"error": "WiFi bind failed: x", "outdir": str(tmp_path)},
         ):
             # report.md won't exist; write a stub
@@ -233,9 +295,45 @@ class TestMain:
 
     def test_returns_zero_on_success(self, tmp_path: Path):
         with patch(
-            "mvwifi_auto.costco_probe.run_probe",
+            "mvwifi_auto.portal_probe.run_probe",
             return_value={"outdir": str(tmp_path)},
         ):
             (tmp_path / "report.md").write_text("x")
             rc = main(["--outdir", str(tmp_path), "--json"])
         assert rc == 0
+
+    def test_name_and_no_package_wired(self, tmp_path: Path):
+        """CLI: --name changes the default capture dir; --no-package
+        empties the dumpsys target."""
+        with patch(
+            "mvwifi_auto.portal_probe.run_probe",
+            return_value={"outdir": str(tmp_path)},
+        ) as mock_run:
+            (tmp_path / "report.md").write_text("x")
+            rc = main(
+                [
+                    "--outdir", str(tmp_path),
+                    "--name", "shguestnet",
+                    "--no-package",
+                    "--json",
+                ]
+            )
+        assert rc == 0
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["name"] == "shguestnet"
+        assert kwargs["package"] == ""
+
+    def test_costco_shim_defaults(self, tmp_path: Path):
+        """python -m mvwifi_auto.costco_probe keeps Costco defaults."""
+        import mvwifi_auto.costco_probe as shim
+
+        with patch(
+            "mvwifi_auto.portal_probe.run_probe",
+            return_value={"outdir": str(tmp_path)},
+        ) as mock_run:
+            (tmp_path / "report.md").write_text("x")
+            rc = shim.main(["--outdir", str(tmp_path), "--json"])
+        assert rc == 0
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["name"] == "costco"
+        assert kwargs["package"] == "com.costco.app.android"

@@ -137,7 +137,7 @@ if [ "$HAVE_ROOT" -eq 1 ]; then
         record FAIL "wrapper script" "missing or not executable at $TASKER_DIR/mvwifi_portal"
     fi
 
-    for wrapper in costco_portal costco_probe wifi_nudge cmvwifi_nudge; do
+    for wrapper in costco_portal costco_probe wifi_nudge cmvwifi_nudge shguest_probe; do
         if adb_su "test -x $TASKER_DIR/$wrapper"; then
             record PASS "$wrapper wrapper" "present and executable"
         else
@@ -152,7 +152,7 @@ if [ "$HAVE_ROOT" -eq 1 ]; then
         record FAIL "mvwifi-android installed" "not in Termux bin; run termux_setup.sh"
     fi
 
-    for module in costco_portal costco_probe wifi_nudge root_shell; do
+    for module in costco_portal costco_probe portal_probe wifi_nudge root_shell; do
         if adb_su "test -f $TERMUX_HOME/MVwifiAuto/src/mvwifi_auto/$module.py"; then
             record PASS "$module module" "in ~/MVwifiAuto clone"
         else

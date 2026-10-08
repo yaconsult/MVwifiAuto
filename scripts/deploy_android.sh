@@ -70,7 +70,7 @@ echo ""
 # --- Step 2: Create wrapper scripts ---
 echo "[2/6] Creating Termux wrapper scripts..."
 adb shell "su -c 'mkdir -p $TASKER_DIR'"
-for name in mvwifi_portal costco_portal costco_probe wifi_nudge cmvwifi_nudge; do
+for name in mvwifi_portal costco_portal costco_probe wifi_nudge cmvwifi_nudge shguest_probe; do
     adb push "$REPO_DIR/android/$name" "/sdcard/$name.tmp"
     adb shell "su -c 'cp /sdcard/$name.tmp $TASKER_DIR/$name && chmod 755 $TASKER_DIR/$name && chown $TERMUX_UID:$TERMUX_UID $TASKER_DIR/$name && rm /sdcard/$name.tmp'"
     echo "  Created: $TASKER_DIR/$name"
@@ -128,7 +128,7 @@ echo ""
 # --- Step 6: Verify ---
 echo "[6/6] Verifying deployment..."
 echo "  Wrapper scripts:"
-adb shell "su -c 'ls -la $TASKER_DIR/mvwifi_portal $TASKER_DIR/costco_portal $TASKER_DIR/costco_probe $TASKER_DIR/wifi_nudge $TASKER_DIR/cmvwifi_nudge'" 2>&1 | sed 's/^/    /'
+adb shell "su -c 'ls -la $TASKER_DIR/mvwifi_portal $TASKER_DIR/costco_portal $TASKER_DIR/costco_probe $TASKER_DIR/wifi_nudge $TASKER_DIR/cmvwifi_nudge $TASKER_DIR/shguest_probe'" 2>&1 | sed 's/^/    /'
 echo "  mvwifi-android:"
 adb shell "su -c 'ls -la /data/data/com.termux/files/usr/bin/mvwifi-android'" 2>&1 | sed 's/^/    /'
 echo "  Tasker XML on phone:"

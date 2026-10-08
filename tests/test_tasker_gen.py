@@ -405,7 +405,7 @@ class TestTermuxProject:
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        assert len(tasks) == 6
+        assert len(tasks) == 7
         task_names = {t.find("nme").text for t in tasks}
         assert task_names == {
             "RunPortalScript",
@@ -414,6 +414,7 @@ class TestTermuxProject:
             "NudgeWifi",
             "NudgeXfinity",
             "ShowVersion",
+            "SHGuestCapture",
         }
 
     def test_profile_links_to_connect_and_run(self):
@@ -658,7 +659,7 @@ class TestTermuxProject:
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         profiles = root.findall("Profile")
-        assert len(profiles) == 5
+        assert len(profiles) == 6
         costco = next(
             p for p in profiles if p.find("nme").text == "Costco WiFi Connected"
         )
@@ -666,6 +667,32 @@ class TestTermuxProject:
         state = costco.find("State")
         assert state.find("code").text == "160"  # WiFi Connected
         assert state.find("Str").text == "Costco Member Wifi"
+
+    def test_shguest_profile_and_task(self):
+        """SHGuestNet WiFi Connected → SHGuestCapture (id=130) runs the
+        shguest_probe wrapper — capture only, never accepts."""
+        project = build_termux_project()
+        xml_text = generate_project_xml(project)
+        root = fromstring(xml_text)
+        profiles = root.findall("Profile")
+        shg = next(
+            p
+            for p in profiles
+            if p.find("nme").text == "SHGuestNet WiFi Connected"
+        )
+        assert shg.find("mid0").text == "130"  # SHGuestCapture
+        state = shg.find("State")
+        assert state.find("code").text == "160"  # WiFi Connected
+        assert state.find("Str").text == "SHGuestNet"
+        # Task runs the shguest_probe wrapper
+        task = next(
+            t
+            for t in root.findall("Task")
+            if t.find("nme").text == "SHGuestCapture"
+        )
+        from xml.etree.ElementTree import tostring
+
+        assert "shguest_probe" in tostring(task, encoding="unicode")
 
     def test_costco_connect_task_runs_wrapper(self):
         """CostcoConnect calls the costco_portal Termux wrapper."""

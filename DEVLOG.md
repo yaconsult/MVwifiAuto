@@ -715,6 +715,28 @@ relaunch) documented in `docs/android-termux-setup.md` and
 
 ---
 
+## 2026-10-08 - Android: SHGuestNet Auto-Capture Probe
+
+### Goal
+Clinic WiFi (Sutter Health `SHGuestNet`) needs a checkbox+button
+portal accept — auto-capture the portal on the next visit to build
+a handler, same playbook as the Costco Mist capture.
+
+### Changes
+- `costco_probe.py` generalized → `portal_probe.py` (`--name`,
+  `--package`/`--no-package`, any-scheme deep links); old module
+  kept as a shim for the deployed wrapper.
+- `SHGuestNet` added to preferred lists → nudge auto-joins and
+  promotes to it.
+- New `SHGuestCapture` task + `SHGuestNet WiFi Connected` profile;
+  captures land in `~/storage/shared/shguestnet_capture/`.
+- New `shguest_probe` wrapper; deploy/verify scripts updated.
+
+### Tests
+285 pass. XML regen: gen `bef8cb`.
+
+---
+
 ## Template for Future Entries
 
 ### YYYY-MM-DD - Brief Description

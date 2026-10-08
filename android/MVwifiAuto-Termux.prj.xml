@@ -72,10 +72,24 @@
 			<tm>-1</tm>
 		</Time>
 	</Profile>
+	<Profile sr="prof7" ve="2">
+		<cdate>1000000000000</cdate>
+		<edate>1000000000000</edate>
+		<id>7</id>
+		<mid0>130</mid0>
+		<nme>SHGuestNet WiFi Connected</nme>
+		<State sr="con0" ve="2">
+			<code>160</code>
+			<Str sr="arg0" ve="3">SHGuestNet</Str>
+			<Str sr="arg1" ve="3" />
+			<Str sr="arg2" ve="3" />
+			<Int sr="arg3" val="2" />
+		</State>
+	</Profile>
 	<Project sr="proj0" ve="2">
 		<name>MVwifiAuto-Termux</name>
-		<pids>2,6,3,4,5</pids>
-		<tids>70,80,90,100,110,120</tids>
+		<pids>2,6,3,4,5,7</pids>
+		<tids>70,80,90,100,110,120,130</tids>
 	</Project>
 	<Task sr="task70">
 		<id>70</id>
@@ -116,7 +130,7 @@
 			<code>410</code>
 			<label>History marker — proves Tasker fired even if Termux fails</label>
 			<Str sr="arg0" ve="3">Tasker/mvwifi_history.log</Str>
-			<Str sr="arg1" ve="3">%TIMES | tasker | ConnectAndRun fired [gen 3937e7]</Str>
+			<Str sr="arg1" ve="3">%TIMES | tasker | ConnectAndRun fired [gen bef8cb]</Str>
 			<Int sr="arg2" val="1" />
 			<Int sr="arg3" val="1" />
 			<Int sr="arg4" val="0" />
@@ -227,7 +241,7 @@
 			<code>410</code>
 			<label>History marker — proves Tasker fired even if Termux fails</label>
 			<Str sr="arg0" ve="3">Tasker/mvwifi_history.log</Str>
-			<Str sr="arg1" ve="3">%TIMES | tasker | CostcoConnect fired [gen 3937e7]</Str>
+			<Str sr="arg1" ve="3">%TIMES | tasker | CostcoConnect fired [gen bef8cb]</Str>
 			<Int sr="arg2" val="1" />
 			<Int sr="arg3" val="1" />
 			<Int sr="arg4" val="0" />
@@ -286,7 +300,7 @@
 			<code>410</code>
 			<label>History marker — proves Tasker fired even if Termux fails</label>
 			<Str sr="arg0" ve="3">Tasker/mvwifi_history.log</Str>
-			<Str sr="arg1" ve="3">%TIMES | tasker | NudgeWifi fired [gen 3937e7]</Str>
+			<Str sr="arg1" ve="3">%TIMES | tasker | NudgeWifi fired [gen bef8cb]</Str>
 			<Int sr="arg2" val="1" />
 			<Int sr="arg3" val="1" />
 			<Int sr="arg4" val="0" />
@@ -326,7 +340,7 @@
 			<code>410</code>
 			<label>History marker — proves Tasker fired even if Termux fails</label>
 			<Str sr="arg0" ve="3">Tasker/mvwifi_history.log</Str>
-			<Str sr="arg1" ve="3">%TIMES | tasker | NudgeXfinity fired [gen 3937e7]</Str>
+			<Str sr="arg1" ve="3">%TIMES | tasker | NudgeXfinity fired [gen bef8cb]</Str>
 			<Int sr="arg2" val="1" />
 			<Int sr="arg3" val="1" />
 			<Int sr="arg4" val="0" />
@@ -365,7 +379,66 @@
 		<Action sr="act0" ve="7">
 			<code>548</code>
 			<label>Shows the imported project's generation stamp</label>
-			<Str sr="arg0" ve="3">MVwifiAuto-Termux gen 3937e7</Str>
+			<Str sr="arg0" ve="3">MVwifiAuto-Termux gen bef8cb</Str>
+			<Int sr="arg1" val="0" />
+		</Action>
+	</Task>
+	<Task sr="task130">
+		<id>130</id>
+		<nme>SHGuestCapture</nme>
+		<rty>2</rty>
+		<Action sr="act0" ve="7">
+			<code>410</code>
+			<label>History marker — proves Tasker fired even if Termux fails</label>
+			<Str sr="arg0" ve="3">Tasker/mvwifi_history.log</Str>
+			<Str sr="arg1" ve="3">%TIMES | tasker | SHGuestCapture fired [gen bef8cb]</Str>
+			<Int sr="arg2" val="1" />
+			<Int sr="arg3" val="1" />
+			<Int sr="arg4" val="0" />
+		</Action>
+		<Action sr="act1" ve="7">
+			<con>true</con>
+			<code>123</code>
+			<label>Re-apply Termux protections (root; no-op unrooted)</label>
+			<Str sr="arg0" ve="3">dumpsys deviceidle whitelist +com.termux; settings put global settings_enable_monitor_phantom_procs false; pm grant com.termux android.permission.WRITE_SECURE_SETTINGS</Str>
+			<Int sr="arg1" val="15" />
+			<Int sr="arg2" val="1" />
+			<Str sr="arg3" ve="3" />
+			<Str sr="arg4" ve="3" />
+			<Str sr="arg5" ve="3" />
+			<Int sr="arg6" val="1" />
+			<Int sr="arg7" val="0" />
+			<Int sr="arg8" val="0" />
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>1256900802</code>
+			<label>Portal capture probe — runs ~/.termux/tasker/shguest_probe</label>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<com.termux.execute.arguments />
+					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
+					<com.termux.tasker.extra.EXECUTABLE>shguest_probe</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
+					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
+					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
+					<com.termux.tasker.extra.VERSION_CODE>4</com.termux.tasker.extra.VERSION_CODE>
+					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
+					<com.termux.tasker.extra.WORKDIR />
+					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
+					<com.twofortyfouram.locale.intent.extra.BLURB>shguest_probe</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
+					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
+					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">com.termux.tasker</Str>
+			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
+			<Int sr="arg3" val="90" />
+			<Int sr="arg4" val="0" />
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>548</code>
+			<Str sr="arg0" ve="3">SHGuestNet portal captured</Str>
 			<Int sr="arg1" val="0" />
 		</Action>
 	</Task>

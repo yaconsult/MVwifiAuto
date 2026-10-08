@@ -1150,6 +1150,70 @@ def _build_show_version_task() -> TaskerTask:
     )
 
 
+def _build_shguest_capture_task() -> TaskerTask:
+    """Build the SHGuestCapture task (id=130) — portal recon, not login.
+
+    Runs the shguest_probe wrapper via the Termux:Tasker plugin when
+    the phone associates to SHGuestNet (Sutter Health / PAMF guest
+    WiFi).  The probe captures the portal's redirect chain, HTML,
+    form fields (incl. checkboxes), JS assets and any deep-link
+    intents to ~/storage/shared/shguestnet_capture/ — everything
+    needed to write an auto-accept handler later.  It does NOT accept
+    the portal; the user still taps through it this visit.
+    """
+    return TaskerTask(
+        id=130,
+        name="SHGuestCapture",
+        actions=[
+            # A1: History marker.
+            _lbl(
+                write_file(
+                    "Tasker/mvwifi_history.log",
+                    "%TIMES | tasker | SHGuestCapture fired [gen @MWGEN@]",
+                ),
+                "History marker — proves Tasker fired even if Termux fails",
+            ),
+            # A2: Re-apply Termux protections before the plugin call.
+            _lbl(
+                termux_self_heal(),
+                "Re-apply Termux protections (root; no-op unrooted)",
+            ),
+            # A3: Run the capture probe. 90s covers the 25s post-launch
+            # wait plus asset fetches; background mode keeps running
+            # regardless.
+            _lbl(
+                termux_task("shguest_probe", background=True, timeout=90),
+                "Portal capture probe — runs ~/.termux/tasker/shguest_probe",
+            ),
+            # A4: Flash so the user knows a capture just happened.
+            flash("SHGuestNet portal captured"),
+        ],
+    )
+
+
+def _build_shguest_profile() -> TaskerProfile:
+    """Build the SHGuestNet WiFi Connected profile (id=7).
+
+    Fires on association with the clinic guest SSID and runs
+    SHGuestCapture — the automated portal recon for a future
+    auto-accept handler.
+    """
+    return TaskerProfile(
+        id=7,
+        name="SHGuestNet WiFi Connected",
+        state=TaskerState(
+            code=CODE_WIFI_CONNECTED_STATE,
+            args=[
+                TaskerArg.str_arg(0, "SHGuestNet"),  # SSID
+                TaskerArg.str_arg(1),                 # MAC (any)
+                TaskerArg.str_arg(2),                 # IP (any)
+                TaskerArg.int_arg(3, 2),              # Active
+            ],
+        ),
+        task_id=130,  # SHGuestCapture
+    )
+
+
 def _build_xfinity_nudge_profile() -> TaskerProfile:
     """Build the xfinitywifi Periodic Nudge profile (id=5).
 
@@ -1185,6 +1249,8 @@ def build_termux_project() -> TaskerProject:
           joined with autojoin disabled (-d)
         - ShowVersion: flashes the generation stamp — run manually to
           verify which project generation is actually imported
+        - SHGuestCapture: portal capture probe for SHGuestNet (Sutter
+          Health guest WiFi) — recon only, does not accept the portal
 
     Profiles:
         - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
@@ -1195,6 +1261,8 @@ def build_termux_project() -> TaskerProject:
         - cmvwifi Periodic Nudge: Time (every 15 min) → NudgeWifi
         - xfinitywifi Periodic Nudge: Time (every 15 min) →
           NudgeXfinity
+        - SHGuestNet WiFi Connected: WiFi Connected (SHGuestNet) →
+          SHGuestCapture
 
     Returns:
         A :class:`TaskerProject` ready for XML generation.
@@ -1206,6 +1274,7 @@ def build_termux_project() -> TaskerProject:
         _build_cmvwifi_nudge_task(),
         _build_xfinity_nudge_task(),
         _build_show_version_task(),
+        _build_shguest_capture_task(),
     ]
     profiles = [
         _build_cmvwifi_profile_termux(),
@@ -1213,6 +1282,7 @@ def build_termux_project() -> TaskerProject:
         _build_costco_profile_termux(),
         _build_cmvwifi_nudge_profile(),
         _build_xfinity_nudge_profile(),
+        _build_shguest_profile(),
     ]
     return TaskerProject(
         name="MVwifiAuto-Termux",

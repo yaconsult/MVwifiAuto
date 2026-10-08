@@ -75,6 +75,7 @@ PREFERRED_SSIDS = [
     "cmvwifi",
     "MVwifi",
     "Costco Member Wifi",
+    "SHGuestNet",
     "dd-wrt",
     "dd-wrt_5G",
 ]
@@ -87,6 +88,7 @@ PREFERRED_OPEN_SSIDS = [
     "cmvwifi",
     "MVwifi",
     "Costco Member Wifi",
+    "SHGuestNet",
 ]
 
 # `cmd wifi status` emits lines like:
