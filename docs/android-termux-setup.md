@@ -373,27 +373,43 @@ adb push android/MVwifiAuto-Termux.prj.xml /sdcard/Tasker/projects/MVwifiAuto-Te
 Then in Tasker: long-press the bottom nav bar → **Import Project**
 → select `MVwifiAuto-Termux`.
 
-> **⚠️ After importing, open Tasker once.** Imported profiles appear
-> enabled but their contexts are not registered with Tasker's running
-> monitor until the app is opened — observed on-device as *three days*
-> of silence after a delete+reimport (no WiFi Connected or Time fires)
-> that resolved the moment Tasker was opened. Tasks still run manually
-> without this; contexts do not.
+> **⚠️ Imports are held in memory until Tasker exits gracefully.**
+> Tasker only writes its project state to disk on a clean exit —
+> a force-stop or swipe-from-recents **silently discards a fresh
+> import** (observed on-device: `ShowVersion` flashed the new gen
+> id and manual task runs used new definitions, while scheduled
+> ticks kept firing the *persisted* old defs; after a force-stop
+> the GUI showed the old version too). After every import: back out
+> of Tasker or use its exit action **before** rebooting or
+> force-stopping, so the import actually persists.
 
-> **⚠️ If the project is already imported, delete it first.**
-> Importing a project whose name already exists **merges** rather
-> than replaces: existing task definitions are kept and only new
-> elements are added — observed on-device as a hybrid project where
-> `NudgeWifi` still invoked the renamed `cmvwifi_nudge` wrapper while
-> the new `xfinitywifi Periodic Nudge` profile appeared alongside it
-> (diagnosed via logcat plugin errors plus a tagged shim). In Tasker:
-> long-press the `MVwifiAuto-Termux` project tab → **Delete**, then
-> import again. Tasker stores live project data in internal app
-> storage — pushing a new XML to `/sdcard` never updates the running
-> project by itself. Verify after import: `NudgeWifi`'s Termux plugin
-> action should reference `wifi_nudge`, not `cmvwifi_nudge`, and the
-> `[gen xxxxxx]` stamp in the next history marker should match the
-> gen id in the XML on `/sdcard` (`grep -o "gen [0-9a-f]*"`).
+> **⚠️ The full reimport procedure.** Four steps, all required:
+>
+> 1. **Delete the project tab** (long-press → Delete). Importing
+>    over an existing project *merges* — old task definitions are
+>    kept and only new elements added (observed: scheduled
+>    `NudgeWifi` still invoked the renamed `cmvwifi_nudge` wrapper).
+> 2. **Delete leftover tasks and profiles too.** Deleting the tab
+>    leaves the tasks in Tasker's global list — a re-import then
+>    *fails* with "the name ConnectAndRun already exists". In the
+>    TASKS and PROFILES tabs, delete: `ConnectAndRun`,
+>    `RunPortalScript`, `CostcoConnect`, `NudgeWifi`,
+>    `NudgeXfinity`, `ShowVersion` and any leftover `*wifi*`/
+>    `cmvwifi`/`Costco`/`Nudge` profiles.
+> 3. **Import**, then **exit Tasker gracefully** (Back button or
+>    its Exit menu item) so the new project is written to disk.
+> 4. **Relaunch Tasker once** — imported contexts don't register
+>    with the running monitor until the app opens (observed as
+>    *three days* of silence that resolved the moment Tasker was
+>    opened).
+>
+> Tasker stores live project data in internal app storage —
+> pushing a new XML to `/sdcard` never updates the running project
+> by itself. **Verify**: `ShowVersion` (▶) flashes the imported gen
+> id — compare with `grep -o "gen [0-9a-f]*"
+> /sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml`. The next
+> scheduled tick's `[gen xxxxxx]` markers should match; an old gen
+> means the import didn't take or wasn't persisted.
 
 > **Note**: After import, you still need to create the wrapper script
 > (Step 1) and grant the Termux:Tasker permission (Step 2). The XML
@@ -707,8 +723,9 @@ Notes on what persists across a `-w`-less flash:
   and `termux.properties` all live in `/data` → survive
 - The Tasker project (profiles, tasks, your UI edits) lives in
   Tasker's app data → survives; only re-import the XML if the
-  project file changed — and if you do, **delete the existing
-  project tab first** or the import is refused/ignored
+  project file changed — and if you do, follow the full procedure
+  in the import section above: delete the tab *and* its leftover
+  tasks/profiles, import, **exit gracefully to persist**, relaunch
 - Even if the phantom-killer setting resets, the wrapper now
   re-applies it on every run (via the WRITE_SECURE_SETTINGS grant),
   so the system is self-healing once granted
@@ -722,7 +739,7 @@ different components have different update paths:
 |---|---|
 | `src/mvwifi_auto/*.py` | `cd ~/MVwifiAuto && git pull` in Termux — the editable install takes effect immediately |
 | `termux_setup.sh`, `deploy_android.sh`, wrapper changes | Re-run `./scripts/deploy_android.sh` from the PC — it rewrites `~/.termux/tasker/mvwifi_portal` |
-| `tasker_gen.py`, `android/MVwifiAuto-Termux.prj.xml` | `./scripts/deploy_android.sh` pushes the file, then **delete + re-import** the project in Tasker — the `/sdcard` file is only an import source, Tasker never re-reads it |
+| `tasker_gen.py`, `android/MVwifiAuto-Termux.prj.xml` | `./scripts/deploy_android.sh` pushes the file, then re-import per the procedure above (delete tab + leftover tasks/profiles → import → graceful exit → relaunch) — the `/sdcard` file is only an import source, Tasker never re-reads it |
 
 When in doubt, check `git log` for what changed since your last
 update, deploy accordingly, then run `./scripts/verify_android.sh`

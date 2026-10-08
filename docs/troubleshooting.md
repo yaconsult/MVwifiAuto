@@ -447,11 +447,33 @@ alongside it but never fired.
 the `[gen xxxxxx]` in each marker must match the gen id in the XML
 on `/sdcard` (`grep -o "gen [0-9a-f]*" .../MVwifiAuto-Termux.prj.xml`),
 and no `via shim` line should appear. Or run the `ShowVersion` task
-in Tasker — it flashes the imported generation.
+in Tasker — it flashes the imported generation. **Caveat**: a manual
+task run (or `ShowVersion`) shows the *in-memory* definition — the
+scheduled ticks can still run older persisted defs. The marker gen
+on a scheduled tick is the authoritative check.
 
-**Fix**: Long-press the project tab → **Delete**, then Import
-Project, then relaunch Tasker. Verify the marker gen ids match the
-XML on the next scheduled tick.
+**Cause — two separate persistence traps:**
+
+1. **Merge import**: importing over an existing project keeps old
+   task definitions and only adds new elements.
+2. **Orphaned tasks**: deleting the project tab leaves its tasks in
+   the global list; a later import fails with "the name X already
+   exists" — or worse, merges against the orphans.
+3. **Unsaved state**: Tasker holds edits and imports in memory and
+   only writes them to disk on a graceful exit. A force-stop or
+   swipe-kill discards an import entirely — observed on-device:
+   `ShowVersion` flashed the new gen while scheduled ticks kept
+   firing the persisted old defs, and after a force-stop the GUI
+   showed the old version again.
+
+**Fix**: Delete the project tab *and* its leftover tasks/profiles
+(TASKS/PROFILES tabs: `ConnectAndRun`, `RunPortalScript`,
+`CostcoConnect`, `NudgeWifi`, `NudgeXfinity`, `ShowVersion`, and the
+wifi/nudge profiles), then Import Project, then **exit Tasker
+gracefully** (Back or its Exit menu — this is what persists the
+import), then relaunch Tasker so contexts register against the new
+definitions. Verify the marker gen ids match the XML on the next
+scheduled tick.
 
 ### Connected to cmvwifi but no internet for a long time
 

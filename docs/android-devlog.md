@@ -1850,3 +1850,43 @@ skip rotation until the next run.
 `--preferred` CLI expansion, `connect-network 'Costco Member Wifi'
 open` promotion with quoted multi-word SSID. XML regenerated —
 gen `3937e7`.
+
+## Session 34: The Real Root Cause — Tasker Persists on Graceful Exit Only (2026-10-08)
+
+### The mystery resolved
+
+After the gen-`3937e7` deploy, scheduled ticks kept stamping
+`d383d5` even after a clean reimport — while a *manual* `NudgeWifi`
+run stamped `3937e7` and `ShowVersion` flashed the new id.
+Following the evidence into Tasker's private storage:
+
+- `files/autobackup.xml` — Tasker's persisted model — held only
+  `d383d5` defs (old args, single copy of each task)
+- `cache/amac` — a last-run snapshot — held the `3937e7` def
+- `3937e7` existed *nowhere else on disk*
+
+Conclusion: **Tasker holds imports in memory and writes state to
+disk only on a graceful exit.** A force-stop or swipe-kill silently
+discards an unsaved import — and the running monitor keeps firing
+whatever was persisted. That also explains every earlier ghost:
+"relaunch" never helped because the new defs had never been saved;
+the GUI showed in-memory truth while the scheduler ran disk truth.
+
+Second mechanism found the same day: deleting a project tab leaves
+its tasks and profiles as orphans in the global lists — a reimport
+then *fails* with "the name ConnectAndRun already exists" (or
+worse, merges against the orphans). Deleting the tab alone is not
+a clean slate.
+
+### Corrected reimport procedure (docs updated)
+
+1. Delete the project tab **and** its leftover tasks/profiles
+   (TASKS/PROFILES tabs — name-collision check proves they're gone)
+2. Import Project
+3. **Exit Tasker gracefully** (Back / Exit menu) — persists state;
+   verifiable via `autobackup.xml` gen strings
+4. Relaunch Tasker — contexts register against the saved defs
+
+Verified end-to-end: after graceful exit, autobackup showed all
+`3937e7` defs with the new args, and the next scheduled tick
+stamped `[gen 3937e7]` for both nudge profiles.

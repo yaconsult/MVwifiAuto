@@ -701,6 +701,18 @@ tasks fire in the same second) raced, and a second `>` truncate +
 first `mv` could install an empty file. Now an atomic `mkdir` lock
 plus per-PID tmp names; losers skip rotation until the next run.
 
+### Field note (2026-10-08)
+The Tasker import saga's actual root cause: Tasker keeps project
+state in memory and persists only on a **graceful exit** — a
+force-stop/swipe-kill discards the import, so scheduled ticks kept
+firing the last *persisted* defs while the GUI showed the imported
+ones. Also: deleting a project tab orphans its tasks/profiles
+globally, so reimports fail on name collisions. Corrected
+procedure (delete tab + leftovers → import → graceful exit →
+relaunch) documented in `docs/android-termux-setup.md` and
+`docs/troubleshooting.md`; verified — scheduled markers stamp
+`gen 3937e7`.
+
 ---
 
 ## Template for Future Entries
