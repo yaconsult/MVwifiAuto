@@ -260,12 +260,17 @@ the portal.
 
 ```
 0. Periodic nudges (Time, every 15 min) → wifi_nudge:
-   - cmvwifi Periodic Nudge: disconnected + cmvwifi/MVwifi visible →
-     `connect-network`; on xfinitywifi + preferred visible → promote
+   - cmvwifi Periodic Nudge: `--preferred` targets the module's
+     PREFERRED_OPEN_SSIDS (cmvwifi, MVwifi, Costco Member Wifi —
+     multi-word SSIDs live in code, not args) — disconnected + a
+     target visible → `connect-network`; on xfinitywifi + a target
+     visible → promote
    - xfinitywifi Periodic Nudge: disconnected + xfinitywifi visible +
-     NO preferred SSID visible (`--defer-to` cmvwifi, MVwifi, dd-wrt,
-     dd-wrt_5G) → `connect-network -d` (autojoin off — fallback only;
-     defer prevents racing connect requests in a shared tick)
+     NO preferred SSID visible (`--defer-to-preferred` → the module's
+     PREFERRED_SSIDS list, incl. "Costco Member Wifi" — multi-word
+     SSIDs can't ride Termux's space-separated Arguments field) →
+     `connect-network -d` (autojoin off — fallback only; defer
+     prevents racing connect requests in a shared tick)
 1. Tasker WiFi Connected profile fires on association to "cmvwifi"
    or "MVwifi" (same municipal network, alternate SSID)
 2. ConnectAndRun task runs:

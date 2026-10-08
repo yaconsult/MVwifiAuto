@@ -20,5 +20,12 @@ STATUS=$?
 /data/data/com.termux/files/usr/bin/termux-wake-unlock
 
 echo "$(date '+%F %T') | termux | costco_portal exit=$STATUS" >> "$HIST" 2>/dev/null
-tail -n 200 "$HIST" > "$HIST.tmp" 2>/dev/null && mv "$HIST.tmp" "$HIST"
+# Rotate under an atomic mkdir lock — concurrent wrappers previously
+# raced on a shared $HIST.tmp; losers skip, the next run rotates.
+LOCK="$HIST.lock"
+if mkdir "$LOCK" 2>/dev/null; then
+    tail -n 200 "$HIST" > "$HIST.tmp.$$" 2>/dev/null \
+        && mv "$HIST.tmp.$$" "$HIST"
+    rmdir "$LOCK"
+fi
 exit $STATUS

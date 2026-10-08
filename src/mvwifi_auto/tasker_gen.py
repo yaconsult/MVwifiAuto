@@ -1030,11 +1030,13 @@ def _build_cmvwifi_nudge_task() -> TaskerTask:
     """Build the NudgeWifi task (id=100) — periodic auto-join nudge.
 
     Runs the wifi_nudge wrapper via the Termux:Tasker plugin with
-    ``--ssid cmvwifi --ssid MVwifi --fallback xfinitywifi``: joins
-    cmvwifi (or its alternate MVwifi SSID — the same municipal
-    network) when visible but unassociated, bypassing the network
-    selector's auto-join backoff, and promotes the device off
-    xfinitywifi onto either preferred SSID when one is in range.
+    ``--preferred --fallback xfinitywifi``: targets the open preferred
+    tier (cmvwifi, MVwifi, Costco Member Wifi — the module's
+    PREFERRED_OPEN_SSIDS; ``--preferred`` exists because the Costco
+    SSID's spaces can't survive Termux's space-separated Arguments
+    field).  Joins a visible-but-unassociated preferred network,
+    bypassing the selector's auto-join backoff, and promotes the
+    device off xfinitywifi onto whichever preferred SSID is in range.
     """
     return TaskerTask(
         id=100,
@@ -1053,15 +1055,12 @@ def _build_cmvwifi_nudge_task() -> TaskerTask:
             _lbl(
                 termux_task(
                     "wifi_nudge",
-                    arguments=(
-                        "--ssid cmvwifi --ssid MVwifi "
-                        "--fallback xfinitywifi"
-                    ),
+                    arguments="--preferred --fallback xfinitywifi",
                     background=True,
                     timeout=45,
                 ),
-                "cmvwifi/MVwifi nudge + xfinity promotion (root) — "
-                "runs ~/.termux/tasker/wifi_nudge",
+                "Open-preferred nudge (cmvwifi/MVwifi/Costco) + xfinity "
+                "promotion (root) — runs ~/.termux/tasker/wifi_nudge",
             ),
         ],
     )
@@ -1088,20 +1087,19 @@ def _build_cmvwifi_nudge_profile() -> TaskerProfile:
 def _build_xfinity_nudge_task() -> TaskerTask:
     """Build the NudgeXfinity task (id=110) — fallback-only join.
 
-    Runs wifi_nudge with ``--ssid xfinitywifi --autojoin-disabled``
-    plus a ``--defer-to`` list of the preferred SSIDs: joins open
-    xfinitywifi only when fully disconnected *and* no preferred
-    network is visible (prevents the two nudge tasks racing connect
-    requests in the same tick — observed 10:15 when both issued
-    ``connect-network`` back to back), and marks the saved config
+    Runs wifi_nudge with ``--ssid xfinitywifi --autojoin-disabled
+    --defer-to-preferred``: joins open xfinitywifi only when fully
+    disconnected *and* no preferred network is visible (the defer
+    check prevents the nudge tasks racing connect requests in the
+    same tick — observed at Costco when xfinity was requested while
+    Costco Member Wifi was in range).  ``--defer-to-preferred``
+    expands the module's PREFERRED_SSIDS constant — needed because
+    Termux's Arguments field can't carry the multi-word "Costco
+    Member Wifi" SSID safely.  Marks the saved config
     autojoin-disabled (-d) so Android never hops onto it while a
     better network is around.  Disabling the profile in Tasker
-    excludes xfinitywifi entirely — cmvwifi handling (and promotion
-    away from xfinitywifi) is unaffected.
-
-    ``Costco Member Wifi`` is absent from the defer list: Termux's
-    Arguments field is a single space-separated string, so a
-    multi-word SSID would tokenize incorrectly there.
+    excludes xfinitywifi entirely — preferred-network handling (and
+    promotion away from xfinitywifi) is unaffected.
     """
     return TaskerTask(
         id=110,
@@ -1119,8 +1117,7 @@ def _build_xfinity_nudge_task() -> TaskerTask:
                     "wifi_nudge",
                     arguments=(
                         "--ssid xfinitywifi --autojoin-disabled "
-                        "--defer-to cmvwifi --defer-to MVwifi "
-                        "--defer-to dd-wrt --defer-to dd-wrt_5G"
+                        "--defer-to-preferred"
                     ),
                     background=True,
                     timeout=45,

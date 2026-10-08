@@ -651,6 +651,56 @@ re-import (remember: open Tasker once afterward to activate contexts).
   space-separated Arguments field.
 - New action value: `deferred`.
 
+## 2026-10-07 - Android: `--defer-to-preferred` Closes the Costco Gap
+
+### Field failure
+At Costco (~15:30), the xfinity nudge issued `connect-network
+xfinitywifi` while Costco Member Wifi was in range — the defer list
+couldn't carry a multi-word SSID through Termux's space-separated
+Arguments field. Phone reached Costco ~15 min late.
+
+### Changes
+- `PREFERRED_SSIDS` module constant (cmvwifi, MVwifi, Costco Member
+  Wifi, dd-wrt, dd-wrt_5G) + `--defer-to-preferred` flag — the
+  multi-word Costco SSID now defers correctly without ever crossing
+  the Tasker args boundary.
+- `NudgeXfinity` args simplified to `--defer-to-preferred`.
+- Guard: a defer entry matching the run's own target never self-defers.
+
+---
+
+## 2026-10-07 - Android: `--preferred` Ranks the Open Networks
+
+### Goal
+Rank the preferred tier for real: `NudgeWifi` should target *every*
+joinable preferred SSID — not just cmvwifi/MVwifi — so on-xfinity
+promotion and disconnected joins work at Costco too.
+
+### Changes
+- `PREFERRED_OPEN_SSIDS` constant (cmvwifi, MVwifi, Costco Member
+  Wifi) — the nudge-joinable subset of `PREFERRED_SSIDS`. dd-wrt /
+  dd-wrt_5G are excluded: `connect-network` can't supply a passphrase
+  (never stored) and there's no `disconnect` command in `cmd wifi`,
+  so secured-network promotion remains Android-selector territory.
+- New `--preferred` flag expands `PREFERRED_OPEN_SSIDS` into the
+  target list — the only way the multi-word Costco SSID can be a
+  nudge target (Termux Arguments can't carry it).
+- `NudgeWifi` args simplified to `--preferred --fallback xfinitywifi`.
+- Effect: disconnected at Costco → nudge joins Costco Member Wifi
+  directly; on xfinitywifi + Costco visible → `promoted` (previously
+  this waited for Android's selector — ~15 min observed).
+
+### Tests
+278 pass. New: `--preferred` CLI expansion, `connect-network 'Costco
+Member Wifi' open` promotion with quoted multi-word SSID.
+
+### Also fixed
+`mvwifi_history.log` truncating to 0 bytes: all four Android wrappers
+rotated via a *shared* `$HIST.tmp` — concurrent wrappers (both nudge
+tasks fire in the same second) raced, and a second `>` truncate +
+first `mv` could install an empty file. Now an atomic `mkdir` lock
+plus per-PID tmp names; losers skip rotation until the next run.
+
 ---
 
 ## Template for Future Entries

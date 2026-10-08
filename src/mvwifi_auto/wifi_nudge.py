@@ -43,9 +43,9 @@ profile without affecting preferred-network handling.
 CLI::
 
     mvwifi-nudge
-    mvwifi-nudge --ssid cmvwifi --fallback xfinitywifi
+    mvwifi-nudge --preferred --fallback xfinitywifi
     mvwifi-nudge --ssid xfinitywifi --autojoin-disabled \
-        --defer-to cmvwifi --defer-to MVwifi
+        --defer-to-preferred
     mvwifi-nudge --dry-run --json
 """
 
@@ -66,6 +66,28 @@ from mvwifi_auto.root_shell import find_su, run_root
 logger = logging.getLogger("mvwifi_auto.wifi_nudge")
 
 DEFAULT_SSIDS = ["cmvwifi"]
+
+# Every network that should beat a fallback join when visible.  Kept in
+# code (not Tasker args) because Termux's Arguments field is a single
+# space-separated string — multi-word SSIDs like "Costco Member Wifi"
+# would tokenize incorrectly.  Referenced via --defer-to-preferred.
+PREFERRED_SSIDS = [
+    "cmvwifi",
+    "MVwifi",
+    "Costco Member Wifi",
+    "dd-wrt",
+    "dd-wrt_5G",
+]
+
+# The open subset of PREFERRED_SSIDS — networks the nudge can actually
+# join via ``connect-network <ssid> open`` (no passphrase needed).
+# dd-wrt/dd-wrt_5G are excluded: they're secured, and Android's
+# selector promotes onto them natively.  Referenced via --preferred.
+PREFERRED_OPEN_SSIDS = [
+    "cmvwifi",
+    "MVwifi",
+    "Costco Member Wifi",
+]
 
 # `cmd wifi status` emits lines like:
 #   Wifi is enabled
@@ -288,7 +310,9 @@ def run_nudge(
     else:
         if not hits:
             return _report("target_absent", True, status, targets)
-        defer_hits = [d for d in defer_to if d in visible]
+        defer_hits = [
+            d for d in defer_to if d in visible and d not in targets
+        ]
         if defer_hits:
             logger.info(
                 "preferred network visible, deferring: %s", defer_hits
@@ -351,6 +375,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Preferred target SSID (repeatable; default: cmvwifi)",
     )
     parser.add_argument(
+        "--preferred",
+        action="store_true",
+        help="Also target every SSID in PREFERRED_OPEN_SSIDS — shorthand "
+        "covering multi-word SSIDs which can't be passed as arguments",
+    )
+    parser.add_argument(
         "--fallback",
         action="append",
         dest="fallbacks",
@@ -363,6 +393,12 @@ def main(argv: list[str] | None = None) -> int:
         dest="defer_to",
         help="Preferred SSID to yield to: if visible while disconnected, "
         "this run does nothing (repeatable)",
+    )
+    parser.add_argument(
+        "--defer-to-preferred",
+        action="store_true",
+        help="Defer to every SSID in PREFERRED_SSIDS — shorthand that "
+        "covers multi-word SSIDs which can't be passed as arguments",
     )
     parser.add_argument(
         "--autojoin-disabled",
@@ -402,7 +438,12 @@ def main(argv: list[str] | None = None) -> int:
         handlers=handlers,
     )
 
-    targets = args.ssids or DEFAULT_SSIDS
+    targets = list(args.ssids or DEFAULT_SSIDS)
+    if args.preferred:
+        targets += [s for s in PREFERRED_OPEN_SSIDS if s not in targets]
+    defer_to = list(args.defer_to or [])
+    if args.defer_to_preferred:
+        defer_to += [s for s in PREFERRED_SSIDS if s not in defer_to]
     su = find_su()
     if su is None:
         report = _report("no_root", False, None, targets)
@@ -412,7 +453,7 @@ def main(argv: list[str] | None = None) -> int:
             su,
             targets,
             fallbacks=args.fallbacks,
-            defer_to=args.defer_to,
+            defer_to=defer_to,
             settle=args.settle,
             dry_run=args.dry_run,
             autojoin_disabled=args.autojoin_disabled,

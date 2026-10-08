@@ -572,6 +572,134 @@ class TestDefer:
         _, kwargs = mock_run.call_args
         assert kwargs["defer_to"] == ["cmvwifi", "MVwifi"]
 
+    def test_cli_defer_to_preferred_expands_constant(self):
+        """--defer-to-preferred passes PREFERRED_SSIDS to run_nudge —
+        the only way multi-word SSIDs ('Costco Member Wifi') can reach
+        the defer list, since Tasker args are space-separated."""
+        from mvwifi_auto.wifi_nudge import PREFERRED_SSIDS
+
+        fake_report = NudgeReport(action="deferred", ok=True)
+        with patch(
+            "mvwifi_auto.wifi_nudge.run_nudge",
+            return_value=fake_report,
+        ) as mock_run, patch(
+            "mvwifi_auto.wifi_nudge.find_su", return_value="su"
+        ):
+            rc = main(["--ssid", "xfinitywifi", "--defer-to-preferred"])
+        assert rc == 0
+        _, kwargs = mock_run.call_args
+        assert kwargs["defer_to"] == PREFERRED_SSIDS
+        assert "Costco Member Wifi" in kwargs["defer_to"]
+
+    def test_defer_to_multiword_ssid(self):
+        """A visible multi-word preferred SSID defers the fallback
+        join — the Costco-arrival case."""
+        scan_with_costco = SCAN_FALLBACK_ONLY + (
+            "  aa:bb:cc:dd:ee:ff       5180        -60   1.0   "
+            "Costco Member Wifi                   [ESS]\n"
+        )
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_DISCONNECTED)
+            if "list-scan-results" in command:
+                return (0, scan_with_costco)
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su",
+                ["xfinitywifi"],
+                defer_to=["Costco Member Wifi"],
+                settle=0,
+            )
+        assert report.action == "deferred"
+        assert report.visible_targets == ["Costco Member Wifi"]
+        assert all("connect-network" not in c for c in commands)
+
+    def test_cli_preferred_expands_open_targets(self):
+        """--preferred passes PREFERRED_OPEN_SSIDS as targets — the
+        only way multi-word SSIDs ('Costco Member Wifi') can be nudge
+        targets, since Tasker args are space-separated."""
+        from mvwifi_auto.wifi_nudge import PREFERRED_OPEN_SSIDS
+
+        fake_report = NudgeReport(action="already_connected", ok=True)
+        with patch(
+            "mvwifi_auto.wifi_nudge.run_nudge",
+            return_value=fake_report,
+        ) as mock_run, patch(
+            "mvwifi_auto.wifi_nudge.find_su", return_value="su"
+        ):
+            rc = main(["--preferred", "--fallback", "xfinitywifi"])
+        assert rc == 0
+        args_, kwargs = mock_run.call_args
+        assert args_[1] == PREFERRED_OPEN_SSIDS
+        assert "Costco Member Wifi" in args_[1]
+
+    def test_promotes_to_multiword_preferred(self):
+        """On a fallback with a multi-word preferred SSID visible,
+        promotion connects to it — quoted correctly for the shell."""
+        scan_with_costco = SCAN_FALLBACK_ONLY + (
+            "  aa:bb:cc:dd:ee:ff       5180        -60   1.0   "
+            "Costco Member Wifi                   [ESS]\n"
+        )
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_FALLBACK)
+            if "list-scan-results" in command:
+                return (0, scan_with_costco)
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su",
+                ["cmvwifi", "MVwifi", "Costco Member Wifi"],
+                fallbacks=["xfinitywifi"],
+                settle=0,
+            )
+        assert report.action == "promoted"
+        assert (
+            "cmd wifi connect-network 'Costco Member Wifi' open"
+            in commands
+        )
+
+    def test_defer_never_blocks_own_target(self):
+        """A defer_to SSID that is also this run's target must not
+        self-defer — guard for overlapping configurations."""
+        commands: list[str] = []
+
+        def fake(su, command, timeout=30):
+            commands.append(command)
+            if "status" in command:
+                return (0, STATUS_DISCONNECTED)
+            if "list-scan-results" in command:
+                return (0, SCAN_RESULTS)  # cmvwifi visible
+            return (0, "")
+
+        with (
+            patch("mvwifi_auto.wifi_nudge.run_root", side_effect=fake),
+            patch("mvwifi_auto.wifi_nudge.time.sleep"),
+        ):
+            report = run_nudge(
+                "su",
+                ["cmvwifi"],
+                defer_to=["cmvwifi"],  # overlap: target in defer list
+                settle=0,
+            )
+        assert report.action == "connect_requested"
+        assert "cmd wifi connect-network cmvwifi open" in commands
+
 
 class TestCli:
     """Test exit codes and report output modes."""

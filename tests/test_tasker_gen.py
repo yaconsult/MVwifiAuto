@@ -735,8 +735,7 @@ class TestTermuxProject:
             actions[1].find("Bundle"), encoding="unicode"
         )
         assert "wifi_nudge" in bundle_xml
-        assert "--ssid cmvwifi" in bundle_xml
-        assert "--ssid MVwifi" in bundle_xml
+        assert "--preferred" in bundle_xml
         assert "--fallback xfinitywifi" in bundle_xml
 
     def test_xfinity_nudge_task(self):
@@ -756,10 +755,7 @@ class TestTermuxProject:
         assert "wifi_nudge" in bundle_xml
         assert "--ssid xfinitywifi" in bundle_xml
         assert "--autojoin-disabled" in bundle_xml
-        assert "--defer-to cmvwifi" in bundle_xml
-        assert "--defer-to MVwifi" in bundle_xml
-        assert "--defer-to dd-wrt" in bundle_xml
-        assert "--defer-to dd-wrt_5G" in bundle_xml
+        assert "--defer-to-preferred" in bundle_xml
 
     def test_xfinity_nudge_profile(self):
         """xfinitywifi Periodic Nudge: Time context every 15 min ->

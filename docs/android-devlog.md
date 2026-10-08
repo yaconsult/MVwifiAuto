@@ -1771,3 +1771,82 @@ defer target visible, defer doesn't block promotion, CLI wiring;
 MVwifi profile linkage, ConnectAndRun dual-If structure and both
 Goto targets landing on self-heal, NudgeWifi/NudgeXfinity argument
 assertions.
+
+## Session 32: Costco Defer Gap — `--defer-to-preferred` (2026-10-07)
+
+### Field failure
+
+Costco visit ~15:30-18:00: at the 15:30 tick the phone was
+disconnected and the xfinity nudge issued `connect-network
+xfinitywifi` — while Costco Member Wifi was almost certainly in
+range. The phone didn't land on Costco until ~15:45 (and flapped
+16:00-16:45 on marginal parking-lot coverage). Root cause: the defer
+list added in Session 31 couldn't carry `Costco Member Wifi` — a
+multi-word SSID can't survive Termux's space-separated Arguments
+field.
+
+### Fix
+
+- `PREFERRED_SSIDS` module constant in `wifi_nudge.py` (cmvwifi,
+  MVwifi, Costco Member Wifi, dd-wrt, dd-wrt_5G) — the canonical
+  preferred list lives in code.
+- New `--defer-to-preferred` flag expands it into defer_to;
+  `NudgeXfinity` args simplify to `--ssid xfinitywifi
+  --autojoin-disabled --defer-to-preferred`.
+- Guard: a defer_to SSID that is also a run target never self-defers
+  (overlapping-config safety).
+
+### Also observed
+
+- cmvwifi morning join was Android-native (~10:15 disconnected →
+  10:30 connected, portal handled 10:36 in ~14s) — inside the design's
+  worst-case tick latency; no nudge intervention needed.
+- `mvwifi_history.log` found truncated to 0 bytes (~18:45) — cause
+  identified in Session 33 (rotation race); nudge detail log still
+  carried full forensics.
+- `SHGuestNet` seen 13:15-14:15 — unmanaged, correctly ignored.
+
+## Session 33: Ranking — `--preferred` + History Race Fix (2026-10-07)
+
+### Ranking design discussion
+
+The user asked for real promotion to *any* visible preferred
+network — "if I'm on xfinity and I get home, it needs to switch to
+dd-wrt_5G." Split by mechanism:
+
+- **Secured preferred (dd-wrt, dd-wrt_5G)**: `cmd wifi` has no
+  `disconnect` on this device, and `connect-network` would need the
+  passphrase (never stored). Android's selector handles this case —
+  saved autojoin-on networks outscore the `-d` fallback.
+- **Open preferred (cmvwifi, MVwifi, Costco Member Wifi)**: fully
+  nudge-joinable, but `Costco Member Wifi` couldn't be a nudge
+  target — its spaces can't survive Termux's Arguments field.
+  Session 32 solved that for *defer* via `PREFERRED_SSIDS`; same
+  trick now for *targets*.
+
+### Changes
+
+- `PREFERRED_OPEN_SSIDS` constant — the open subset of
+  `PREFERRED_SSIDS`.
+- `--preferred` flag: expands it into the target list.
+- `NudgeWifi` args: `--preferred --fallback xfinitywifi`.
+- Costco is now both a disconnected-join target and an on-xfinity
+  promotion destination (`connect-network 'Costco Member Wifi' open`
+  — shlex-quoted).
+
+### History truncation root cause
+
+`mvwifi_history.log` rotation raced: all four wrappers ran
+`tail -n 200 $HIST > $HIST.tmp && mv $HIST.tmp $HIST` — the *same*
+tmp path. Every 15-min tick fires NudgeWifi + NudgeXfinity in the
+same second, so a second `>` could truncate tmp mid-flight; the
+first `mv` then installed an empty file. Fixed in all four wrappers:
+atomic `mkdir "$HIST.lock"` gate + per-PID `$HIST.tmp.$$` — losers
+skip rotation until the next run.
+
+### Tests
+
+278 pass, lint clean, wrappers pass bash -n + shellcheck. New:
+`--preferred` CLI expansion, `connect-network 'Costco Member Wifi'
+open` promotion with quoted multi-word SSID. XML regenerated —
+gen `3937e7`.

@@ -34,5 +34,14 @@ STATUS=$?
 /data/data/com.termux/files/usr/bin/termux-wake-unlock
 
 echo "$(date '+%F %T') | termux | nudge exit=$STATUS" >> "$HIST" 2>/dev/null
-tail -n 200 "$HIST" > "$HIST.tmp" 2>/dev/null && mv "$HIST.tmp" "$HIST"
+# Rotate under an atomic mkdir lock: concurrent wrappers (both nudge
+# tasks fire in the same second) previously raced on a shared
+# $HIST.tmp — a second `>` could truncate it before the first mv,
+# leaving an empty history log.  Losers skip; the next run rotates.
+LOCK="$HIST.lock"
+if mkdir "$LOCK" 2>/dev/null; then
+    tail -n 200 "$HIST" > "$HIST.tmp.$$" 2>/dev/null \
+        && mv "$HIST.tmp.$$" "$HIST"
+    rmdir "$LOCK"
+fi
 exit $STATUS
