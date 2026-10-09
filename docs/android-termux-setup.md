@@ -623,7 +623,10 @@ moment the phone associates to cmvwifi:
 > auto-joins cmvwifi itself, and WiFi Near depends on WiFi scans
 > that Android throttles to ~1 per 30 min for background apps —
 > observed as a ~30-minute delay before portal handling. WiFi
-> Connected fires instantly on association.
+> Connected fires instantly on association. The periodic root
+> nudge covers the association step WiFi Near was meant to trigger
+> — see "Why root + polling instead of Tasker's network contexts"
+> in `docs/architecture.md` for the full tradeoff rationale.
 
 ### Step 7: Test the Full Flow
 

@@ -1924,3 +1924,32 @@ be built — same playbook as the Costco Mist capture.
 285 pass. New: arbitrary-scheme + http-exclusion deep-link cases,
 `--name`/`--no-package` wiring, costco-shim defaults, SHGuest
 profile/task structure.
+
+## Session 36: Design-Tradeoff Documentation — Why Not WiFi Near (2026-10-09)
+
+### Request
+
+The user asked whether WiFi Near — the trigger type the design was
+"supposed" to use — was abandoned because Android changes gutted
+it, and asked that the explanation be captured in the docs.
+
+### Changes
+
+- `docs/architecture.md`: new "Why root + polling instead of
+  Tasker's network contexts" section after the Android Flow
+  diagram — covers the three Android restrictions that killed
+  WiFi Near (8+ scan throttling, background execution limits,
+  location entanglement), the observer→actor design flip, and
+  the resulting latency budget (0-15 min nudge tick + ~4 min
+  WiFi Connected monitor latency + seconds of portal auth).
+- `docs/android-termux-setup.md`: the WiFi Connected callout now
+  cross-references the architecture section.
+
+### Field verification (2026-10-09 morning, gen bef8cb live)
+
+First full cycle on the clean `bef8cb` import: home on
+`dd-wrt_5G` → arrival → 10:30 tick saw `connected=None`, nudge
+itself issued `connect-network cmvwifi`; xfinity nudge correctly
+deferred (cmvwifi visible); ConnectAndRun fired ~4 min after
+association; portal POST + verify done in ~6s. Interface was
+`wlan1` this time (was `wlan0`) — auto-detection handled it.

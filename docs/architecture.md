@@ -287,6 +287,44 @@ the portal.
    the OS marks WiFi as having internet
 ```
 
+### Why root + polling instead of Tasker's network contexts
+
+The original all-Tasker design used **WiFi Near** to notice cmvwifi
+in range and trigger association — the right-shaped tool for the
+job, and the correct choice for the Android versions it was built
+on. Modern Android progressively removed the primitives that made
+it work:
+
+- **Scan throttling (Android 8+)** — foreground apps get ~4
+  scans/2 min, background apps ~1 scan/30 min. WiFi Near doesn't
+  scan itself; it polls scan *results*, so it inherits whatever
+  staleness the OS imposes. Observed on-device: ~29 minutes
+  between association and the profile noticing while the phone
+  was idle.
+- **Background execution limits** — Tasker's own monitor can't
+  run reliably at high frequency when the phone is dozing, which
+  adds latency even to event-based contexts (WiFi Connected
+  measured ~4 min behind the association event).
+- **Location entanglement** — WiFi scanning requires location
+  services enabled, adding another silent failure mode.
+
+So the design flipped from an OS-throttled *observer* to a
+root-privileged *actor*: a periodic Termux wrapper runs
+`cmd wifi` on our own 15-minute schedule, bypassing app-level
+scan quotas entirely, and issues `connect-network` directly —
+which also sidesteps Android's deprioritization of a SSID that
+historically failed portal validation. WiFi Connected is then used
+only for what it's still good at: reacting to the association
+event to run portal handling.
+
+The latency budget reflects this split: **0–15 min** waiting for
+the next nudge tick (tunable — shorter interval costs battery),
+**~4 min** of WiFi Connected monitor latency, then seconds of
+actual portal auth. The remaining delay is the polling interval,
+not the mechanism — WiFi Near would not improve it because it
+shares the same throttled scan pipeline the nudge was built to
+replace.
+
 ### Normal Operation (On dd-wrt) — Linux
 
 ```
