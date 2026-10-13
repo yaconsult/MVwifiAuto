@@ -72,7 +72,7 @@ DEFAULT_TASKER_VERSION = "5.15.14"
 # occurrence with a content hash of the generated XML (with the
 # placeholder still in place), so the stamp tracks the exact project
 # content with no manual version bumping.  Embedded in task marker text
-# and the ``ShowVersion`` flash, it lets logs and the Tasker GUI answer
+# and the ``MVW_ShowVersion`` flash, it lets logs and the Tasker GUI answer
 # "which generation is actually imported?" — a stale merged import is
 # instantly visible as an old/absent gen id.
 GEN_PLACEHOLDER = "@MWGEN@"
@@ -840,7 +840,7 @@ def build_mvwifi_project() -> TaskerProject:
 # Termux project builder (recommended approach)
 # ---------------------------------------------------------------------------
 def _build_run_portal_script_task_termux() -> TaskerTask:
-    """Build the RunPortalScript task (id=70) — Termux:Tasker plugin.
+    """Build the MVW_RunPortalScript task (id=70) — Termux:Tasker plugin.
 
     This task runs the Python portal handler via the Termux:Tasker plugin.
     The plugin executes the wrapper script at ~/.termux/tasker/mvwifi_portal
@@ -848,7 +848,7 @@ def _build_run_portal_script_task_termux() -> TaskerTask:
     """
     return TaskerTask(
         id=70,
-        name="RunPortalScript",
+        name="MVW_RunPortalScript",
         actions=[
             # A1: Run the portal handler via Termux:Tasker plugin
             _lbl(
@@ -860,14 +860,14 @@ def _build_run_portal_script_task_termux() -> TaskerTask:
 
 
 def _build_connect_and_run_task_termux() -> TaskerTask:
-    """Build the ConnectAndRun task (id=80) — Termux approach.
+    """Build the MVW_ConnectAndRun task (id=80) — Termux approach.
 
     Connects to cmvwifi (if not already connected), waits for DHCP,
-    then calls RunPortalScript to handle the captive portal.
+    then calls MVW_RunPortalScript to handle the captive portal.
     """
     return TaskerTask(
         id=80,
-        name="ConnectAndRun",
+        name="MVW_ConnectAndRun",
         actions=[
             # A1: History marker — records that Tasker fired, even if
             # the plugin call later fails or Termux never runs.
@@ -875,7 +875,7 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | ConnectAndRun fired [gen @MWGEN@]",
+                    "%TIMES | tasker | MVW_ConnectAndRun fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -909,7 +909,7 @@ def _build_connect_and_run_task_termux() -> TaskerTask:
             ),
             # A12: Run the portal script
             _lbl(
-                perform_task("RunPortalScript", wait_for_finish=True),
+                perform_task("MVW_RunPortalScript", wait_for_finish=True),
                 "Portal handler via Termux:Tasker",
             ),
             # A13: Flash completion
@@ -930,7 +930,7 @@ def _build_cmvwifi_profile_termux() -> TaskerProfile:
     """
     return TaskerProfile(
         id=2,
-        name="cmvwifi Auto Connect",
+        name="MVW cmvwifi Auto Connect",
         state=TaskerState(
             code=CODE_WIFI_CONNECTED_STATE,
             args=[
@@ -940,7 +940,7 @@ def _build_cmvwifi_profile_termux() -> TaskerProfile:
                 TaskerArg.int_arg(3, 2),           # Active (2 = connected)
             ],
         ),
-        task_id=80,  # ConnectAndRun
+        task_id=80,  # MVW_ConnectAndRun
     )
 
 
@@ -949,13 +949,13 @@ def _build_mvwifi_profile_termux() -> TaskerProfile:
 
     `MVwifi` is the same municipal network broadcasting under an
     alternate SSID — observed on-device (09:30 association during a
-    field session).  Fires ConnectAndRun exactly like the cmvwifi
+    field session).  Fires MVW_ConnectAndRun exactly like the cmvwifi
     profile; the task skips re-connecting when %WIFII already names
     either SSID, so the portal handler just runs.
     """
     return TaskerProfile(
         id=6,
-        name="MVwifi Auto Connect",
+        name="MVW MVwifi Auto Connect",
         state=TaskerState(
             code=CODE_WIFI_CONNECTED_STATE,
             args=[
@@ -965,12 +965,12 @@ def _build_mvwifi_profile_termux() -> TaskerProfile:
                 TaskerArg.int_arg(3, 2),           # Active (2 = connected)
             ],
         ),
-        task_id=80,  # ConnectAndRun
+        task_id=80,  # MVW_ConnectAndRun
     )
 
 
 def _build_costco_connect_task() -> TaskerTask:
-    """Build the CostcoConnect task (id=90) — Termux portal handler.
+    """Build the MVW_CostcoConnect task (id=90) — Termux portal handler.
 
     Runs the Costco captive-portal handler via the Termux:Tasker
     plugin.  The Costco portal is a Juniper Mist TOS-accept page —
@@ -978,13 +978,13 @@ def _build_costco_connect_task() -> TaskerTask:
     """
     return TaskerTask(
         id=90,
-        name="CostcoConnect",
+        name="MVW_CostcoConnect",
         actions=[
-            # A1: History marker (same shared log as ConnectAndRun).
+            # A1: History marker (same shared log as MVW_ConnectAndRun).
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | CostcoConnect fired [gen @MWGEN@]",
+                    "%TIMES | tasker | MVW_CostcoConnect fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -1007,12 +1007,12 @@ def _build_costco_connect_task() -> TaskerTask:
 def _build_costco_profile_termux() -> TaskerProfile:
     """Build the Costco Member Wifi profile (id=3) — Termux approach.
 
-    Fires on association with the Costco SSID and runs CostcoConnect,
+    Fires on association with the Costco SSID and runs MVW_CostcoConnect,
     which POSTs the Mist TOS-accept form and verifies connectivity.
     """
     return TaskerProfile(
         id=3,
-        name="Costco WiFi Connected",
+        name="MVW Costco WiFi Connected",
         state=TaskerState(
             code=CODE_WIFI_CONNECTED_STATE,
             args=[
@@ -1022,12 +1022,12 @@ def _build_costco_profile_termux() -> TaskerProfile:
                 TaskerArg.int_arg(3, 2),                     # Active
             ],
         ),
-        task_id=90,  # CostcoConnect
+        task_id=90,  # MVW_CostcoConnect
     )
 
 
 def _build_cmvwifi_nudge_task() -> TaskerTask:
-    """Build the NudgeWifi task (id=100) — periodic auto-join nudge.
+    """Build the MVW_NudgeWifi task (id=100) — periodic auto-join nudge.
 
     Runs the wifi_nudge wrapper via the Termux:Tasker plugin with
     ``--preferred --fallback xfinitywifi``: targets the open preferred
@@ -1040,13 +1040,13 @@ def _build_cmvwifi_nudge_task() -> TaskerTask:
     """
     return TaskerTask(
         id=100,
-        name="NudgeWifi",
+        name="MVW_NudgeWifi",
         actions=[
-            # A1: History marker (same shared log as ConnectAndRun).
+            # A1: History marker (same shared log as MVW_ConnectAndRun).
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | NudgeWifi fired [gen @MWGEN@]",
+                    "%TIMES | tasker | MVW_NudgeWifi fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -1078,14 +1078,14 @@ def _build_cmvwifi_nudge_profile() -> TaskerProfile:
     """
     return TaskerProfile(
         id=4,
-        name="cmvwifi Periodic Nudge",
+        name="MVW cmvwifi Periodic Nudge",
         state=TaskerTime(repeat_unit=2, repeat_value=15),
-        task_id=100,  # NudgeWifi
+        task_id=100,  # MVW_NudgeWifi
     )
 
 
 def _build_xfinity_nudge_task() -> TaskerTask:
-    """Build the NudgeXfinity task (id=110) — fallback-only join.
+    """Build the MVW_NudgeXfinity task (id=110) — fallback-only join.
 
     Runs wifi_nudge with ``--ssid xfinitywifi --autojoin-disabled
     --defer-to-preferred``: joins open xfinitywifi only when fully
@@ -1103,12 +1103,12 @@ def _build_xfinity_nudge_task() -> TaskerTask:
     """
     return TaskerTask(
         id=110,
-        name="NudgeXfinity",
+        name="MVW_NudgeXfinity",
         actions=[
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | NudgeXfinity fired [gen @MWGEN@]",
+                    "%TIMES | tasker | MVW_NudgeXfinity fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -1130,7 +1130,7 @@ def _build_xfinity_nudge_task() -> TaskerTask:
 
 
 def _build_show_version_task() -> TaskerTask:
-    """Build the ShowVersion task (id=120) — manual gen-id check.
+    """Build the MVW_ShowVersion task (id=120) — manual gen-id check.
 
     Flashes the generation stamp of the imported project.  Run it by
     hand in Tasker (▶) to answer "which generation is actually
@@ -1140,7 +1140,7 @@ def _build_show_version_task() -> TaskerTask:
     """
     return TaskerTask(
         id=120,
-        name="ShowVersion",
+        name="MVW_ShowVersion",
         actions=[
             _lbl(
                 flash(f"MVwifiAuto-Termux gen {GEN_PLACEHOLDER}"),
@@ -1151,7 +1151,7 @@ def _build_show_version_task() -> TaskerTask:
 
 
 def _build_shguest_capture_task() -> TaskerTask:
-    """Build the SHGuestCapture task (id=130) — portal recon, not login.
+    """Build the MVW_SHGuestCapture task (id=130) — portal recon, not login.
 
     Runs the shguest_probe wrapper via the Termux:Tasker plugin when
     the phone associates to SHGuestNet (Sutter Health / PAMF guest
@@ -1163,13 +1163,13 @@ def _build_shguest_capture_task() -> TaskerTask:
     """
     return TaskerTask(
         id=130,
-        name="SHGuestCapture",
+        name="MVW_SHGuestCapture",
         actions=[
             # A1: History marker.
             _lbl(
                 write_file(
                     "Tasker/mvwifi_history.log",
-                    "%TIMES | tasker | SHGuestCapture fired [gen @MWGEN@]",
+                    "%TIMES | tasker | MVW_SHGuestCapture fired [gen @MWGEN@]",
                 ),
                 "History marker — proves Tasker fired even if Termux fails",
             ),
@@ -1195,12 +1195,12 @@ def _build_shguest_profile() -> TaskerProfile:
     """Build the SHGuestNet WiFi Connected profile (id=7).
 
     Fires on association with the clinic guest SSID and runs
-    SHGuestCapture — the automated portal recon for a future
+    MVW_SHGuestCapture — the automated portal recon for a future
     auto-accept handler.
     """
     return TaskerProfile(
         id=7,
-        name="SHGuestNet WiFi Connected",
+        name="MVW SHGuestNet WiFi Connected",
         state=TaskerState(
             code=CODE_WIFI_CONNECTED_STATE,
             args=[
@@ -1210,7 +1210,7 @@ def _build_shguest_profile() -> TaskerProfile:
                 TaskerArg.int_arg(3, 2),              # Active
             ],
         ),
-        task_id=130,  # SHGuestCapture
+        task_id=130,  # MVW_SHGuestCapture
     )
 
 
@@ -1225,9 +1225,9 @@ def _build_xfinity_nudge_profile() -> TaskerProfile:
     """
     return TaskerProfile(
         id=5,
-        name="xfinitywifi Periodic Nudge",
+        name="MVW xfinitywifi Periodic Nudge",
         state=TaskerTime(repeat_unit=2, repeat_value=15),
-        task_id=110,  # NudgeXfinity
+        task_id=110,  # MVW_NudgeXfinity
     )
 
 
@@ -1239,30 +1239,30 @@ def build_termux_project() -> TaskerProject:
     the captive portal with SO_BINDTODEVICE interface binding.
 
     Tasks:
-        - RunPortalScript: runs mvwifi-android via Termux:Tasker plugin
-        - ConnectAndRun: connects to cmvwifi (or skips when already on
-          cmvwifi/MVwifi), waits for DHCP, calls RunPortalScript
-        - CostcoConnect: runs the Costco Mist portal handler
-        - NudgeWifi: periodic auto-join nudge for cmvwifi (+ promotes
+        - MVW_RunPortalScript: runs mvwifi-android via Termux:Tasker plugin
+        - MVW_ConnectAndRun: connects to cmvwifi (or skips when already on
+          cmvwifi/MVwifi), waits for DHCP, calls MVW_RunPortalScript
+        - MVW_CostcoConnect: runs the Costco Mist portal handler
+        - MVW_NudgeWifi: periodic auto-join nudge for cmvwifi (+ promotes
           off xfinitywifi when cmvwifi is visible)
-        - NudgeXfinity: periodic fallback nudge for xfinitywifi,
+        - MVW_NudgeXfinity: periodic fallback nudge for xfinitywifi,
           joined with autojoin disabled (-d)
-        - ShowVersion: flashes the generation stamp — run manually to
+        - MVW_ShowVersion: flashes the generation stamp — run manually to
           verify which project generation is actually imported
-        - SHGuestCapture: portal capture probe for SHGuestNet (Sutter
+        - MVW_SHGuestCapture: portal capture probe for SHGuestNet (Sutter
           Health guest WiFi) — recon only, does not accept the portal
 
     Profiles:
-        - cmvwifi Auto Connect: WiFi Connected → ConnectAndRun
+        - cmvwifi Auto Connect: WiFi Connected → MVW_ConnectAndRun
         - MVwifi Auto Connect: WiFi Connected (MVwifi — same municipal
-          network, alternate SSID) → ConnectAndRun
+          network, alternate SSID) → MVW_ConnectAndRun
         - Costco WiFi Connected: WiFi Connected (Costco Member Wifi)
-          → CostcoConnect
-        - cmvwifi Periodic Nudge: Time (every 15 min) → NudgeWifi
+          → MVW_CostcoConnect
+        - cmvwifi Periodic Nudge: Time (every 15 min) → MVW_NudgeWifi
         - xfinitywifi Periodic Nudge: Time (every 15 min) →
-          NudgeXfinity
+          MVW_NudgeXfinity
         - SHGuestNet WiFi Connected: WiFi Connected (SHGuestNet) →
-          SHGuestCapture
+          MVW_SHGuestCapture
 
     Returns:
         A :class:`TaskerProject` ready for XML generation.

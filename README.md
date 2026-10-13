@@ -203,7 +203,7 @@ Android's cellular-preferred policy routing. Verified working with
 cellular data enabled.
 
 The flow: Android auto-joins cmvwifi → Tasker's WiFi Connected
-profile fires instantly on association → `ConnectAndRun` waits for
+profile fires instantly on association → `MVW_ConnectAndRun` waits for
 DHCP if needed → triggers `mvwifi-android` via the
 Termux:Tasker plugin → Python binds to wlan0, detects the portal,
 accepts terms, and verifies internet. Each run overwrites
@@ -217,7 +217,7 @@ connect-network` when cmvwifi — or `MVwifi`, the same municipal
 network's alternate SSID — is visible but unassociated. It never
 interrupts an active connection and requires root.
 
-A sibling `xfinitywifi Periodic Nudge` profile handles Comcast's
+A sibling `MVW xfinitywifi Periodic Nudge` profile handles Comcast's
 open (portal-free) `xfinitywifi` hotspots as a fallback: it joins
 only when fully disconnected AND no preferred SSID is visible
 (`--defer-to` prevents racing connect requests), marks the saved

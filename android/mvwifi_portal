@@ -2,7 +2,7 @@
 # MVwifiAuto Tasker wrapper — executed by the Termux:Tasker plugin.
 #
 # Writes lifecycle events to a shared history log; Tasker's
-# ConnectAndRun appends its own marker before invoking us, so a
+# MVW_ConnectAndRun appends its own marker before invoking us, so a
 # tasker marker with no matching termux entry means the plugin call
 # never reached Termux. History is bounded to the last 200 lines.
 HIST=/data/data/com.termux/files/home/storage/shared/Tasker/mvwifi_history.log

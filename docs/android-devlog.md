@@ -1953,3 +1953,30 @@ itself issued `connect-network cmvwifi`; xfinity nudge correctly
 deferred (cmvwifi visible); ConnectAndRun fired ~4 min after
 association; portal POST + verify done in ~6s. Interface was
 `wlan1` this time (was `wlan0`) — auto-detection handled it.
+
+## Session 37: Legacy Project Import Wiped Termux Project (2026-10-13)
+
+### Incident
+
+No nudge/portal activity since 22:45 on 10-12 (~12h silent). During
+a FundOpening editing session, `MVwifiAuto.prj.xml` — the LEGACY
+all-Tasker project sitting next to `MVwifiAuto-Termux.prj.xml` in
+`/sdcard/Tasker/projects/` — was imported by mistake (project
+cdate 22:50 in autobackup), and the Termux project was deleted
+sometime in the cleanup. Persisted state held zero MVW tasks.
+This morning's cmvwifi join/drop was unmanaged Android; the live
+legacy `cmvwifi Auto Connect` profile (→ `ConnectToCmvwifi`, old
+WiFi-connect logic) may also have bounced the link.
+
+### Changes
+
+- `/sdcard/Tasker/projects/` cleaned: legacy `MVwifiAuto.prj.xml`
+  + `test_wifinear*.prj.xml` moved to `/sdcard/Tasker/archive/` —
+  only `MVwifiAuto-Termux.prj.xml` (and unrelated FundOpening) can
+  be picked now.
+- All Termux-project task names prefixed `MVW_`
+  (`MVW_NudgeWifi`, `MVW_ConnectAndRun`, `MVW_ShowVersion`, ...)
+  and profile names prefixed `MVW ` — collision-proof against
+  other projects' imports and instantly recognizable during
+  orphan cleanup. Marker strings updated to match.
+- XML regen → gen `6291fe`. Tests: 285 pass.

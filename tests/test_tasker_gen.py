@@ -408,23 +408,23 @@ class TestTermuxProject:
         assert len(tasks) == 7
         task_names = {t.find("nme").text for t in tasks}
         assert task_names == {
-            "RunPortalScript",
-            "ConnectAndRun",
-            "CostcoConnect",
-            "NudgeWifi",
-            "NudgeXfinity",
-            "ShowVersion",
-            "SHGuestCapture",
+            "MVW_RunPortalScript",
+            "MVW_ConnectAndRun",
+            "MVW_CostcoConnect",
+            "MVW_NudgeWifi",
+            "MVW_NudgeXfinity",
+            "MVW_ShowVersion",
+            "MVW_SHGuestCapture",
         }
 
     def test_profile_links_to_connect_and_run(self):
-        """Test that the cmvwifi profile links to ConnectAndRun (id=80)."""
+        """Test that the cmvwifi profile links to MVW_ConnectAndRun (id=80)."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         profiles = root.findall("Profile")
         profile = next(
-            p for p in profiles if p.find("nme").text == "cmvwifi Auto Connect"
+            p for p in profiles if p.find("nme").text == "MVW cmvwifi Auto Connect"
         )
         assert profile.find("mid0").text == "80"
 
@@ -447,12 +447,12 @@ class TestTermuxProject:
         assert ints[0].get("val") == "2"
 
     def test_run_portal_script_has_termux_plugin(self):
-        """Test that RunPortalScript uses the Termux:Tasker plugin."""
+        """Test that MVW_RunPortalScript uses the Termux:Tasker plugin."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        run_script = next(t for t in tasks if t.find("nme").text == "RunPortalScript")
+        run_script = next(t for t in tasks if t.find("nme").text == "MVW_RunPortalScript")
         actions = run_script.findall("Action")
         assert len(actions) == 1
         # The action should have code 1256900802 (Termux:Tasker plugin)
@@ -467,48 +467,48 @@ class TestTermuxProject:
         assert "com.termux.tasker.extra.EXECUTABLE" in bundle_xml
 
     def test_connect_and_run_has_wifi_connect(self):
-        """Test that ConnectAndRun has a Connect to WiFi action."""
+        """Test that MVW_ConnectAndRun has a Connect to WiFi action."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        connect_task = next(t for t in tasks if t.find("nme").text == "MVW_ConnectAndRun")
         actions = connect_task.findall("Action")
         codes = [int(a.find("code").text) for a in actions]
         assert CODE_CONNECT_WIFI in codes
 
     def test_connect_and_run_has_wait(self):
-        """Test that ConnectAndRun has a Wait action for DHCP."""
+        """Test that MVW_ConnectAndRun has a Wait action for DHCP."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        connect_task = next(t for t in tasks if t.find("nme").text == "MVW_ConnectAndRun")
         actions = connect_task.findall("Action")
         codes = [int(a.find("code").text) for a in actions]
         assert CODE_WAIT in codes
 
     def test_connect_and_run_has_perform_task(self):
-        """Test that ConnectAndRun calls RunPortalScript via Perform Task."""
+        """Test that MVW_ConnectAndRun calls MVW_RunPortalScript via Perform Task."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        connect_task = next(t for t in tasks if t.find("nme").text == "MVW_ConnectAndRun")
         actions = connect_task.findall("Action")
         perform_actions = [a for a in actions if a.find("code").text == str(CODE_PERFORM_TASK)]
         assert len(perform_actions) >= 1
-        # The first arg should be the task name "RunPortalScript"
+        # The first arg should be the task name "MVW_RunPortalScript"
         str_args = perform_actions[0].findall("Str")
-        assert any(s.text == "RunPortalScript" for s in str_args)
+        assert any(s.text == "MVW_RunPortalScript" for s in str_args)
 
     def test_connect_and_run_has_if_goto(self):
-        """Test that ConnectAndRun has If + Goto for already-connected check."""
+        """Test that MVW_ConnectAndRun has If + Goto for already-connected check."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        connect_task = next(t for t in tasks if t.find("nme").text == "MVW_ConnectAndRun")
         actions = connect_task.findall("Action")
         codes = [int(a.find("code").text) for a in actions]
         assert CODE_IF in codes
@@ -516,12 +516,12 @@ class TestTermuxProject:
         assert CODE_END_IF in codes
 
     def test_connect_and_run_has_termux_self_heal(self):
-        """ConnectAndRun re-applies Termux protections via root shell."""
+        """MVW_ConnectAndRun re-applies Termux protections via root shell."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        connect_task = next(t for t in tasks if t.find("nme").text == "MVW_ConnectAndRun")
         actions = connect_task.findall("Action")
         shell_actions = [a for a in actions if a.find("code").text == str(CODE_RUN_SHELL)]
         assert len(shell_actions) == 1
@@ -541,7 +541,7 @@ class TestTermuxProject:
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        connect_task = next(t for t in tasks if t.find("nme").text == "MVW_ConnectAndRun")
         actions = connect_task.findall("Action")
         # Gotos are A4 (index 3) and A7 (index 6) — after the history
         # Write File, Variable Set, and each If.  Both must target
@@ -558,13 +558,13 @@ class TestTermuxProject:
         assert actions[11].find("code").text == str(CODE_PERFORM_TASK)
 
     def test_connect_and_run_skips_connect_on_mvwifi(self):
-        """ConnectAndRun treats MVwifi (alternate municipal SSID) as
+        """MVW_ConnectAndRun treats MVwifi (alternate municipal SSID) as
         already-connected: an If comparing %CurrentSSID to MVwifi."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        connect_task = next(t for t in tasks if t.find("nme").text == "ConnectAndRun")
+        connect_task = next(t for t in tasks if t.find("nme").text == "MVW_ConnectAndRun")
         if_actions = [
             a
             for a in connect_task.findall("Action")
@@ -577,7 +577,7 @@ class TestTermuxProject:
         assert compared == {"cmvwifi", "MVwifi"}
 
     def test_mvwifi_profile(self):
-        """MVwifi Auto Connect profile triggers ConnectAndRun on the
+        """MVW MVwifi Auto Connect profile triggers MVW_ConnectAndRun on the
         'MVwifi' SSID (same municipal network, alternate SSID)."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
@@ -585,9 +585,9 @@ class TestTermuxProject:
         profile = next(
             p
             for p in root.findall("Profile")
-            if p.find("nme").text == "MVwifi Auto Connect"
+            if p.find("nme").text == "MVW MVwifi Auto Connect"
         )
-        assert profile.find("mid0").text == "80"  # ConnectAndRun
+        assert profile.find("mid0").text == "80"  # MVW_ConnectAndRun
         state = profile.find("State")
         assert state.find("code").text == "160"  # WiFi Connected
         assert state.find("Str").text == "MVwifi"
@@ -638,7 +638,7 @@ class TestTermuxProject:
         assert action.args[3].value == "1"  # Add Newline
 
     def test_connect_and_run_starts_with_history_marker(self):
-        """ConnectAndRun must record a Tasker-side marker first, so a
+        """MVW_ConnectAndRun must record a Tasker-side marker first, so a
         missing Termux-side entry can be distinguished from 'profile
         never fired'."""
         project = build_termux_project()
@@ -646,14 +646,14 @@ class TestTermuxProject:
         root = fromstring(xml_text)
         tasks = root.findall("Task")
         connect_task = next(
-            t for t in tasks if t.find("nme").text == "ConnectAndRun"
+            t for t in tasks if t.find("nme").text == "MVW_ConnectAndRun"
         )
         first = connect_task.findall("Action")[0]
         assert first.find("code").text == str(CODE_WRITE_FILE)
         assert "mvwifi_history.log" in first.find("Str").text
 
     def test_costco_profile(self):
-        """Costco WiFi Connected profile triggers CostcoConnect on the
+        """MVW Costco WiFi Connected profile triggers MVW_CostcoConnect on the
         'Costco Member Wifi' SSID."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
@@ -661,15 +661,15 @@ class TestTermuxProject:
         profiles = root.findall("Profile")
         assert len(profiles) == 6
         costco = next(
-            p for p in profiles if p.find("nme").text == "Costco WiFi Connected"
+            p for p in profiles if p.find("nme").text == "MVW Costco WiFi Connected"
         )
-        assert costco.find("mid0").text == "90"  # CostcoConnect
+        assert costco.find("mid0").text == "90"  # MVW_CostcoConnect
         state = costco.find("State")
         assert state.find("code").text == "160"  # WiFi Connected
         assert state.find("Str").text == "Costco Member Wifi"
 
     def test_shguest_profile_and_task(self):
-        """SHGuestNet WiFi Connected → SHGuestCapture (id=130) runs the
+        """MVW SHGuestNet WiFi Connected → MVW_SHGuestCapture (id=130) runs the
         shguest_probe wrapper — capture only, never accepts."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
@@ -678,9 +678,9 @@ class TestTermuxProject:
         shg = next(
             p
             for p in profiles
-            if p.find("nme").text == "SHGuestNet WiFi Connected"
+            if p.find("nme").text == "MVW SHGuestNet WiFi Connected"
         )
-        assert shg.find("mid0").text == "130"  # SHGuestCapture
+        assert shg.find("mid0").text == "130"  # MVW_SHGuestCapture
         state = shg.find("State")
         assert state.find("code").text == "160"  # WiFi Connected
         assert state.find("Str").text == "SHGuestNet"
@@ -688,19 +688,19 @@ class TestTermuxProject:
         task = next(
             t
             for t in root.findall("Task")
-            if t.find("nme").text == "SHGuestCapture"
+            if t.find("nme").text == "MVW_SHGuestCapture"
         )
         from xml.etree.ElementTree import tostring
 
         assert "shguest_probe" in tostring(task, encoding="unicode")
 
     def test_costco_connect_task_runs_wrapper(self):
-        """CostcoConnect calls the costco_portal Termux wrapper."""
+        """MVW_CostcoConnect calls the costco_portal Termux wrapper."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         tasks = root.findall("Task")
-        task = next(t for t in tasks if t.find("nme").text == "CostcoConnect")
+        task = next(t for t in tasks if t.find("nme").text == "MVW_CostcoConnect")
         actions = task.findall("Action")
         # A1: history marker Write File
         assert actions[0].find("code").text == str(CODE_WRITE_FILE)
@@ -714,7 +714,7 @@ class TestTermuxProject:
         assert "costco_portal" in bundle_xml
 
     def test_nudge_profile_uses_time_context(self):
-        """cmvwifi Periodic Nudge fires every 15 min via a Time context.
+        """MVW cmvwifi Periodic Nudge fires every 15 min via a Time context.
 
         <Time> serializes as fh/fm/th/tm (-1 = unset, whole day) plus
         rep/repval for the repeat (unit 2 = minutes) — layout verified
@@ -728,9 +728,9 @@ class TestTermuxProject:
         profile = next(
             p
             for p in root.findall("Profile")
-            if p.find("nme").text == "cmvwifi Periodic Nudge"
+            if p.find("nme").text == "MVW cmvwifi Periodic Nudge"
         )
-        assert profile.find("mid0").text == "100"  # NudgeWifi
+        assert profile.find("mid0").text == "100"  # MVW_NudgeWifi
         assert profile.find("State") is None
         time = profile.find("Time")
         assert time is not None
@@ -742,7 +742,7 @@ class TestTermuxProject:
         assert time.find("repval").text == "15"
 
     def test_nudge_task_runs_wrapper(self):
-        """NudgeWifi logs a marker, then calls wifi_nudge with the
+        """MVW_NudgeWifi logs a marker, then calls wifi_nudge with the
         cmvwifi preferred + xfinitywifi fallback arguments."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
@@ -750,7 +750,7 @@ class TestTermuxProject:
         task = next(
             t
             for t in root.findall("Task")
-            if t.find("nme").text == "NudgeWifi"
+            if t.find("nme").text == "MVW_NudgeWifi"
         )
         actions = task.findall("Action")
         # A1: history marker Write File
@@ -766,12 +766,12 @@ class TestTermuxProject:
         assert "--fallback xfinitywifi" in bundle_xml
 
     def test_xfinity_nudge_task(self):
-        """NudgeXfinity calls wifi_nudge with xfinitywifi + -d."""
+        """MVW_NudgeXfinity calls wifi_nudge with xfinitywifi + -d."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         task = next(
-            t for t in root.findall("Task") if t.find("nme").text == "NudgeXfinity"
+            t for t in root.findall("Task") if t.find("nme").text == "MVW_NudgeXfinity"
         )
         actions = task.findall("Action")
         assert actions[0].find("code").text == str(CODE_WRITE_FILE)
@@ -785,15 +785,15 @@ class TestTermuxProject:
         assert "--defer-to-preferred" in bundle_xml
 
     def test_xfinity_nudge_profile(self):
-        """xfinitywifi Periodic Nudge: Time context every 15 min ->
-        NudgeXfinity (id=110), toggleable to exclude xfinitywifi."""
+        """MVW xfinitywifi Periodic Nudge: Time context every 15 min ->
+        MVW_NudgeXfinity (id=110), toggleable to exclude xfinitywifi."""
         project = build_termux_project()
         xml_text = generate_project_xml(project)
         root = fromstring(xml_text)
         profile = next(
             p
             for p in root.findall("Profile")
-            if p.find("nme").text == "xfinitywifi Periodic Nudge"
+            if p.find("nme").text == "MVW xfinitywifi Periodic Nudge"
         )
         assert profile.find("mid0").text == "110"
         time = profile.find("Time")
@@ -885,15 +885,15 @@ class TestGenerationStamp:
         p1 = build_termux_project()
         p2 = build_termux_project()
         p2.tasks = [
-            dc_replace(t, name=f"{t.name}X") if t.name == "ShowVersion" else t
+            dc_replace(t, name=f"{t.name}X") if t.name == "MVW_ShowVersion" else t
             for t in p2.tasks
         ]
         assert generate_project_xml(p1) != generate_project_xml(p2)
 
     def test_show_version_flashes_gen(self):
-        """The ShowVersion task flashes the same gen id."""
+        """The MVW_ShowVersion task flashes the same gen id."""
         xml_text = generate_project_xml(build_termux_project())
         root = fromstring(xml_text)
-        task = next(t for t in root.findall("Task") if t.find("nme").text == "ShowVersion")
+        task = next(t for t in root.findall("Task") if t.find("nme").text == "MVW_ShowVersion")
         strs = list(task.iter("Str"))
         assert any("MVwifiAuto-Termux gen " in (a.get("val") or a.text or "") for a in strs)

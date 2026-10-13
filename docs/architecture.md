@@ -260,12 +260,12 @@ the portal.
 
 ```
 0. Periodic nudges (Time, every 15 min) → wifi_nudge:
-   - cmvwifi Periodic Nudge: `--preferred` targets the module's
+   - MVW cmvwifi Periodic Nudge: `--preferred` targets the module's
      PREFERRED_OPEN_SSIDS (cmvwifi, MVwifi, Costco Member Wifi,
      SHGuestNet — multi-word SSIDs live in code, not args) —
      disconnected + a target visible → `connect-network`; on
      xfinitywifi + a target visible → promote
-   - xfinitywifi Periodic Nudge: disconnected + xfinitywifi visible +
+   - MVW xfinitywifi Periodic Nudge: disconnected + xfinitywifi visible +
      NO preferred SSID visible (`--defer-to-preferred` → the module's
      PREFERRED_SSIDS list, incl. "Costco Member Wifi" — multi-word
      SSIDs can't ride Termux's space-separated Arguments field) →

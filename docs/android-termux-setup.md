@@ -12,9 +12,9 @@ three layers:
 
 **Layer 1 — Tasker (detection & connection)**
 - WiFi Connected profile fires the moment the phone associates to cmvwifi
-- `ConnectAndRun` task connects to cmvwifi via Tasker Settings, waits
+- `MVW_ConnectAndRun` task connects to cmvwifi via Tasker Settings, waits
   5 seconds for DHCP
-- Then triggers `RunPortalScript` via the Termux:Tasker plugin
+- Then triggers `MVW_RunPortalScript` via the Termux:Tasker plugin
 
 **Layer 2 — Termux:Tasker (bridge)**
 - Wrapper script at `~/.termux/tasker/mvwifi_portal` runs
@@ -42,7 +42,7 @@ network selector deprioritizes cmvwifi because every join initially
 fails captive-portal validation ("no internet"), and screen-off scan
 throttling delays retries — observed on-device as a 15-30 minute gap
 with "Auto-connect" enabled. A Tasker **Time** profile (`cmvwifi
-Periodic Nudge`, every 15 min) fires `NudgeWifi`, which runs
+Periodic Nudge`, every 15 min) fires `MVW_NudgeWifi`, which runs
 `~/.termux/tasker/wifi_nudge --preferred --fallback xfinitywifi` →
 `wifi_nudge.py`. `--preferred` expands the module's
 `PREFERRED_OPEN_SSIDS` constant (cmvwifi, MVwifi, Costco Member
@@ -58,7 +58,7 @@ Arguments field can't safely carry a multi-word SSID:
 3. If visible but not associated → `cmd wifi connect-network <ssid>
    open`, and the existing WiFi Connected profile handles the portal
 
-A second Time profile (`xfinitywifi Periodic Nudge`) → `NudgeXfinity`
+A second Time profile (`MVW xfinitywifi Periodic Nudge`) → `MVW_NudgeXfinity`
 runs the same wrapper with `--ssid xfinitywifi --autojoin-disabled
 --defer-to-preferred`: it joins open `xfinitywifi` only when fully
 disconnected *and* no preferred network is in scan results (the defer
@@ -91,7 +91,7 @@ Promotion semantics:
   `connect-network <preferred>`. Only *open* preferred networks can
   be nudge-promoted — `connect-network` requires a passphrase for
   wpa2/owe, which is not stored.
-- **Disconnected + preferred visible** → `NudgeXfinity` *defers*
+- **Disconnected + preferred visible** → `MVW_NudgeXfinity` *defers*
   (`--defer-to-preferred`): it does not request xfinitywifi when any
   of `PREFERRED_SSIDS` — cmvwifi, MVwifi, Costco Member Wifi, dd-wrt,
   dd-wrt_5G — is in scan results, so the two nudge tasks can't race
@@ -345,14 +345,14 @@ The repo includes a pre-built Tasker XML for the Termux approach:
 android/MVwifiAuto-Termux.prj.xml
 ```
 
-This contains the `ConnectAndRun`, `RunPortalScript`,
-`CostcoConnect`, `NudgeWifi`, `NudgeXfinity`, `ShowVersion`, and
-`SHGuestCapture` tasks, plus the `cmvwifi Auto Connect`, `MVwifi
-Auto Connect`, `Costco WiFi Connected`, `cmvwifi Periodic Nudge`,
-`xfinitywifi Periodic Nudge`, and `SHGuestNet WiFi Connected`
+This contains the `MVW_ConnectAndRun`, `MVW_RunPortalScript`,
+`MVW_CostcoConnect`, `MVW_NudgeWifi`, `MVW_NudgeXfinity`, `MVW_ShowVersion`, and
+`MVW_SHGuestCapture` tasks, plus the `MVW cmvwifi Auto Connect`, `MVwifi
+Auto Connect`, `MVW Costco WiFi Connected`, `MVW cmvwifi Periodic Nudge`,
+`MVW xfinitywifi Periodic Nudge`, and `MVW SHGuestNet WiFi Connected`
 profiles — all pre-configured for the Termux:Tasker plugin.
 
-The `SHGuestNet WiFi Connected` profile (Sutter Health / PAMF clinic
+The `MVW SHGuestNet WiFi Connected` profile (Sutter Health / PAMF clinic
 guest WiFi) runs a *capture probe*, not an accept handler: on
 association it saves the portal's redirect chain, HTML, form fields,
 JS assets, and any deep-link intents to
@@ -365,7 +365,7 @@ Every task's history marker carries a generation stamp
 (`[gen xxxxxx]` — a content hash of the XML) so `tail`ing the
 history log reveals exactly which project generation is running; a
 stale merged import shows an old or absent gen id. You can also run
-the `ShowVersion` task manually (▶) to flash the imported project's
+the `MVW_ShowVersion` task manually (▶) to flash the imported project's
 gen id and compare it against the one in the XML on `/sdcard`. The Costco profile
 auto-accepts the Mist TOS portal on `Costco Member Wifi` (see
 `docs/costco-portal-capture.md`); delete that profile if you don't
@@ -386,7 +386,7 @@ Then in Tasker: long-press the bottom nav bar → **Import Project**
 > **⚠️ Imports are held in memory until Tasker exits gracefully.**
 > Tasker only writes its project state to disk on a clean exit —
 > a force-stop or swipe-from-recents **silently discards a fresh
-> import** (observed on-device: `ShowVersion` flashed the new gen
+> import** (observed on-device: `MVW_ShowVersion` flashed the new gen
 > id and manual task runs used new definitions, while scheduled
 > ticks kept firing the *persisted* old defs; after a force-stop
 > the GUI showed the old version too). After every import: back out
@@ -398,13 +398,13 @@ Then in Tasker: long-press the bottom nav bar → **Import Project**
 > 1. **Delete the project tab** (long-press → Delete). Importing
 >    over an existing project *merges* — old task definitions are
 >    kept and only new elements added (observed: scheduled
->    `NudgeWifi` still invoked the renamed `cmvwifi_nudge` wrapper).
+>    `MVW_NudgeWifi` still invoked the renamed `cmvwifi_nudge` wrapper).
 > 2. **Delete leftover tasks and profiles too.** Deleting the tab
 >    leaves the tasks in Tasker's global list — a re-import then
->    *fails* with "the name ConnectAndRun already exists". In the
->    TASKS and PROFILES tabs, delete: `ConnectAndRun`,
->    `RunPortalScript`, `CostcoConnect`, `NudgeWifi`,
->    `NudgeXfinity`, `ShowVersion` and any leftover `*wifi*`/
+>    *fails* with "the name MVW_ConnectAndRun already exists". In the
+>    TASKS and PROFILES tabs, delete: `MVW_ConnectAndRun`,
+>    `MVW_RunPortalScript`, `MVW_CostcoConnect`, `MVW_NudgeWifi`,
+>    `MVW_NudgeXfinity`, `MVW_ShowVersion` and any leftover `*wifi*`/
 >    `cmvwifi`/`Costco`/`Nudge` profiles.
 > 3. **Import**, then **exit Tasker gracefully** (Back button or
 >    its Exit menu item) so the new project is written to disk.
@@ -415,7 +415,7 @@ Then in Tasker: long-press the bottom nav bar → **Import Project**
 >
 > Tasker stores live project data in internal app storage —
 > pushing a new XML to `/sdcard` never updates the running project
-> by itself. **Verify**: `ShowVersion` (▶) flashes the imported gen
+> by itself. **Verify**: `MVW_ShowVersion` (▶) flashes the imported gen
 > id — compare with `grep -o "gen [0-9a-f]*"
 > /sdcard/Tasker/projects/MVwifiAuto-Termux.prj.xml`. The next
 > scheduled tick's `[gen xxxxxx]` markers should match; an old gen
@@ -577,19 +577,19 @@ automatically — the generated XML is the source of truth
 (`uv run python -m mvwifi_auto.tasker_gen --termux` regenerates it).
 Only recreate these by hand if you cannot import the XML.
 
-**Task: `RunPortalScript`** — runs the Python script via the
+**Task: `MVW_RunPortalScript`** — runs the Python script via the
 Termux:Tasker plugin:
 
 | # | Action | Fields |
 |---|--------|--------|
 | 1 | Plugin → Termux:Task | Executable `mvwifi_portal`; Arguments blank; Background ✓; **Timeout 60s** |
 
-**Task: `ConnectAndRun`** — connects to cmvwifi (unless already on
+**Task: `MVW_ConnectAndRun`** — connects to cmvwifi (unless already on
 it), self-heals Termux protections, runs the portal script:
 
 | # | Action | Fields |
 |---|--------|--------|
-| 1 | File → Write File | File `Tasker/mvwifi_history.log`, Text `ConnectAndRun fired %TIMES`, Append ✓, Add Newline ✓ — marker proving Tasker fired |
+| 1 | File → Write File | File `Tasker/mvwifi_history.log`, Text `MVW_ConnectAndRun fired %TIMES`, Append ✓, Add Newline ✓ — marker proving Tasker fired |
 | 2 | Variables → Variable Set | `%CurrentSSID` = `%WIFII` |
 | 3 | Task → If | `%CurrentSSID` `~` `cmvwifi` |
 | 4 | Task → Goto | Type **Action Number**, Number **8** |
@@ -597,7 +597,7 @@ it), self-heals Termux protections, runs the portal script:
 | 6 | Net → Connect to WiFi | SSID `cmvwifi` |
 | 7 | Task → Wait | 5 seconds — DHCP needs a moment to assign an IP before the script binds to wlan0; raise to 10 if you see binding errors |
 | 8 | Code → Run Shell | self-heal command below; Use Root ✓; Timeout 15s; **Continue Task After Error** ✓ (unrooted phones skip it) |
-| 9 | Task → Perform Task | Name `RunPortalScript` |
+| 9 | Task → Perform Task | Name `MVW_RunPortalScript` |
 | 10 | Alert → Flash | `Portal handling complete` |
 
 A8 self-heal command:
@@ -612,12 +612,12 @@ dumpsys deviceidle whitelist +com.termux; settings put global settings_enable_mo
 > number** if you add or remove actions — it targets the Run Shell
 > step by position.
 
-**Profile: `cmvwifi Auto Connect`** — triggers `ConnectAndRun` the
+**Profile: `MVW cmvwifi Auto Connect`** — triggers `MVW_ConnectAndRun` the
 moment the phone associates to cmvwifi:
 
 - **PROFILES** → **+** → **State** → **Net** → **WiFi Connected**
 - SSID `cmvwifi`, MAC blank, IP blank, Active: checked
-- Enter task: `ConnectAndRun`
+- Enter task: `MVW_ConnectAndRun`
 
 > We deliberately use **WiFi Connected**, not WiFi Near: Android
 > auto-joins cmvwifi itself, and WiFi Near depends on WiFi scans
@@ -633,7 +633,7 @@ moment the phone associates to cmvwifi:
 **Manual test (near cmvwifi):**
 
 1. Turn WiFi off and on (to reset state)
-2. In Tasker, tap the **ConnectAndRun** task to run it manually
+2. In Tasker, tap the **MVW_ConnectAndRun** task to run it manually
 3. Watch for:
    - WiFi connects to cmvwifi
    - 5-second wait
@@ -646,7 +646,7 @@ moment the phone associates to cmvwifi:
 1. Walk away from cmvwifi range, then walk back
 2. Wait a few seconds — the profile fires as soon as the phone
    associates to cmvwifi (no scan delay)
-3. The profile should trigger `ConnectAndRun` automatically
+3. The profile should trigger `MVW_ConnectAndRun` automatically
 4. Check the Tasker run log (three dots menu → **View Run Log**) to
    confirm it executed
 
@@ -676,7 +676,7 @@ Or transfer either file via Google Drive / `adb pull` for easier reading.
 ### Step 8: Verify the Profile is Active
 
 1. Open Tasker → **PROFILES** tab
-2. The `cmvwifi Auto Connect` profile should have a **green dot**
+2. The `MVW cmvwifi Auto Connect` profile should have a **green dot**
    next to it (active)
 3. If it's greyed out, tap the profile to toggle it on
 
@@ -703,8 +703,8 @@ Or transfer either file via Google Drive / `adb pull` for easier reading.
 
 **"Connect to WiFi" returns Error 255:**
 - You're already connected to cmvwifi — the If/Goto check in
-  `ConnectAndRun` should handle this, but if it still happens, just
-  run `RunPortalScript` directly
+  `MVW_ConnectAndRun` should handle this, but if it still happens, just
+  run `MVW_RunPortalScript` directly
 
 **It stopped working after working for a while:**
 - Run `./scripts/verify_android.sh` from the PC with the phone
@@ -794,7 +794,7 @@ mvwifi-android --once --max-attempts 5
 
 ### Automatic (via Tasker)
 
-Once the WiFi Connected profile is linked to `ConnectAndRun` (see the
+Once the WiFi Connected profile is linked to `MVW_ConnectAndRun` (see the
 Tasker Integration section above), it will trigger automatically the
 moment the phone associates to cmvwifi.
 
@@ -802,7 +802,7 @@ moment the phone associates to cmvwifi.
 
 If you prefer not to use the Termux:Tasker plugin, you can use
 Tasker's built-in Run Shell action instead. Replace the
-`RunPortalScript` task's Plugin action with:
+`MVW_RunPortalScript` task's Plugin action with:
 
 1. Add action: **Code** → **Run Shell**
 2. **Command**: `/data/data/com.termux/files/usr/bin/mvwifi-android --once`
@@ -815,10 +815,10 @@ have PATH issues. The Termux:Tasker plugin is recommended.
 
 ## How It Works
 
-1. **Tasker** detects the cmvwifi association via WiFi Connected and triggers `ConnectAndRun`
-2. **ConnectAndRun** checks if already connected; if not, connects to
+1. **Tasker** detects the cmvwifi association via WiFi Connected and triggers `MVW_ConnectAndRun`
+2. **MVW_ConnectAndRun** checks if already connected; if not, connects to
    cmvwifi via Tasker Settings, then waits 5 seconds for DHCP
-3. **ConnectAndRun** calls `RunPortalScript` via the Termux:Tasker plugin
+3. **MVW_ConnectAndRun** calls `MVW_RunPortalScript` via the Termux:Tasker plugin
 4. **Python** creates a `requests.Session` bound to wlan0:
    - `InterfaceBoundAdapter` sets `source_address` to wlan0's local IP
    - `SO_BINDTODEVICE` (socket option 25) forces the kernel to route

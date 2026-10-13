@@ -11,7 +11,7 @@
 - [Service Stops After Suspend/Resume](#service-stops-after-suspendresume)
 
 **Android / Termux:**
-- ["cmvwifi Auto Connect" profile doesn't fire](#cmvwifi-auto-connect-profile-doesnt-fire)
+- ["MVW cmvwifi Auto Connect" profile doesn't fire](#mvw-cmvwifi-auto-connect-profile-doesnt-fire)
 - [Profiles enabled but never fire (after re-import)](#profiles-enabled-but-never-fire-after-re-import)
 - [Scheduled tasks run old behavior after re-import](#scheduled-tasks-run-old-behavior-after-re-import)
 - [Phone takes 15-30 minutes to join cmvwifi](#phone-takes-15-30-minutes-to-join-cmvwifi)
@@ -386,7 +386,7 @@ When reporting issues, include:
 
 ## Android/Termux Issues
 
-### "cmvwifi Auto Connect" profile doesn't fire
+### "MVW cmvwifi Auto Connect" profile doesn't fire
 
 **Problem**: The profile is enabled (green dot) but never activates
 when the phone is on cmvwifi.
@@ -410,7 +410,7 @@ adb push android/MVwifiAuto-Termux.prj.xml /sdcard/Tasker/projects/
 
 **Verify**: Toggle WiFi off/on while connected via adb, or check
 `~/storage/shared/Tasker/mvwifi_history.log` — every trigger appends
-a `tasker | ConnectAndRun fired` marker.
+a `tasker | MVW_ConnectAndRun fired` marker.
 
 ### Profiles enabled but never fire (after re-import)
 
@@ -438,7 +438,7 @@ never fire.
 
 **Cause**: Tasker project import **merges** rather than replaces —
 existing task definitions are kept and only new elements are added.
-Observed on-device: a scheduled `NudgeWifi` kept invoking the renamed
+Observed on-device: a scheduled `MVW_NudgeWifi` kept invoking the renamed
 `cmvwifi_nudge` wrapper (logcat: `TermuxTasker.FireReceiver`
 "executable not found") while the new xfinity profile appeared
 alongside it but never fired.
@@ -446,9 +446,9 @@ alongside it but never fired.
 **Diagnose**: `tail ~/storage/shared/Tasker/mvwifi_history.log` —
 the `[gen xxxxxx]` in each marker must match the gen id in the XML
 on `/sdcard` (`grep -o "gen [0-9a-f]*" .../MVwifiAuto-Termux.prj.xml`),
-and no `via shim` line should appear. Or run the `ShowVersion` task
+and no `via shim` line should appear. Or run the `MVW_ShowVersion` task
 in Tasker — it flashes the imported generation. **Caveat**: a manual
-task run (or `ShowVersion`) shows the *in-memory* definition — the
+task run (or `MVW_ShowVersion`) shows the *in-memory* definition — the
 scheduled ticks can still run older persisted defs. The marker gen
 on a scheduled tick is the authoritative check.
 
@@ -462,13 +462,13 @@ on a scheduled tick is the authoritative check.
 3. **Unsaved state**: Tasker holds edits and imports in memory and
    only writes them to disk on a graceful exit. A force-stop or
    swipe-kill discards an import entirely — observed on-device:
-   `ShowVersion` flashed the new gen while scheduled ticks kept
+   `MVW_ShowVersion` flashed the new gen while scheduled ticks kept
    firing the persisted old defs, and after a force-stop the GUI
    showed the old version again.
 
 **Fix**: Delete the project tab *and* its leftover tasks/profiles
-(TASKS/PROFILES tabs: `ConnectAndRun`, `RunPortalScript`,
-`CostcoConnect`, `NudgeWifi`, `NudgeXfinity`, `ShowVersion`, and the
+(TASKS/PROFILES tabs: `MVW_ConnectAndRun`, `MVW_RunPortalScript`,
+`MVW_CostcoConnect`, `MVW_NudgeWifi`, `MVW_NudgeXfinity`, `MVW_ShowVersion`, and the
 wifi/nudge profiles), then Import Project, then **exit Tasker
 gracefully** (Back or its Exit menu — this is what persists the
 import), then relaunch Tasker so contexts register against the new
@@ -486,7 +486,7 @@ can delay Tasker ~30 min after the actual association. With WiFi
 Connected this can't happen; it fires at association.
 
 **Diagnose**: Check `~/storage/shared/Tasker/mvwifi_history.log`
-and compare the `tasker | ConnectAndRun fired` timestamp with when
+and compare the `tasker | MVW_ConnectAndRun fired` timestamp with when
 the phone actually connected (Settings → WiFi, or logcat). A large
 gap means a stale WiFi Near import.
 
@@ -507,7 +507,7 @@ poison its score — check `su -c 'cmd wifi list-networks'` or
 `numConsecutiveConnectionFailure`, and BSSID blocklist entries.
 Screen-off PNO scans are throttled on top of that.
 
-**Fix**: The `cmvwifi Periodic Nudge` Time profile (every 15 min,
+**Fix**: The `MVW cmvwifi Periodic Nudge` Time profile (every 15 min,
 requires root) runs `~/.termux/tasker/wifi_nudge`, which issues
 `cmd wifi connect-network cmvwifi open` whenever cmvwifi is in scan
 results but unassociated. Verify it exists and fires:
@@ -539,7 +539,7 @@ range**: promotion off a fallback works two ways — the cmvwifi nudge
 explicitly promotes onto cmvwifi when it appears, while saved home /
 Costco networks are handled by Android's own selector (autojoin on +
 higher score wins). If neither happens within ~15 min: confirm
-`cmvwifi Periodic Nudge` is enabled and firing (history log), and
+`MVW cmvwifi Periodic Nudge` is enabled and firing (history log), and
 check the saved configs — `su -c 'dumpsys wifi'` should show
 `allowAutojoin=false` for xfinitywifi and `true` for the preferred
 ones. The nudge can only promote onto *open* networks — promotion
@@ -601,7 +601,7 @@ The last grant lets the wrapper script re-disable the phantom
 killer itself on every run (self-heal after OS updates). The
 wrapper also holds `termux-wake-lock` during the run.
 
-On rooted phones, `ConnectAndRun` additionally runs a root shell
+On rooted phones, `MVW_ConnectAndRun` additionally runs a root shell
 action (A7) before the plugin call that re-applies all three
 protections on every trigger — so a regressed setting is repaired
 before it can cause a failure. The action has
